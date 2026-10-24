@@ -7,6 +7,7 @@ Cách chạy **không dùng Docker** (nhẹ hơn cho máy 1,25 GB RAM): PostgreS
 | `scripts/deploy/setup-ubuntu.sh` | Chạy **một lần** trên máy chủ mới: cài phần mềm, tạo user `erp`, database, `/opt/erp/.env` (tự sinh mật khẩu và khóa bí mật), nginx, systemd, tường lửa, sao lưu hằng đêm, khóa SSH để kéo code từ GitHub |
 | `scripts/deploy/deploy.sh` | Lần đầu (clone) và **mỗi lần cập nhật**: kéo code, cài phụ thuộc, build, chạy migration, phát hành web, khởi động lại API |
 | `scripts/deploy/erp-api.service`, `scripts/deploy/nginx-erp.conf` | Mẫu cấu hình systemd và nginx mà setup dùng |
+| `scripts/deploy/install-autodeploy.sh` (+ `autodeploy.sh`, `erp-autodeploy.service/.timer`) | Bật tự động kéo code và deploy mỗi khi có commit mới trên `master` |
 
 Kho GitHub của dự án: `https://github.com/Dinofx1999/Pos_Kiosviet` (nhánh `master`, đã có remote `origin` trong máy Mac).
 
@@ -72,7 +73,17 @@ Script sẽ clone về `/opt/erp`, `pnpm install` (lần đầu 3–6 phút trê
 
 Mở trình duyệt: **http://180.93.241.253** → màn hình đăng nhập. Bấm **Đăng ký gian hàng mới** để tạo cửa hàng của bạn (tài khoản tạo ra là chủ gian hàng). Trên điện thoại, mở cùng địa chỉ rồi “Thêm vào màn hình chính”.
 
-## Mỗi lần cập nhật sau này
+## Tự động triển khai khi push code (khuyến nghị)
+
+Sau khi deploy lần đầu thành công, bật bộ hẹn giờ trên máy chủ:
+
+```bash
+bash /opt/erp/scripts/deploy/install-autodeploy.sh
+```
+
+Từ đó cứ mỗi 2 phút máy chủ kiểm tra nhánh `master` trên GitHub; có commit mới là tự chạy `deploy.sh` (nhật ký `/var/log/erp-autodeploy.log`, xem nhanh: `tail -f /var/log/erp-autodeploy.log`). Push từ Mac xong khoảng 3–8 phút là bản mới lên web. Tắt: `systemctl disable --now erp-autodeploy.timer`.
+
+## Mỗi lần cập nhật sau này (khi không bật tự động)
 
 1. Trên Mac: `git add -A && git commit -m "…" && git push`
 2. Trên máy chủ: `ssh root@180.93.241.253` rồi

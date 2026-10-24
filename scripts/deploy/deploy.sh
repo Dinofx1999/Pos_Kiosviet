@@ -17,6 +17,9 @@ BRANCH=${BRANCH:-master}
 REPO_URL=${1:-${REPO_URL:-}}
 
 if [[ $EUID -ne 0 ]]; then echo "Hãy chạy bằng root (hoặc sudo bash $0)"; exit 1; fi
+# không cho hai lần deploy chạy chồng nhau (tay + tự động)
+exec 9>/run/lock/erp-deploy.lock
+flock -n 9 || { echo "Đang có một lần triển khai khác chạy – thử lại sau."; exit 1; }
 log() { printf '\n\033[1;32m==> %s\033[0m\n' "$*"; }
 as_app() { runuser -u "$APP_USER" -- bash -lc "set -euo pipefail; export NODE_OPTIONS=--max-old-space-size=1536 CI=true; $*"; }
 with_env() { echo "set -a; . $APP_DIR/.env; set +a; cd $APP_DIR; $*"; }

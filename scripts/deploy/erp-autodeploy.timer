@@ -1,0 +1,11 @@
+[Unit]
+Description=Kiểm tra GitHub mỗi 2 phút và triển khai khi có commit mới
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+AccuracySec=30s
+Unit=erp-autodeploy.service
+
+[Install]
+WantedBy=timers.target
