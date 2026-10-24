@@ -1,0 +1,123 @@
+/* =====================================================================
+   Module 08 – Sổ quỹ (phone-first). All classes are prefixed .cb-
+   ===================================================================== */
+.cb-page { min-width: 0; }
+.cb-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+.cb-toolbar .cb-grow { flex: 1 1 auto; min-width: 0; }
+.cb-toolbar .cb-spacer { flex: 1; }
+.cb-toolbar .ant-picker, .cb-toolbar .ant-select { min-width: 0; }
+
+/* summary cards: 4 across on desktop, 2×2 on phones */
+.cb-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+.cb-stat { background: #fff; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,.06); padding: 10px 12px; min-width: 0; }
+.cb-stat .lbl { font-size: 12px; color: #6b7280; margin-bottom: 2px; }
+.cb-stat .val { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; color: #1f2937; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cb-stat.in .val { color: #15803d; }
+.cb-stat.out .val { color: #dc2626; }
+.cb-stat.bal .val { color: var(--kv-blue, #0070f4); }
+.cb-stat .sub { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+
+/* card lists (phones) */
+.cb-cards { display: flex; flex-direction: column; gap: 8px; }
+.cb-vcard { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; cursor: pointer; }
+.cb-vcard:active { background: #f8fafc; }
+.cb-vcard.cancelled { opacity: .6; }
+.cb-vcard .code { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.cb-vcard .time { font-size: 12px; color: #6b7280; text-align: right; white-space: nowrap; }
+.cb-vcard .desc { grid-column: 1 / -1; font-size: 13px; color: #374151; overflow-wrap: anywhere; }
+.cb-vcard .meta { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; color: #6b7280; }
+.cb-vcard .amt { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.cb-vcard .amt.in { color: #15803d; }
+.cb-vcard .amt.out { color: #dc2626; }
+.cb-vcard .bal { font-size: 12px; color: #6b7280; text-align: right; white-space: nowrap; }
+.cb-vcard .bal b { color: #1f2937; font-variant-numeric: tabular-nums; }
+.cb-vcard .row { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.cb-vcard .actions { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; padding-top: 6px; border-top: 1px dashed #e5e7eb; margin-top: 2px; }
+.cb-vcard .actions .ant-btn { flex: 1 1 calc(50% - 6px); min-width: 0; }
+
+/* fund cards (quỹ tiền) */
+.cb-fund { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; display: grid; gap: 6px; }
+.cb-fund.inactive { opacity: .65; background: #f9fafb; }
+.cb-fund .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.cb-fund .name { font-weight: 600; font-size: 15px; line-height: 1.25; }
+.cb-fund .code { font-size: 12px; color: #6b7280; }
+.cb-fund .balance { font-size: 20px; font-weight: 700; color: var(--kv-blue, #0070f4); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cb-fund .meta { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; color: #6b7280; }
+.cb-fund .actions { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 8px; border-top: 1px dashed #e5e7eb; }
+.cb-fund .actions .ant-btn { flex: 1 1 calc(50% - 6px); min-width: 0; }
+.cb-fund-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+
+/* key/value blocks inside modals */
+.cb-kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; font-size: 13px; align-items: baseline; }
+.cb-kv .k { color: #6b7280; }
+.cb-kv .v { font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; overflow-wrap: anywhere; }
+.cb-balance-box { background: #f3f6fb; border-radius: 8px; padding: 10px 12px; display: grid; gap: 4px; margin-top: 8px; }
+.cb-balance-box .line { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.cb-balance-box .line b { font-variant-numeric: tabular-nums; }
+.cb-diff { margin-top: 6px; font-size: 14px; }
+.cb-diff b { font-size: 18px; font-variant-numeric: tabular-nums; }
+
+/* form grid (2 columns on desktop, stacked on phones) */
+.cb-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px 12px; }
+.cb-form > * { min-width: 0; }
+.cb-form .full { grid-column: 1 / -1; }
+.cb-balance-box .line > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.cb-form .kv-hint { margin-bottom: 4px; }
+.cb-form .ant-input-number, .cb-form .ant-select, .cb-form .ant-picker { width: 100%; }
+
+/* kind switch (party / category) */
+.cb-kind .ant-segmented { width: 100%; }
+.cb-kind .ant-segmented-item { flex: 1; }
+
+/* category list rows */
+.cb-cat { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid #f1f5f9; }
+.cb-cat:last-child { border-bottom: none; }
+.cb-cat .nm { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.cb-cat.off .nm { color: #9ca3af; text-decoration: line-through; }
+.cb-cat-add { display: flex; gap: 6px; padding: 8px 10px; border-bottom: 1px solid #f1f5f9; }
+.cb-cat-add .ant-input { flex: 1; }
+
+/* sticky bottom action bar (phones only) */
+.cb-bar { display: none; }
+.cb-hint { font-size: 12px; color: #6b7280; }
+.cb-legs { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.cb-arrow { color: #9ca3af; padding: 0 2px; }
+.cb-transfer-flow { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; margin: 8px 0; }
+.cb-transfer-flow .box { background: #f3f6fb; border-radius: 8px; padding: 8px 10px; min-width: 0; }
+.cb-transfer-flow .box .nm { font-weight: 600; font-size: 13px; overflow-wrap: anywhere; }
+.cb-transfer-flow .box .bl { font-size: 12px; color: #6b7280; }
+.cb-transfer-flow .box .af { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.cb-transfer-flow .cb-arrow-cell { display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 18px; }
+.cb-pager { display: flex; justify-content: center; padding: 10px 0; }
+.cb-empty { padding: 30px 0; }
+.cb-inline-add { display: flex; gap: 6px; padding: 6px 8px; }
+.cb-inline-add .ant-input { flex: 1; }
+
+@media (max-width: 1023px) {
+  .cb-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 767px) {
+  .cb-stats { gap: 8px; margin-bottom: 10px; }
+  .cb-stat { padding: 8px 10px; }
+  .cb-stat .val { font-size: 16px; }
+  .cb-toolbar { gap: 6px; }
+  .cb-toolbar .cb-grow, .cb-toolbar .ant-picker-range, .cb-toolbar .ant-select { flex: 1 1 100%; width: 100%; }
+  .cb-toolbar .cb-half { flex: 1 1 calc(50% - 3px); width: auto; }
+  .cb-toolbar .ant-segmented { width: 100%; display: flex; }
+  .cb-toolbar .ant-segmented .ant-segmented-group { flex: 1; }
+  .cb-toolbar .ant-segmented-item { flex: 1; }
+  .cb-toolbar .ant-btn { flex: 1 1 auto; }
+  .cb-toolbar .ant-btn.ant-btn-icon-only { flex: 0 0 auto; }
+  .cb-form { grid-template-columns: minmax(0, 1fr); }
+  .cb-form .full { grid-column: auto; }
+  .cb-fund-grid { grid-template-columns: 1fr; }
+  .cb-transfer-flow { grid-template-columns: 1fr; gap: 4px; }
+  .cb-transfer-flow .cb-arrow-cell .anticon { transform: rotate(90deg); }
+  /* bottom action bar above the tab bar */
+  .cb-bar { display: flex; gap: 8px; position: fixed; left: 0; right: 0; bottom: calc(56px + env(safe-area-inset-bottom)); z-index: 60; background: #fff; border-top: 1px solid #e5e7eb; padding: 8px 12px; box-shadow: 0 -2px 8px rgba(0,0,0,.06); }
+  .cb-bar .ant-btn { flex: 1 1 0; min-width: 0; height: 42px; padding-inline: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cb-page.has-bar { padding-bottom: 60px; }
+  .cb-tabs .ant-tabs-nav { margin-bottom: 8px; }
+  .cb-kv { grid-template-columns: 1fr; gap: 2px; }
+  .cb-kv .v { text-align: left; }
+}

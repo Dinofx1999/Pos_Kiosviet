@@ -1,0 +1,103 @@
+/* =====================================================================
+   Module 11 – Nhân viên: chấm công, hoa hồng, hiệu suất, hồ sơ (phone first). Prefix .em-
+   Reuses the report primitives (.rp-stats, .rp-card, .rp-hbars …) from reports.css.
+   ===================================================================== */
+.em-page { min-width: 0; }
+.em-page .ant-tabs-nav { margin-bottom: 10px; }
+.em-page .ant-tabs-nav-list { overflow-x: auto; }
+.em-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+.em-toolbar .em-grow { flex: 1 1 200px; min-width: 0; }
+.em-toolbar .em-w { flex: 0 1 220px; min-width: 160px; }
+.em-note { font-size: 12px; color: #6b7280; }
+
+/* ---- Chấm công: trạng thái + nút lớn ---- */
+.em-clock { background: #fff; border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.06); padding: 18px 16px; text-align: center; display: grid; gap: 10px; margin-bottom: 12px; }
+.em-clock.on { background: linear-gradient(160deg, #ecfdf5 0%, #fff 60%); outline: 1px solid #a7f3d0; }
+.em-clock .st { font-size: 13px; color: #6b7280; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.em-clock .st .ant-tag { margin-inline-end: 0; }
+.em-clock .em-timer { font-size: 44px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 1px; color: #065f46; line-height: 1.1; }
+.em-clock .now { font-size: 30px; font-weight: 700; color: #1f2937; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.em-clock .sub { font-size: 12px; color: #9ca3af; }
+.em-clock .fields { display: grid; gap: 8px; text-align: left; max-width: 420px; margin: 0 auto; width: 100%; }
+.em-clock-btn { height: 56px !important; font-size: 17px !important; font-weight: 700; border-radius: 10px !important; max-width: 420px; width: 100%; margin: 0 auto; }
+.em-clock-btn.in { background: #16a34a !important; border-color: #16a34a !important; color: #fff !important; }
+.em-clock-btn.in:hover { background: #15803d !important; }
+.em-clock-btn.out { background: #dc2626 !important; border-color: #dc2626 !important; color: #fff !important; }
+.em-geo { font-size: 12px; color: #6b7280; }
+
+/* ---- session list ---- */
+.em-sessions { display: flex; flex-direction: column; gap: 8px; }
+.em-session { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; }
+.em-session .d { font-weight: 600; font-size: 14px; }
+.em-session .d .who { font-weight: 600; color: var(--kv-blue); }
+.em-session .t { font-size: 13px; color: #374151; font-variant-numeric: tabular-nums; }
+.em-session .dur { font-size: 16px; font-weight: 700; color: var(--kv-blue); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; grid-row: 1 / span 2; grid-column: 2; }
+.em-session .dur.open { color: #16a34a; font-size: 13px; }
+.em-session .meta { grid-column: 1 / -1; font-size: 12px; color: #6b7280; display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: center; overflow-wrap: anywhere; }
+.em-session .meta .ant-tag { margin-inline-end: 0; font-size: 11px; line-height: 18px; }
+.em-session .act { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 6px; }
+.em-open-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #16a34a; margin-right: 4px; box-shadow: 0 0 0 3px rgba(22,163,74,.2); }
+
+/* ---- commission rules ---- */
+.em-rules { display: flex; flex-direction: column; gap: 8px; }
+.em-rule { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; }
+.em-rule.off { opacity: .6; }
+.em-rule .nm { font-weight: 600; font-size: 14px; line-height: 1.25; overflow-wrap: anywhere; }
+.em-rule .rate { font-size: 15px; font-weight: 700; color: var(--kv-blue); white-space: nowrap; text-align: right; }
+.em-rule .scope { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px; }
+.em-rule .meta { grid-column: 1 / -1; font-size: 12px; color: #6b7280; display: flex; flex-wrap: wrap; gap: 2px 10px; }
+.em-rule .act { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 4px; border-top: 1px dashed #f1f5f9; padding-top: 6px; margin-top: 2px; }
+.em-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; line-height: 20px; padding: 0 8px; border-radius: 10px; background: #f3f4f6; color: #374151; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.em-chip.user { background: #dbeafe; color: #1e40af; }
+.em-chip.cat { background: #fef3c7; color: #92400e; }
+.em-chip.var { background: #dcfce7; color: #166534; }
+.em-chip.all { background: #f3f4f6; color: #6b7280; }
+
+/* ---- by-rule breakdown ---- */
+.em-byrule { display: grid; gap: 6px; }
+.em-byrule .it { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 8px 10px; border-radius: 8px; background: #f8fafc; font-size: 13px; }
+.em-byrule .it.off { background: #fff7ed; }
+.em-byrule .it .nm { font-weight: 600; overflow-wrap: anywhere; }
+.em-byrule .it .v { font-weight: 700; color: #15803d; white-space: nowrap; font-variant-numeric: tabular-nums; text-align: right; }
+.em-byrule .it.off .v { color: #9ca3af; text-decoration: line-through; }
+.em-byrule .it .sub { grid-column: 1 / -1; font-size: 12px; color: #6b7280; }
+.em-byrule .it .warn { grid-column: 1 / -1; font-size: 12px; color: #c2410c; }
+.em-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.em-form-row .ant-form-item { min-width: 0; }
+.em-picked { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 4px 6px 4px 10px; font-size: 13px; }
+.em-picked .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---- performance ---- */
+.em-diff { display: inline-block; font-size: 12px; line-height: 20px; padding: 0 8px; border-radius: 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.em-diff.zero { background: #dcfce7; color: #166534; }
+.em-diff.neg { background: #fee2e2; color: #991b1b; }
+.em-diff.pos { background: #fef3c7; color: #92400e; }
+.em-diff.none { background: #f3f4f6; color: #6b7280; }
+.em-links { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; }
+
+/* ---- employee list ---- */
+.em-people { display: flex; flex-direction: column; gap: 8px; }
+.em-person { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 12px; display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 2px 10px; align-items: start; }
+.em-person .av { width: 40px; height: 40px; border-radius: 50%; background: #e5edf7; color: #1e3a8a; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; grid-row: 1 / span 2; }
+.em-person .nm { font-weight: 600; font-size: 14px; line-height: 1.25; overflow-wrap: anywhere; }
+.em-person .nm .ant-tag { margin-inline-start: 6px; margin-inline-end: 0; font-size: 11px; line-height: 18px; }
+.em-person .pos { font-size: 12px; color: #6b7280; }
+.em-person .st { grid-column: 3; grid-row: 1; }
+.em-person .st .ant-tag { margin-inline-end: 0; }
+.em-person .meta { grid-column: 2 / -1; font-size: 12px; color: #6b7280; display: flex; flex-wrap: wrap; gap: 2px 10px; margin-top: 4px; overflow-wrap: anywhere; }
+.em-person .meta .ant-tag { margin-inline-end: 0; font-size: 11px; line-height: 18px; }
+.em-person .act { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 2px; border-top: 1px dashed #f1f5f9; padding-top: 6px; margin-top: 4px; }
+.em-person .act .ant-btn { padding-inline: 8px; }
+.em-profile { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 6px 10px; font-size: 13px; }
+.em-profile .k { color: #6b7280; }
+.em-profile .v { color: #111827; overflow-wrap: anywhere; }
+
+@media (max-width: 767px) {
+  .em-toolbar .em-w, .em-toolbar .em-grow { flex: 1 1 100%; }
+  .em-toolbar .em-half { flex: 1 1 calc(50% - 4px); min-width: 0; }
+  .em-form-row { grid-template-columns: 1fr; }
+  .em-clock { padding: 16px 12px; border-radius: 10px; }
+  .em-clock .em-timer { font-size: 40px; }
+  .em-sticky { position: sticky; bottom: calc(60px + env(safe-area-inset-bottom)); z-index: 5; }
+  .em-profile { grid-template-columns: 100px minmax(0, 1fr); }
+}

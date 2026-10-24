@@ -1,0 +1,90 @@
+/* ---------- Module 09: Khuyến mãi (.km-) — phone first ---------- */
+.km-tabs > .ant-tabs-nav { margin-bottom: 10px; }
+.km-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+.km-summary.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.km-tile { background: #fff; border-radius: 6px; padding: 8px 12px; box-shadow: 0 1px 2px rgba(0,0,0,.06); min-width: 0; }
+.km-tile .lbl { font-size: 12px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.km-tile .val { font-size: 17px; font-weight: 700; color: #111827; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.km-tile .val.neg { color: #dc2626; }
+.km-tile .val.pos { color: #15803d; }
+.km-cards { display: flex; flex-direction: column; gap: 8px; }
+.km-card { display: block; background: #fff; border-radius: 8px; padding: 10px 12px; box-shadow: 0 1px 2px rgba(0,0,0,.06); cursor: pointer; color: inherit; }
+.km-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.km-card-name { font-weight: 600; font-size: 14px; margin-top: 4px; line-height: 1.3; }
+.km-card-desc { font-size: 13px; color: #374151; margin-top: 2px; overflow-wrap: anywhere; }
+.km-card-meta { font-size: 12px; color: #6b7280; margin-top: 4px; overflow-wrap: anywhere; }
+.km-card-actions { margin-top: 6px; padding-top: 6px; border-top: 1px dashed #e5e7eb; display: flex; flex-wrap: wrap; gap: 0 4px; }
+.km-card-actions .ant-btn { padding-inline: 6px; }
+.km-actions { white-space: nowrap; }
+.km-actions .ant-btn-link { padding-inline: 4px; }
+.km-pager { display: flex; justify-content: center; padding: 10px 0; }
+.km-ellipsis { max-width: 520px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.km-wrap { white-space: normal; font-size: 12px; }
+/* editor */
+.km-editor .ant-modal-body { max-height: calc(100vh - 180px); overflow: auto; }
+.km-section { background: #f8fafc; border: 1px solid #eef2f7; border-radius: 8px; padding: 10px 12px 2px; margin-bottom: 10px; }
+.km-section-title { font-weight: 600; margin-bottom: 8px; color: #1f2937; }
+.km-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 12px; }
+.km-grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.km-grid .span2 { grid-column: 1 / -1; }
+.km-form .ant-form-item { margin-bottom: 10px; }
+.km-days { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.km-inline { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.km-stack { display: flex; flex-direction: column; gap: 10px; padding-bottom: 8px; }
+.km-sub { font-weight: 600; font-size: 13px; color: #374151; margin: 4px 0 2px; }
+.km-field { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.km-field > .lbl { flex: 0 0 150px; color: #6b7280; font-size: 13px; }
+.km-field.col { flex-direction: column; align-items: stretch; gap: 6px; }
+.km-field.col > .lbl { flex: none; }
+.km-reward { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.km-tiers { display: flex; flex-direction: column; gap: 8px; padding-bottom: 8px; }
+.km-tier { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; }
+.km-tier-head { display: flex; justify-content: space-between; align-items: center; }
+.km-picklist { display: flex; flex-direction: column; gap: 6px; }
+.km-picked { display: flex; flex-direction: column; gap: 4px; }
+.km-picked-row { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 6px 8px; }
+.km-picked-row .nm { flex: 1; min-width: 0; font-size: 13px; overflow-wrap: anywhere; }
+/* vouchers */
+.km-vouchers .kv-toolbar .kv-search { width: 260px; }
+.km-vc-cards { display: flex; flex-direction: column; gap: 8px; }
+.km-vc-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 10px; }
+.km-vc-card .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.km-vc-actions { display: inline-flex; align-items: center; gap: 2px; }
+.code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .5px; }
+.km-codes { display: flex; flex-wrap: wrap; gap: 6px; max-height: 50vh; overflow: auto; }
+.km-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; padding: 3px 8px; cursor: pointer; margin: 0; }
+/* detail */
+.km-detail-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.km-detail-title { flex: 1; min-width: 0; font-size: 17px; overflow-wrap: anywhere; }
+.km-detail-title .ant-tag { margin-left: 6px; vertical-align: middle; }
+.km-detail-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.km-detail-card { padding: 12px 14px; }
+.km-detail-desc { font-size: 15px; font-weight: 600; color: #0f3d8a; margin-bottom: 10px; overflow-wrap: anywhere; }
+.km-variants { margin-top: 10px; padding-top: 8px; border-top: 1px dashed #e5e7eb; display: flex; flex-direction: column; gap: 4px; max-width: 640px; }
+.km-report .kv-toolbar { margin-bottom: 10px; }
+
+@media (max-width: 767px) {
+  .km-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .km-summary.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .km-tile { padding: 6px 8px; }
+  .km-tile .val { font-size: 15px; }
+  .km-grid, .km-grid.four { grid-template-columns: minmax(0, 1fr); }
+  .km-field > .lbl { flex: 1 1 100%; }
+  .km-field.col .km-picklist, .km-field.col .ant-select { width: 100%; }
+  .km-reward .ant-select, .km-reward .ant-input-number, .km-reward .ant-input-number-group-wrapper { flex: 1 1 45%; min-width: 0; }
+  .km-reward .km-inline { flex: 1 1 100%; }
+  .km-reward .km-inline .ant-input-number { flex: 1; width: auto !important; }
+  .km-editor .ant-modal-body { max-height: none; }
+  .km-editor .ant-tabs-nav { position: sticky; top: 0; background: #fff; z-index: 2; margin-bottom: 8px; }
+  .km-vouchers .kv-toolbar .kv-search { width: 100%; }
+  .km-vouchers .kv-toolbar .ant-select { flex: 1; }
+  .km-detail-head { align-items: flex-start; }
+  .km-detail-head > .ant-btn-text { order: 0; }
+  .km-detail-title { order: 1; font-size: 15px; }
+  .km-detail-actions { order: 2; flex: 1 1 100%; }
+  .km-detail-actions .ant-btn { flex: 1 1 30%; min-width: 0; padding-inline: 6px; }
+  .km-detail-card { padding: 10px 12px; }
+  .km-detail-desc { font-size: 14px; }
+  .km-report .kv-toolbar .ant-picker, .km-report .kv-toolbar .ant-select { width: 100% !important; }
+  .km-page .km-tabs > .ant-tabs-nav .ant-tabs-nav-list { overflow-x: auto; }
+}

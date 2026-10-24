@@ -1,0 +1,158 @@
+/* Module 13 — Tích hợp & chuyển dữ liệu (prefix .ig-). Phone-first; widens on desktop. */
+.ig-page { max-width: 1100px; }
+.ig-tabs .ant-tabs-nav { margin-bottom: 10px; }
+.ig-tabs .ant-tabs-nav-list { overflow-x: auto; }
+.ig-tabs .ant-tabs-tab { white-space: nowrap; }
+.ig-card { margin-bottom: 10px; }
+.ig-card .ant-card-head { min-height: 40px; }
+.ig-card .ant-card-head-title { white-space: normal; }
+.ig-hint { margin-bottom: 10px; }
+.ig-hint .ant-alert-message { font-size: 13px; }
+.ig-h3 { font-size: 15px; font-weight: 600; margin: 6px 0 8px; color: #1f2937; }
+
+/* steps */
+.ig-steps { margin: 2px 0 12px; }
+.ig-steps .ant-steps-item-title { font-size: 13px; }
+
+/* data-type picker: 2×2 on phones, 4 across on desktop */
+.ig-type-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+.ig-type { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 12px; cursor: pointer; min-height: 72px; font: inherit; color: #111827; transition: border-color .15s, box-shadow .15s; }
+.ig-type:hover { border-color: #93c5fd; }
+.ig-type.on { border-color: var(--kv-blue); box-shadow: 0 0 0 2px rgba(0,112,244,.15); background: #f0f7ff; }
+.ig-type-ic { font-size: 18px; color: var(--kv-blue); }
+.ig-type-lb { font-weight: 600; font-size: 14px; }
+.ig-type-path { font-size: 11px; color: #6b7280; line-height: 1.25; }
+
+/* upload */
+.ig-dragger .ant-upload-drag { padding: 4px 0; }
+.ig-dragger .ant-upload-drag-icon .anticon { font-size: 36px; }
+.ig-dragger .ant-upload-text { font-size: 14px; }
+.ig-dragger .ant-upload-hint { font-size: 12px; padding: 0 12px; }
+
+/* options rows: text left, control right (stacked on phones) */
+.ig-opts { display: flex; flex-direction: column; }
+.ig-opt { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px dashed #eef0f3; }
+.ig-opt:last-child { border-bottom: none; }
+.ig-opt-text { flex: 1 1 auto; min-width: 0; }
+.ig-opt-label { font-weight: 500; font-size: 13px; }
+.ig-opt-ctl { flex: 0 0 320px; max-width: 100%; display: flex; justify-content: flex-end; }
+.ig-opt-ctl > .ant-select, .ig-opt-ctl > .ant-picker, .ig-opt-ctl > .ant-checkbox-group { width: 100%; }
+.ig-entities { display: flex; flex-wrap: wrap; gap: 6px 14px; justify-content: flex-end; }
+
+/* action bars */
+.ig-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 6px 0 14px; }
+.ig-actions-split { justify-content: space-between; }
+.ig-actions-split > a { flex: 1 1 200px; }
+.ig-actions-wrap .ant-btn { flex: 0 0 auto; }
+
+/* preview summary */
+.ig-summary { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-bottom: 10px; font-size: 13px; color: #374151; }
+
+/* column mapping grid */
+.ig-map { display: flex; flex-direction: column; }
+.ig-map-row { display: grid; grid-template-columns: minmax(160px, 220px) minmax(200px, 1fr) minmax(0, 1fr); gap: 6px 12px; align-items: center; padding: 6px 0; border-bottom: 1px dashed #eef0f3; }
+.ig-map-row:last-child { border-bottom: none; }
+.ig-map-row.missing { background: #fff7f7; }
+.ig-map-label { font-size: 13px; font-weight: 500; color: #111827; }
+.ig-map-label .req { color: #dc2626; }
+.ig-map-tag { margin-left: 6px; }
+.ig-map-select { width: 100%; }
+.ig-map-sample { font-size: 12px; color: #6b7280; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* sample rows on phones */
+.ig-sample-cards { display: flex; flex-direction: column; gap: 8px; }
+.ig-sample-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 10px; background: #fff; }
+.ig-sample-row { font-size: 11px; color: #6b7280; margin-bottom: 4px; }
+.ig-sample-kv { display: grid; grid-template-columns: 110px 1fr; gap: 8px; font-size: 13px; padding: 2px 0; }
+.ig-sample-kv .k { color: #6b7280; }
+.ig-sample-kv .v { color: #111827; font-weight: 500; overflow-wrap: anywhere; }
+
+/* result tiles */
+.ig-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin: 4px 0 8px; }
+.ig-tile { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 12px; min-width: 0; }
+.ig-tile-v { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; color: #1f2937; line-height: 1.2; overflow-wrap: anywhere; }
+.ig-tile.long .ig-tile-v { font-size: 17px; letter-spacing: -0.2px; }
+.ig-tile-l { font-size: 12px; color: #6b7280; margin-top: 2px; }
+.ig-tile-pos .ig-tile-v { color: #15803d; }
+.ig-tile-neg .ig-tile-v { color: #dc2626; }
+.ig-tile-info .ig-tile-v { color: var(--kv-blue); }
+.ig-tile-muted .ig-tile-v { color: #374151; }
+
+/* errors */
+.ig-errors { margin-top: 8px; }
+.ig-errors-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+.ig-error-cards { display: flex; flex-direction: column; gap: 6px; }
+.ig-error-card { border: 1px solid #fecaca; background: #fef2f2; border-radius: 8px; padding: 8px 10px; }
+.ig-error-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: #6b7280; }
+.ig-error-msg { font-size: 13px; color: #991b1b; margin-top: 2px; overflow-wrap: anywhere; }
+.ig-mapping-details { margin: 8px 0; font-size: 13px; }
+.ig-mapping-details summary { cursor: pointer; color: var(--kv-blue); }
+.ig-mapping-details .kv-kv { margin-top: 6px; }
+.ig-desc .ant-descriptions-item-label { color: #6b7280; }
+
+/* reconcile */
+.ig-recon { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 10px; }
+.ig-recon-card { margin-bottom: 0; }
+.ig-recon-hint { max-width: 260px; text-align: right; white-space: normal; }
+
+/* job cards (phones) */
+.ig-job-cards { display: flex; flex-direction: column; gap: 8px; }
+.ig-job-card { display: block; width: 100%; text-align: left; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 12px; cursor: pointer; font: inherit; color: #111827; }
+.ig-job-card:active { background: #f8fafc; }
+.ig-job-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 14px; }
+.ig-job-tags { display: inline-flex; gap: 0; flex-wrap: wrap; justify-content: flex-end; }
+.ig-job-tags .ant-tag { margin-inline-end: 0; margin-left: 4px; }
+.ig-job-file { font-size: 12px; color: #374151; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+.ig-job-meta { font-size: 13px; color: #374151; margin-top: 2px; }
+.ig-pager { display: flex; justify-content: center; padding: 8px 0; }
+
+/* KiotViet tab */
+.ig-steps-list { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.6; color: #374151; }
+.ig-steps-list code { background: #f3f4f6; padding: 0 4px; border-radius: 3px; }
+.ig-form-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 12px; }
+.ig-form .ant-form-item { margin-bottom: 8px; }
+.ig-form .ant-form-item-extra { font-size: 12px; }
+.ig-branchmap { margin-top: 6px; }
+.ig-running { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 28px 12px; text-align: center; }
+.ig-running-title { font-size: 15px; font-weight: 600; color: #1f2937; }
+.ig-results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 10px; }
+.ig-results .ig-card { margin-bottom: 0; }
+.ig-confirm ul { padding-left: 18px; margin: 6px 0 0; }
+.ig-confirm li { margin: 3px 0; }
+
+@media (max-width: 1023px) {
+  .ig-recon, .ig-results { grid-template-columns: 1fr; }
+  .ig-form-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 767px) {
+  .ig-page { max-width: 100%; }
+  .ig-tabs .ant-tabs-tab { padding: 8px 4px; font-size: 13px; }
+  .ig-tabs .ant-tabs-tab + .ant-tabs-tab { margin-left: 16px; }
+  .ig-steps .ant-steps-item-title { font-size: 12px; line-height: 1.2; }
+  .ig-type { min-height: 64px; padding: 8px 10px; }
+  .ig-type-path { display: none; }
+  .ig-opt { flex-direction: column; align-items: stretch; gap: 6px; }
+  .ig-opt-ctl { flex: 1 1 auto; justify-content: flex-start; }
+  .ig-opt-ctl > .ant-switch { align-self: flex-start; }
+  .ig-entities { justify-content: flex-start; }
+  .ig-entities .ant-checkbox-wrapper { min-height: 32px; display: inline-flex; align-items: center; }
+  .ig-actions .ant-btn-lg { flex: 1 1 auto; min-height: 44px; }
+  .ig-actions-split .ant-btn-lg:not(.ant-btn-primary) { flex: 0 1 38%; }
+  .ig-actions-split > a { flex: 1 1 58%; }
+  .ig-actions-wrap .ant-btn { flex: 1 1 calc(50% - 10px); }
+  .ig-map-row { grid-template-columns: 1fr; gap: 4px; padding: 8px 0; }
+  .ig-map-row.missing { margin: 0 -6px; padding-left: 6px; padding-right: 6px; border-radius: 6px; }
+  .ig-map-sample { font-size: 11px; }
+  .ig-map-sample:empty { display: none; }
+  .ig-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ig-tile-v { font-size: 18px; }
+  .ig-tile.long .ig-tile-v { font-size: 14px; }
+  .ig-tile.long { grid-column: span 2; }
+  .ig-tile.long .ig-tile-v { font-size: 18px; }
+  .ig-recon-card .ant-card-extra { display: none; }
+  .ig-summary { gap: 4px 12px; }
+  .ig-form-grid .ant-form-item { margin-bottom: 10px; }
+  .ig-running { padding: 36px 8px; }
+  .ig-h3 { margin-top: 10px; }
+  .ig-tabs .ant-tabs-content-holder { overflow: hidden; }
+}

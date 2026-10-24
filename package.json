@@ -1,0 +1,36 @@
+{
+  "name": "retail-erp",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Retail ERP / POS system (modular monolith) - KiotViet-equivalent feature scope",
+  "packageManager": "pnpm@10.34.8",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel --filter ./apps/* dev",
+    "dev:api": "pnpm --filter @erp/api dev",
+    "dev:web": "pnpm --filter @erp/web dev",
+    "build": "pnpm --filter @erp/shared build && pnpm -r --filter \"!@erp/shared\" build",
+    "typecheck": "pnpm --filter @erp/shared build && pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "test:unit": "pnpm --filter @erp/api test:unit",
+    "test:int": "pnpm --filter @erp/api test:int",
+    "db:migrate": "pnpm --filter @erp/api prisma:migrate:deploy",
+    "db:seed": "pnpm --filter @erp/api prisma:seed",
+    "db:studio": "pnpm --filter @erp/api prisma:studio"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "esbuild",
+      "msgpackr-extract"
+    ]
+  },
+  "devDependencies": {
+    "playwright": "1.49.1"
+  }
+}

@@ -1,0 +1,137 @@
+/* ---------- Module 03b: Chuyển kho / Kiểm kho (.tk-) — phone first ---------- */
+.tk-tabs { margin-bottom: 10px; }
+.tk-tabs .ant-segmented { width: 100%; }
+.tk-tabs .ant-segmented-group { width: 100%; }
+.tk-tabs .ant-segmented-item { flex: 1; text-align: center; }
+.tk-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+.tk-summary .tk-tile { background: #fff; border-radius: 6px; padding: 8px 12px; box-shadow: 0 1px 2px rgba(0,0,0,.06); min-width: 0; }
+.tk-summary .lbl { font-size: 12px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tk-summary .val { font-size: 16px; font-weight: 700; color: #111827; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* list cards (phones) */
+.tk-cards { display: flex; flex-direction: column; gap: 8px; }
+.tk-card { background: #fff; border-radius: 8px; padding: 10px 12px; box-shadow: 0 1px 2px rgba(0,0,0,.06); cursor: pointer; }
+.tk-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tk-card-head .code { font-weight: 700; }
+.tk-card-meta { font-size: 12px; color: #6b7280; margin-top: 2px; overflow-wrap: anywhere; }
+.tk-card-amts { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; margin-top: 6px; font-size: 13px; }
+.tk-card-body { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #e5e7eb; cursor: default; }
+.tk-card-body .kv-expanded { position: static; width: auto; }
+.tk-pager { display: flex; justify-content: center; padding: 10px 0; }
+.tk-route { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; min-width: 0; }
+.tk-route .wh { font-weight: 600; color: #111827; }
+.tk-route .br { color: #6b7280; font-size: 12px; }
+.tk-route .arrow { color: #9ca3af; }
+.tk-progress { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #6b7280; }
+.tk-progress .ant-progress { flex: 1; margin: 0; }
+.tk-progress .ant-progress-line { margin-bottom: 0; }
+
+/* detail (expanded row / read-only) */
+.tk-detail .ant-descriptions { margin-bottom: 8px; }
+.tk-detail-lines { display: flex; flex-direction: column; gap: 6px; }
+.tk-detail-line { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 8px 10px; background: #f9fafb; border-radius: 6px; font-size: 13px; }
+.tk-detail-line .nm { font-weight: 600; }
+.tk-detail-line .meta { color: #6b7280; font-size: 12px; grid-column: 1 / -1; }
+.tk-detail-line .nums { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tk-detail-line .nums .lbl { color: #6b7280; font-size: 11px; margin-right: 4px; }
+.tk-shortage { color: #d97706; font-weight: 600; }
+.tk-hint-box { background: #f0f7ff; border: 1px solid #bfdbfe; color: #1e3a8a; border-radius: 6px; padding: 8px 10px; font-size: 12px; margin-bottom: 8px; }
+
+/* editor lines (both pages) */
+.tk-editor { position: relative; }
+.tk-lines { display: flex; flex-direction: column; gap: 8px; padding: 8px; }
+.tk-line { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; }
+.tk-line.error { border-color: #fca5a5; background: #fef2f2; }
+.tk-line.done { border-color: #bbf7d0; }
+.tk-line.short { border-color: #fcd34d; background: #fffbeb; }
+.tk-row-short td { background: #fffbeb !important; }
+.tk-line.focus { border-color: var(--kv-blue); box-shadow: 0 0 0 2px rgba(0,112,244,.15); }
+.tk-line .nm { font-weight: 600; font-size: 14px; line-height: 1.25; min-width: 0; overflow-wrap: anywhere; }
+.tk-line .meta { color: #6b7280; font-size: 12px; grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: center; }
+.tk-line .del { color: #dc2626; font-size: 18px; padding: 4px; justify-self: end; align-self: start; cursor: pointer; }
+.tk-line .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; grid-column: 1 / -1; min-width: 0; }
+.tk-line .row .lbl { color: #6b7280; font-size: 13px; flex: 0 0 96px; }
+.tk-line .row > .ant-input-number, .tk-line .row > .ant-select, .tk-line .row > .ant-input, .tk-line .row > .ant-space-compact { flex: 1 1 auto; min-width: 0; }
+.tk-line .err { color: #dc2626; font-size: 12px; grid-column: 1 / -1; }
+.tk-line .warn { color: #d97706; font-size: 12px; grid-column: 1 / -1; }
+.tk-line .stats { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.tk-line .stat { background: #f9fafb; border-radius: 6px; padding: 6px 8px; min-width: 0; }
+.tk-line .stat .k { font-size: 11px; color: #6b7280; line-height: 1.2; }
+.tk-line .stat .v { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tk-line .stat .v.dim { color: #9ca3af; font-weight: 500; }
+.tk-qty { display: inline-flex; align-items: center; gap: 2px; }
+.tk-qty .ant-btn { width: 40px; height: 40px; }
+.tk-qty .ant-input-number { width: 84px; }
+.tk-qty .ant-input-number-input { height: 38px; text-align: center; font-size: 16px; font-weight: 600; }
+.tk-qty.big .ant-btn { width: 44px; height: 44px; }
+.tk-qty.big .ant-input-number { width: 96px; }
+.tk-qty.big .ant-input-number-input { height: 42px; font-size: 20px; }
+.tk-delta { display: inline-flex; align-items: center; justify-content: center; min-width: 54px; padding: 2px 8px; border-radius: 12px; font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; background: #f3f4f6; color: #6b7280; white-space: nowrap; }
+.tk-delta.pos { background: #dcfce7; color: #15803d; }
+.tk-delta.neg { background: #fee2e2; color: #dc2626; }
+.tk-delta.none { background: transparent; color: #9ca3af; font-weight: 500; }
+.tk-save { font-size: 12px; color: #6b7280; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.tk-save.saving { color: var(--kv-blue); }
+.tk-save.saved { color: #15803d; }
+.tk-save.error { color: #dc2626; }
+.tk-count-row { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tk-count-row .lbl { color: #6b7280; font-size: 13px; flex: 0 0 auto; }
+.tk-count-row .spacer { flex: 1; }
+.tk-eq { padding-inline: 10px; }
+
+/* sticky search (counting mode) */
+.tk-sticky { position: sticky; top: 48px; z-index: 20; background: var(--kv-bg); padding: 4px 0 8px; }
+.tk-sticky .ant-card-body { padding: 8px 10px; }
+.tk-sticky-tools { display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+.tk-sticky-tools .ant-segmented { font-size: 12px; }
+.tk-sticky-tools .ant-switch { margin-right: 4px; }
+.tk-toolbar-right { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #6b7280; }
+
+/* actions: a column in the side card on desktop, a fixed bar above the tab bar on phones */
+.tk-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.tk-actions .ant-btn { width: 100%; }
+.tk-field { margin-bottom: 8px; }
+.tk-field .ant-select, .tk-field .ant-input, .tk-field .ant-picker { width: 100%; }
+.tk-totals { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; font-size: 13px; background: #f8fafc; border-radius: 6px; padding: 10px 12px; margin: 10px 0; }
+.tk-totals .k { color: #6b7280; }
+.tk-totals .v { font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tk-totals .v.big { font-size: 17px; font-weight: 700; }
+.tk-totals .hr { grid-column: 1 / -1; border-top: 1px dashed #e5e7eb; margin: 2px 0; }
+.tk-wh-opt { display: flex; justify-content: space-between; gap: 8px; }
+.tk-wh-opt .br { color: #9ca3af; font-size: 12px; }
+.tk-batch-pick { display: flex; flex-direction: column; gap: 6px; }
+.tk-batch-pick .tk-batch-row.ant-btn { height: auto; padding: 8px 12px; text-align: left; display: flex; justify-content: space-between; align-items: center; white-space: normal; }
+.tk-modal-sum { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; font-size: 13px; margin-bottom: 12px; }
+.tk-modal-sum .k { color: #6b7280; }
+.tk-modal-sum .v { font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+.tk-radio-block .ant-radio-wrapper { display: flex; margin: 4px 0; align-items: flex-start; }
+.tk-radio-block .ant-radio-wrapper .sub { display: block; font-size: 12px; color: #6b7280; }
+.tk-count-table .ant-input-number { width: 100px; }
+.tk-count-table .ant-input-number-input { text-align: right; font-weight: 600; }
+.tk-pill { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; background: #eef2ff; color: #3730a3; }
+.tk-done-mark { color: #15803d; }
+.tk-empty { padding: 16px; }
+
+@media (max-width: 767px) {
+  .tk-summary { gap: 6px; }
+  .tk-summary .tk-tile { padding: 6px 8px; }
+  .tk-summary .val { font-size: 14px; }
+  .tk-editor { padding-bottom: 76px; }
+  .tk-editor .kv-editor-head .ant-btn-link { padding-inline: 4px; }
+  .tk-sticky { top: calc(52px + env(safe-area-inset-top)); margin: -4px -12px 6px; padding: 6px 12px 8px; }
+  .tk-actions { position: fixed; left: 0; right: 0; bottom: calc(56px + env(safe-area-inset-bottom)); z-index: 60; flex-direction: row; flex-wrap: nowrap; background: #fff; border-top: 1px solid #e5e7eb; padding: 8px 10px; margin: 0; box-shadow: 0 -2px 8px rgba(0,0,0,.06); }
+  .tk-actions .ant-btn { flex: 1 1 0; min-width: 0; width: auto; height: 44px; padding-inline: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; }
+  .tk-actions .ant-btn-primary { flex: 1.5 1 0; }
+  .tk-actions .ant-btn-icon-only { flex: 0 0 44px; }
+  .tk-actions .ant-dropdown-trigger { flex: 0 0 44px; }
+  .tk-detail .ant-descriptions-item-label { flex-basis: 104px !important; width: 104px !important; }
+  .tk-detail .kv-detail-actions .ant-btn { flex: 1 1 calc(50% - 8px); padding-inline: 6px; white-space: normal; line-height: 1.2; }
+  .tk-card-body { padding-bottom: 52px; }
+  .tk-line .row .lbl { flex-basis: 88px; }
+  .tk-line .stats { gap: 4px; }
+  .tk-line .stat { padding: 5px 6px; }
+  .tk-line .stat .v { font-size: 14px; }
+  .tk-totals { padding: 8px 10px; }
+  .tk-sticky-tools { gap: 6px; }
+  .tk-toolbar-right { margin-left: 0; width: 100%; justify-content: space-between; }
+}

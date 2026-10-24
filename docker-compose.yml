@@ -1,0 +1,59 @@
+version: "3.9"
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: erp
+      POSTGRES_PASSWORD: erp
+      POSTGRES_DB: retail_erp
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U erp -d retail_erp"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://erp:erp@postgres:5432/retail_erp?schema=public
+      REDIS_URL: redis://redis:6379
+      API_PORT: 3000
+      CORS_ORIGINS: http://localhost:8080
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-change-me-access-secret-min-32-chars-long}
+      UPLOAD_DIR: /data/uploads
+    volumes: ["uploads:/data/uploads"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    command: sh -c "node node_modules/prisma/build/index.js migrate deploy && node dist/src/main.js"
+    ports: ["3000:3000"]
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: /api/v1
+    depends_on: [api]
+    ports: ["8080:80"]
+  backup:
+    image: postgres:16-alpine
+    environment:
+      PGPASSWORD: erp
+    volumes: ["./backups:/backups", "./scripts/backup.sh:/backup.sh:ro"]
+    entrypoint: ["sh", "-c", "while true; do sh /backup.sh postgres erp retail_erp /backups; sleep 86400; done"]
+    depends_on:
+      postgres: { condition: service_healthy }
+volumes:
+  pgdata:
+  uploads:
