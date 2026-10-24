@@ -109,6 +109,13 @@ Thời gian ngừng dịch vụ chỉ vài giây lúc khởi động lại API. 
 
 Tệp `/opt/erp/.env` do setup sinh ra chứa: `DATABASE_URL`, `REDIS_URL`, `API_PORT`, `CORS_ORIGINS` (origin của web, ví dụ `http://180.93.241.253`; thêm domain thì nối bằng dấu phẩy), `JWT_ACCESS_SECRET`, `APP_ENCRYPTION_KEY` (mã hóa Client Secret KiotViet – **không đổi** sau khi đã lưu kết nối), `PLATFORM_ADMIN_KEY` (header `x-platform-key` cho API `/platform/*`), `UPLOAD_DIR`.
 
+## Trạng thái máy chủ thật (24/10/2026)
+
+- `setup-ubuntu.sh` và `deploy.sh` đã chạy thành công trên 180.93.241.253; API `erp-api` active, web phục vụ tại **http://baoancosmetic.com.vn** (DNS tenten: A `@`, `*`, `mail` → IP; CNAME `www`).
+- nginx `server_name baoancosmetic.com.vn www.baoancosmetic.com.vn`; `CORS_ORIGINS` đã có cả http/https của hai tên này và IP.
+- Tự động triển khai đã bật (`erp-autodeploy.timer`, 2 phút/lần). Lỗi gặp lần đầu: `.gitignore` có `uploads/` nên thiếu thư mục mã nguồn `apps/api/src/modules/uploads` trên GitHub → đã sửa thành `/uploads/` và `/apps/api/uploads/`.
+- HTTPS (certbot) chờ xác nhận chấp nhận điều khoản Let's Encrypt.
+
 ## Thêm tên miền và HTTPS (khi có domain)
 
 1. Trỏ bản ghi A của domain về `180.93.241.253`.
