@@ -158,6 +158,7 @@ Bổ sung ngoài kế hoạch ban đầu (đã có test, đều pass): refresh-t
 | T-242 | Hiệu suất: hóa đơn, trả hàng, DT thuần, số ca, chênh lệch tiền mặt, giờ công, hoa hồng; thu ngân 403 | BR-152 | I | test/employees-saas.e2e-spec.ts | ✅ pass 2026-10-24 |
 | T-243 | Gói FREE: người dùng thứ 4 / chi nhánh thứ 2 → `PLAN_LIMIT_REACHED`; `/subscription`; khóa nền tảng sai → 403, nâng lên PRO → tạo được; chưa cấu hình khóa → 403 | BR-160, BR-162 | I | test/employees-saas.e2e-spec.ts | ✅ pass 2026-10-24 |
 | T-244 | Hết hạn dùng thử: GET chạy, POST → `TRIAL_EXPIRED`, đăng nhập vẫn được; SUSPENDED chặn mọi thứ | BR-161 | I | test/employees-saas.e2e-spec.ts | ✅ pass 2026-10-24 |
+| T-250 | Trang chủ `/dashboard/home`: hôm nay 3 HĐ / 400.000 / LN gộp 160.000, hôm qua 0, chuỗi theo giờ & ngày, top hàng, 8 hoạt động gần nhất (không gồm nháp), chưa thu đủ, đơn giữ, tồn thấp, ca đang mở (2 HĐ, tiền mặt ròng); thu ngân chỉ thấy của mình, không có lợi nhuận; chi nhánh ngoài phạm vi → rỗng | — | I | test/dashboard.e2e-spec.ts | ✅ pass 2026-10-24 |
 | T-245 | Báo cáo thuế: đầu ra theo thuế suất 10 %, hoàn trả, thu ngân 403 | BR-155 | I | test/employees-saas.e2e-spec.ts | ✅ pass 2026-10-24 |
 | U-09 | Engine khuyến mãi thuần: giảm hàng (%, tiền, giá cố định, SL min/max, trần dòng), mức hóa đơn sau giảm hàng, cộng dồn/không cộng dồn, mua X tặng Y (lặp, dòng tặng, giỏ, tặng quá), tặng theo hóa đơn, voucher (mã, trạng thái, khách, hạn, minTotal, phạm vi), điều kiện ngày/thứ/giờ/chi nhánh/nhóm/lượt | BR-90..BR-95 | U | src/modules/sales/promotion-engine.spec.ts | ✅ pass 2026-10-24 |
 

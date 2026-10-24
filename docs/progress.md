@@ -329,3 +329,17 @@ _(toàn bộ danh sách này đã hoàn thành trong cùng phiên — xem các m
 | Chưa làm (ghi ở modules.md) | Xuất PDF / báo cáo theo lịch; API key, webhook, sàn TMĐT, máy in nhiệt, QR; hóa đơn điện tử; thanh toán gói online + dashboard nền tảng; nhắc nợ; job đối soát định kỳ |
 | Chưa chạy | Nhập KiotViet thật (cần người dùng tự nhập Retailer / Client ID / Client Secret ở `/integrations/kiotviet`); CI trên GitHub; backup qua Docker |
 | Git | Chưa commit theo yêu cầu người dùng |
+
+## Phiên 6 — 2026-10-24 (tối) — Trang chủ mobile · triển khai Ubuntu
+
+Người dùng đã tự commit toàn bộ mã nguồn (`60e1a78 update`, 537 tệp) và đẩy lên `github.com/Dinofx1999/Pos_Kiosviet` (nhánh `master`); nhận xét giao diện Tổng quan trên điện thoại "trông chán".
+
+### Trang chủ mới (mobile-first, kiểu KiotViet)
+| Khu vực | Nội dung |
+|---|---|
+| API | `GET /dashboard/home?branchId?` (`DashboardHomeService`): kết quả bán hàng hôm nay / hôm qua / 7 ngày / 7 ngày trước / tháng / tháng trước, doanh thu theo giờ (hôm nay) và theo ngày (30 ngày), top 5 hàng bán 7 ngày, 8 hóa đơn gần nhất, chưa thu đủ, trả hàng hôm nay, việc cần xử lý (đơn giữ, đơn đặt đã xác nhận, đang giao, chuyển kho chờ nhận, sinh nhật), tồn kho + 5 phiếu kho, ca đang mở của tôi (số HĐ, doanh thu, tiền mặt ròng). Ngày theo múi giờ gian hàng; mọi truy vấn gắn tenant + phạm vi chi nhánh; không có `sales.report.view` → chỉ số liệu `seller_id = tôi`; lợi nhuận / giá trị tồn theo quyền xem giá vốn. Test T-250 ✅ |
+| Web | `DashboardPage` viết lại + `dashboard.css` (`.dh-*`): hero xanh nối liền header với thẻ trắng (chọn kỳ Hôm nay / 7 ngày / Tháng này, doanh thu lớn, % so kỳ trước, Đơn / Khách / LN gộp), 8 lối tắt màu theo quyền, khối Cần xử lý (ẩn mục = 0, liên kết tới màn hình đã lọc: `/invoices?status=DRAFT`, `/invoices?unpaid=1`, `/products?stock=low`, `/transfers?tab=in`…), biểu đồ cột chạm để xem chi tiết, Hàng bán chạy có thanh tỷ lệ, Hoạt động gần đây dạng feed (avatar chữ cái, "x phút trước"), Tồn kho 2×2 + phiếu kho. Desktop: lưới 2 cột (biểu đồ / bán chạy / tồn kho bên trái, cần xử lý / hoạt động bên phải). Đã kiểm tra trên 375×812 và 1280×800 |
+| Sửa kèm | `ProductsPage` nhận `?stock=low`, `InvoicesPage` nhận `?unpaid=1`; hướng dẫn mới "Đọc trang Tổng quan" trong `/help` |
+
+### Triển khai lên VPS Ubuntu 22.04 (180.93.241.253, 1 vCPU / 1,25 GB)
+`docs/deploy-ubuntu.md` + `scripts/deploy/{setup-ubuntu.sh, deploy.sh, erp-api.service, nginx-erp.conf}`: cài không Docker (swap 2 GB, Node 22 + pnpm qua corepack, PostgreSQL 16, Redis, nginx, user `erp`, `.env` tự sinh khóa, systemd, ufw, pg_dump hằng đêm, deploy key GitHub); `deploy.sh` clone / pull → install → build → migrate + sync-roles → rsync web → restart → kiểm tra API. Chưa chạy thử trên máy chủ thật (cần người dùng đăng nhập SSH).

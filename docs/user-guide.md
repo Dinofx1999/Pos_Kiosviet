@@ -13,6 +13,7 @@ Mục "Hướng dẫn sử dụng" (menu tài khoản → Hướng dẫn sử d�
 | Slug | Tiêu đề | Ảnh |
 |---|---|---|
 | `dang-nhap` | Đăng nhập & đăng ký gian hàng | login, dashboard |
+| `trang-tong-quan` | Đọc trang Tổng quan (trang chủ) | dashboard |
 | `chon-chi-nhanh` | Chọn chi nhánh làm việc | dashboard |
 | `giao-dien-dien-thoai` | Dùng phần mềm trên điện thoại | dashboard, menu-drawer |
 | `doi-mat-khau` | Đổi mật khẩu | change-password |

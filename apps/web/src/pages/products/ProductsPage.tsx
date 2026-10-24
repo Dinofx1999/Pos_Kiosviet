@@ -18,7 +18,7 @@ export default function ProductsPage() {
   const invalidate = useInvalidate();
   const [sp, setSp] = useSearchParams();
   const warehouses = useBranchWarehouses();
-  const [q, setQ] = useState<ProductQuery>({ page: 1, pageSize: 20, search: sp.get('search') ?? undefined, isActive: 'true' });
+  const [q, setQ] = useState<ProductQuery>({ page: 1, pageSize: 20, search: sp.get('search') ?? undefined, isActive: 'true', stockStatus: (sp.get('stock') as ProductQuery['stockStatus']) ?? undefined });
   const [searchText, setSearchText] = useState(q.search ?? '');
   const [form, setForm] = useState<{ open: boolean; product?: Product | null }>({ open: false });
   const [importRes, setImportRes] = useState<{ created: number; failed: { row: number; error: string }[]; totalRows: number } | null>(null);

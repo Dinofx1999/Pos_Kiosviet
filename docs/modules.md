@@ -53,6 +53,7 @@ Các cột **DB / BE / API / FE / Test** phản ánh thành phần **thực tế
 | Điều chỉnh tồn (theo số đếm thực tế, tính chênh lệch lúc ghi sổ) | ✅ | ✅ | ✅ | ✅ | ✅ T-031 | ✅ |
 | Hủy chứng từ = ghi đảo (REVERSAL), chặn khi làm âm kho | ✅ | ✅ | ✅ | ✅ | ✅ T-027, T-028 | ✅ |
 | Lịch sử biến động / thẻ kho | ✅ | ✅ | ✅ | ✅ | ✅ T-032 | ✅ |
+| Trang chủ mobile-first (`/dashboard/home`): doanh thu hôm nay / 7 ngày / tháng so với kỳ trước, theo giờ & ngày, lối tắt theo quyền, việc cần xử lý, hàng bán chạy, hoạt động gần đây, tồn kho, ca đang mở | — | ✅ | ✅ | ✅ | ✅ T-250 | ✅ |
 | Cảnh báo tồn thấp (lọc + đếm trên dashboard) | ✅ | ✅ | ✅ | ✅ | 🟡 gián tiếp (T-014 low) | 🟡 chưa có thông báo đẩy |
 | Giá trị tồn kho, đối soát balance ↔ ledger ↔ cost ledger | ✅ | ✅ | ✅ | 🟡 | ✅ T-033 | 🟡 API `POST /inventory/reconcile` có; chưa có job định kỳ & màn hình riêng |
 | Kiểm soát tồn âm, chống xuất trùng, nhiều POS đồng thời | ✅ | ✅ | ✅ | — | ✅ T-022, T-024, T-025 | ✅ (row lock + idempotency; 20 request song song) |

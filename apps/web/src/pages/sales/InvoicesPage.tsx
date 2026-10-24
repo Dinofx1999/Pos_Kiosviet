@@ -20,7 +20,7 @@ export default function InvoicesPage() {
   const [sp] = useSearchParams();
   const branchId = useAuthStore((s) => s.currentBranchId);
   const me = useAuthStore((s) => s.me);
-  const [q, setQ] = useState<InvoiceQuery>({ page: 1, pageSize: 20, search: sp.get('search') ?? undefined, status: sp.get('status') ?? undefined });
+  const [q, setQ] = useState<InvoiceQuery>({ page: 1, pageSize: 20, search: sp.get('search') ?? undefined, status: sp.get('status') ?? undefined, unpaid: sp.get('unpaid') ?? undefined });
   const [searchText, setSearchText] = useState(q.search ?? '');
   useEffect(() => { const s = sp.get('search'); if (s) { setSearchText(s); setQ((x) => ({ ...x, search: s, page: 1 })); } }, [sp]);
   const { data, isLoading, isFetching, error, refetch } = useInvoices({ ...q, branchId: q.branchId ?? branchId ?? undefined });

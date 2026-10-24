@@ -1,0 +1,25 @@
+[Unit]
+Description=Retail ERP API (NestJS)
+After=network.target postgresql.service redis-server.service
+Wants=postgresql.service redis-server.service
+
+[Service]
+Type=simple
+User=__APP_USER__
+Group=__APP_USER__
+WorkingDirectory=__APP_DIR__/apps/api
+EnvironmentFile=__APP_DIR__/.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node dist/src/main.js
+Restart=always
+RestartSec=3
+# máy 1,25 GB RAM: giới hạn heap để không nuốt hết bộ nhớ
+Environment=NODE_OPTIONS=--max-old-space-size=512
+LimitNOFILE=65536
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/erp __APP_DIR__/apps/api
+
+[Install]
+WantedBy=multi-user.target

@@ -227,6 +227,7 @@ Mã lỗi: `PLAN_LIMIT_REACHED`, `TRIAL_EXPIRED`, `PLAN_EXPIRED`, `TENANT_SUSPEN
 
 ## Dashboard
 | GET `/dashboard/overview` → `{products, variants, lowStock, stockValue, warehouses, salesToday?{invoices, revenue, grossProfit, byMethod}, recentMovements[], recentDocuments[]}` | `dashboard.view` |
+| GET `/dashboard/home?branchId?` → `{timezone, sales: {today, yesterday, week, lastWeek, month, lastMonth: {invoices, revenue, customers, grossProfit?}, byHour[], byDay[] (30 ngày), topProducts[5] (7 ngày), recentInvoices[8], unpaid{count, amount}, returnsToday} \| null, todo: {pendingOrders, deliveriesInProgress, transfersToReceive, birthdaysToday, heldInvoices} (null khi thiếu quyền), inventory: {skuCount, onHandTotal, stockValue?, lowStockCount, products, warehouses, recentDocuments[5]} \| null, shift: {code, openedAt, invoices, revenue, cashNet} \| null}` — ngày theo múi giờ gian hàng; không có `sales.report.view` → chỉ số liệu do chính mình bán; `grossProfit`/`stockValue` cần quyền xem giá vốn | `dashboard.view` |
 
 ## WebSocket/SSE
 * `GET /events/stream` (SSE, token qua query) — phát `inventory.document.posted`, `product.updated` cho client làm mới dữ liệu. (Dự kiến bước Integrations; chưa triển khai.)
