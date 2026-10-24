@@ -122,7 +122,7 @@ export default function AppLayout() {
         <Link to="/" className="kv-logo"><span className="dot"><ShopOutlined /></span><span>{me?.tenant.name ?? 'Retail ERP'}</span></Link>
         <div className="kv-menu"><Menu mode="horizontal" items={items} selectedKeys={selected} disabledOverflow={false} /></div>
         <div className="kv-header-right">
-          <Select size="small" style={{ minWidth: 170 }} value={branchId ?? undefined} onChange={setBranch} options={(me?.branches ?? []).map((b) => ({ value: b.id, label: b.name }))} placeholder="Chi nhánh" suffixIcon={<DownOutlined style={{ color: '#fff' }} />} />
+          {(!isMobile || (me?.branches.length ?? 0) > 1) && <Select size="small" className="kv-branch-select" style={{ minWidth: 170 }} value={branchId ?? undefined} onChange={setBranch} options={(me?.branches ?? []).map((b) => ({ value: b.id, label: b.name }))} placeholder="Chi nhánh" suffixIcon={<DownOutlined style={{ color: '#fff' }} />} />}
           {!isMobile && (can('invoice.create') ? <Button className="kv-pos-btn" size="small" onClick={openPos}>Bán hàng</Button> : <Tooltip title="Bạn không có quyền bán hàng"><Button className="kv-pos-btn" size="small" disabled>Bán hàng</Button></Tooltip>)}
           <Tooltip title="Hướng dẫn sử dụng"><Link to="/help" aria-label="Hướng dẫn sử dụng" style={{ color: '#fff', fontSize: 16, display: 'inline-flex' }}><QuestionCircleOutlined /></Link></Tooltip>
           <Badge count={0} size="small"><BellOutlined style={{ color: '#fff', fontSize: 16 }} /></Badge>
