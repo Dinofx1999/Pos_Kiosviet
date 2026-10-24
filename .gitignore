@@ -10,6 +10,6 @@ coverage/
 .turbo/
 apps/web/dist/
 apps/api/dist/
-uploads/
+/uploads/
 backups/
-apps/api/uploads/
+/apps/api/uploads/
