@@ -139,7 +139,7 @@ function ConfigTab() {
   return (
     <>
       <Card size="small" title="Chính sách tồn kho & giá" loading={settings.isLoading}>
-        <div className="kv-kv" style={{ rowGap: 12, gridTemplateColumns: '320px 1fr' }}>
+        <div className="kv-kv kv-kv-wide" style={{ rowGap: 12 }}>
           <span className="k">Cho phép bán / xuất âm kho</span><span><Switch checked={s['inventory.allowNegativeStock'] === true} onChange={(v) => setSetting('inventory.allowNegativeStock', v)} /> <span className="kv-hint">Tắt = từ chối phiếu xuất/bán khi không đủ tồn (khuyến nghị)</span></span>
           <span className="k">Phương pháp tính giá vốn</span><span>Bình quân gia quyền di động (AVG) <span className="kv-hint">– theo toàn gian hàng</span></span>
           <span className="k">Giá bán đã bao gồm thuế</span><span><Switch checked={s['pricing.priceIncludesTax'] !== false} onChange={(v) => setSetting('pricing.priceIncludesTax', v)} /> <span className="kv-hint">Bật = thuế được tách ra từ giá bán; tắt = thuế cộng thêm vào hóa đơn</span></span>

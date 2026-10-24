@@ -5,6 +5,8 @@
   --kv-bg: #f4f6f9;
 }
 html, body, #root { height: 100%; margin: 0; background: var(--kv-bg); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+html { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.kv-kv.kv-kv-wide { grid-template-columns: 320px 1fr; }
 .kv-header { background: var(--kv-blue); height: 48px; display: flex; align-items: center; padding: 0 16px; color: #fff; position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
 .kv-logo { font-weight: 700; font-size: 18px; letter-spacing: .5px; color: #fff; margin-right: 24px; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
 .kv-logo .dot { width: 26px; height: 26px; border-radius: 6px; background: #fff; color: var(--kv-blue); display: inline-flex; align-items: center; justify-content: center; font-size: 14px; }
@@ -151,8 +153,15 @@ html, body, #root { height: 100%; margin: 0; background: var(--kv-bg); font-fami
 .kv-menu-drawer .ant-menu-inline { border-inline-end: none !important; }
 .kv-menu-drawer .ant-menu-item, .kv-menu-drawer .ant-menu-submenu-title { height: 44px !important; line-height: 44px !important; font-size: 15px; }
 @media (max-width: 767px) {
-  html { -webkit-text-size-adjust: 100%; }
-  body { overflow-x: hidden; }
+  html { -webkit-text-size-adjust: 100%; overflow-x: hidden; }
+  body { overflow-x: hidden; overscroll-behavior-y: none; }
+  /* nội dung rộng hơn màn hình (bảng, lưới) không được kéo giãn trang – header và thanh tab luôn đứng yên;
+     dùng clip (không phải hidden) để các thanh nút sticky vẫn hoạt động */
+  .kv-page { overflow-x: clip; max-width: 100vw; }
+  .kv-settings { align-items: stretch; }
+  .kv-settings-body { width: 100%; }
+  .kv-kv.kv-kv-wide { grid-template-columns: 1fr; }
+  .kv-kv.kv-kv-wide > .k { font-weight: 600; margin-top: 6px; }
   .kv-header { height: 52px; padding: 0 10px; padding-top: env(safe-area-inset-top); height: calc(52px + env(safe-area-inset-top)); gap: 6px; }
   .kv-logo { font-size: 15px; margin-right: 4px; max-width: 34vw; overflow: hidden; }
   .kv-logo > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
