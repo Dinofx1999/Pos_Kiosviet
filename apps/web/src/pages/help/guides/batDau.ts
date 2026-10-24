@@ -30,7 +30,7 @@ export const BAT_DAU: Guide[] = [
     keywords: ['dashboard', 'trang chủ', 'home', 'doanh thu hôm nay', 'lối tắt', 'cần xử lý'],
     steps: [
       { text: 'Thẻ xanh trên cùng là Kết quả bán hàng: chọn Hôm nay / 7 ngày / Tháng này để xem Doanh thu, % tăng giảm so với kỳ trước, số Đơn hàng, Khách mua và Lợi nhuận gộp (nếu có quyền xem giá vốn). Bấm số đơn để mở danh sách hóa đơn.', shot: 'dashboard' },
-      { text: 'Hàng lối tắt (Bán hàng, Hàng hóa, Nhập hàng, Khách hàng, Đặt hàng, Trả hàng, Sổ quỹ, Báo cáo…) chỉ hiện những chức năng bạn có quyền – bấm để vào thẳng.' },
+      { text: 'Trên điện thoại, hàng lối tắt (Bán hàng, Hàng hóa, Nhập hàng, Khách hàng, Đặt hàng, Trả hàng, Sổ quỹ, Báo cáo…) chỉ hiện những chức năng bạn có quyền – bấm để vào thẳng. Trên máy tính dùng menu trên cùng.' },
       { text: 'Khối Cần xử lý gom các việc đang chờ: ca bán hàng đang mở, đơn đang giữ, đơn đặt đã xác nhận, vận đơn đang giao, hóa đơn chưa thu đủ, hàng dưới định mức tồn, chuyển kho chờ nhận, trả hàng hôm nay, khách sinh nhật. Mục nào bằng 0 sẽ tự ẩn; bấm vào để mở đúng màn hình đã lọc.' },
       { text: 'Biểu đồ Doanh thu theo giờ (kỳ Hôm nay) hoặc theo ngày (7 ngày / Tháng này): chạm vào một cột để xem số đơn và doanh thu của giờ / ngày đó.' },
       { text: 'Hàng bán chạy 7 ngày xếp hạng 5 mặt hàng theo doanh thu; Hoạt động gần đây liệt kê các hóa đơn mới nhất (ai bán, cho khách nào, bao nhiêu tiền, cách đây bao lâu) – bấm để mở hóa đơn.' },

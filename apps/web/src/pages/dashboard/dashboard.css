@@ -134,7 +134,8 @@
   .dh-rev { grid-column: 2; text-align: left; padding: 0; }
   .dh-rev-val { font-size: 32px; }
   .dh-kpis { grid-column: 3; border-top: none; padding-top: 0; border-left: 1px dashed #e5e7eb; }
-  .dh-actions { max-width: 960px; grid-template-columns: repeat(8, 1fr); padding: 34px 4px 2px; }
-  .dh-action .ic { width: 54px; height: 54px; font-size: 24px; }
+  /* máy tính đã có menu trên cùng → không hiện hàng lối tắt; chừa chỗ cho thẻ doanh thu đè xuống */
+  .dh-actions { display: none; }
+  .dh-grid { margin-top: 34px; }
   .dh-inv { grid-template-columns: repeat(4, 1fr); }
 }
