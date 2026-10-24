@@ -11,5 +11,5 @@ chmod +x "$HERE/autodeploy.sh" "$HERE/deploy.sh"
 touch /var/log/erp-autodeploy.log
 systemctl daemon-reload
 systemctl enable --now erp-autodeploy.timer
-echo "Đã bật: mỗi 2 phút kiểm tra GitHub, có commit mới trên master sẽ tự deploy. Nhật ký: /var/log/erp-autodeploy.log"
+echo "Đã bật: mỗi phút kiểm tra GitHub, có commit mới trên master sẽ tự deploy. Nhật ký: /var/log/erp-autodeploy.log"
 systemctl list-timers erp-autodeploy.timer --no-pager | head -3

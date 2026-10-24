@@ -6,7 +6,8 @@
 #  Làm gì: clone / git pull nhánh $BRANCH → pnpm install → build shared + API + web
 #          → prisma migrate deploy + bổ sung quyền cho vai trò mặc định → chép web vào nginx
 #          → khởi động lại erp-api → kiểm tra API trả lời.
-#  Biến tùy chọn: APP_DIR (/opt/erp) · APP_USER (erp) · WEB_ROOT (/var/www/erp) · BRANCH (master) · SKIP_INSTALL=1
+#  Chỉ build phần có thay đổi so với lần deploy trước (.deployed): web-only ≈ 1 phút, API-only ≈ 2 phút.
+#  Biến tùy chọn: APP_DIR (/opt/erp) · APP_USER (erp) · WEB_ROOT (/var/www/erp) · BRANCH (master) · SKIP_INSTALL=1 · FORCE=1 (build lại tất cả)
 # =====================================================================
 set -euo pipefail
 
@@ -37,29 +38,62 @@ fi
 as_app "cd '$APP_DIR' && git log -1 --format='   phiên bản: %h %ad %s' --date=short"
 [[ -f "$APP_DIR/.env" ]] || { echo "Thiếu $APP_DIR/.env – hãy chạy setup-ubuntu.sh trước"; exit 1; }
 
+# ---------- chỉ làm những bước có thay đổi (so với bản deploy thành công trước, lưu ở .deployed) ----------
+NEW_REV=$(as_app "cd '$APP_DIR' && git rev-parse HEAD")
+PREV_REV=$(cat "$APP_DIR/.deployed" 2>/dev/null || true)
+changed() { # changed <đường dẫn...> → 0 nếu có tệp thay đổi trong các đường dẫn đó
+  [[ -n "$PREV_REV" ]] || return 0
+  [[ -n "${FORCE:-}" ]] && return 0
+  as_app "cd '$APP_DIR' && git diff --quiet '$PREV_REV' '$NEW_REV' -- $*" && return 1 || return 0
+}
+DO_INSTALL=0; DO_API=0; DO_WEB=0
+changed pnpm-lock.yaml package.json pnpm-workspace.yaml apps/api/package.json apps/web/package.json packages/shared/package.json && DO_INSTALL=1
+changed apps/api packages/shared pnpm-lock.yaml && DO_API=1
+changed apps/web packages/shared pnpm-lock.yaml && DO_WEB=1
+[[ -n "${SKIP_INSTALL:-}" ]] && DO_INSTALL=0
+[[ ! -d "$APP_DIR/apps/api/dist" ]] && DO_API=1
+[[ ! -f "$WEB_ROOT/index.html" || ! -d "$APP_DIR/apps/web/dist" ]] && DO_WEB=1
+log "Kế hoạch: cài phụ thuộc=$DO_INSTALL · API=$DO_API · web=$DO_WEB (${PREV_REV:0:7} → ${NEW_REV:0:7})"
+
 # ---------- 2. cài phụ thuộc ----------
-if [[ -z "${SKIP_INSTALL:-}" ]]; then
+if [[ $DO_INSTALL -eq 1 ]]; then
   log "pnpm install (lần đầu mất vài phút trên máy 1 vCPU)"
   as_app "cd '$APP_DIR' && pnpm install --frozen-lockfile"
 fi
 
 # ---------- 3. build ----------
-log "Build packages/shared + API"
-as_app "cd '$APP_DIR' && pnpm --filter @erp/shared build"
-as_app "cd '$APP_DIR/apps/api' && pnpm prisma:generate && pnpm build"
-log "Build web (VITE_API_URL=/api/v1)"
-as_app "$(with_env "cd apps/web && VITE_API_URL=\${VITE_API_URL:-/api/v1} pnpm build")"
+if [[ $DO_API -eq 1 || $DO_WEB -eq 1 ]]; then
+  log "Build packages/shared"
+  as_app "cd '$APP_DIR' && pnpm --filter @erp/shared build"
+fi
+if [[ $DO_API -eq 1 ]]; then
+  log "Build API"
+  as_app "cd '$APP_DIR/apps/api' && pnpm prisma:generate && pnpm build"
+fi
+if [[ $DO_WEB -eq 1 ]]; then
+  log "Build web (VITE_API_URL=/api/v1)"
+  as_app "$(with_env "cd apps/web && VITE_API_URL=\${VITE_API_URL:-/api/v1} pnpm build")"
+fi
 
 # ---------- 4. cơ sở dữ liệu ----------
-log "Prisma migrate deploy + bổ sung quyền cho vai trò mặc định"
-as_app "$(with_env "cd apps/api && pnpm prisma:migrate:deploy && pnpm prisma:sync-roles")"
+if [[ $DO_API -eq 1 ]]; then
+  log "Prisma migrate deploy + bổ sung quyền cho vai trò mặc định"
+  as_app "$(with_env "cd apps/api && pnpm prisma:migrate:deploy && pnpm prisma:sync-roles")"
+fi
 
 # ---------- 5. phát hành web + khởi động lại API ----------
-log "Chép web vào $WEB_ROOT"
-rsync -a --delete "$APP_DIR/apps/web/dist/" "$WEB_ROOT/"
-chown -R www-data:www-data "$WEB_ROOT"
-log "Khởi động lại erp-api"
-systemctl restart erp-api
+if [[ $DO_WEB -eq 1 ]]; then
+  log "Chép web vào $WEB_ROOT"
+  rsync -a --delete "$APP_DIR/apps/web/dist/" "$WEB_ROOT/"
+  chown -R www-data:www-data "$WEB_ROOT"
+fi
+if [[ $DO_API -eq 1 ]]; then
+  log "Khởi động lại erp-api"
+  systemctl restart erp-api
+else
+  systemctl is-active --quiet erp-api || systemctl start erp-api
+fi
+echo "$NEW_REV" > "$APP_DIR/.deployed"
 for i in $(seq 1 20); do
   if curl -fsS http://127.0.0.1:3000/api/docs-json >/dev/null 2>&1; then
     HOST=$(grep -E '^CORS_ORIGINS=' "$APP_DIR/.env" | cut -d= -f2 | cut -d, -f1)

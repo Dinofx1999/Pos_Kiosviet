@@ -81,7 +81,7 @@ Sau khi deploy lần đầu thành công, bật bộ hẹn giờ trên máy ch�
 bash /opt/erp/scripts/deploy/install-autodeploy.sh
 ```
 
-Từ đó cứ mỗi 2 phút máy chủ kiểm tra nhánh `master` trên GitHub; có commit mới là tự chạy `deploy.sh` (nhật ký `/var/log/erp-autodeploy.log`, xem nhanh: `tail -f /var/log/erp-autodeploy.log`). Push từ Mac xong khoảng 3–8 phút là bản mới lên web. Tắt: `systemctl disable --now erp-autodeploy.timer`.
+Từ đó cứ mỗi phút máy chủ kiểm tra nhánh `master` trên GitHub; có commit mới là tự chạy `deploy.sh` (chỉ build phần thay đổi: sửa web ≈ 1 phút, sửa API ≈ 2 phút, đổi thư viện mới cài lại) (nhật ký `/var/log/erp-autodeploy.log`, xem nhanh: `tail -f /var/log/erp-autodeploy.log`). Push từ Mac xong khoảng 1–3 phút là bản mới lên web; cần ngay thì `systemctl start erp-autodeploy.service`. Tắt: `systemctl disable --now erp-autodeploy.timer`.
 
 ## Mỗi lần cập nhật sau này (khi không bật tự động)
 
