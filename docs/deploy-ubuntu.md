@@ -114,7 +114,7 @@ Tệp `/opt/erp/.env` do setup sinh ra chứa: `DATABASE_URL`, `REDIS_URL`, `API
 - `setup-ubuntu.sh` và `deploy.sh` đã chạy thành công trên 180.93.241.253; API `erp-api` active, web phục vụ tại **http://baoancosmetic.com.vn** (DNS tenten: A `@`, `*`, `mail` → IP; CNAME `www`).
 - nginx `server_name baoancosmetic.com.vn www.baoancosmetic.com.vn`; `CORS_ORIGINS` đã có cả http/https của hai tên này và IP.
 - Tự động triển khai đã bật (`erp-autodeploy.timer`, 2 phút/lần). Lỗi gặp lần đầu: `.gitignore` có `uploads/` nên thiếu thư mục mã nguồn `apps/api/src/modules/uploads` trên GitHub → đã sửa thành `/uploads/` và `/apps/api/uploads/`.
-- HTTPS (certbot) chờ xác nhận chấp nhận điều khoản Let's Encrypt.
+- HTTPS đã bật (certbot 24/10/2026, chứng chỉ Let's Encrypt hết hạn 22/01/2027, tự gia hạn bằng `certbot.timer`); HTTP tự chuyển sang **https://baoancosmetic.com.vn**. Tài khoản Let's Encrypt đăng ký không kèm email; muốn nhận thư báo gia hạn: `certbot update_account --email <email>`.
 
 ## Thêm tên miền và HTTPS (khi có domain)
 
