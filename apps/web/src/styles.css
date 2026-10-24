@@ -239,7 +239,16 @@ html { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   .ant-modal.ant-modal-confirm { width: auto !important; }
   .ant-drawer-content-wrapper { max-width: 100vw; }
   .ant-drawer-right .ant-drawer-content-wrapper, .ant-drawer-left .ant-drawer-content-wrapper { width: 100vw !important; }
-  .ant-drawer-body { padding: 14px; }
+  .ant-drawer-body { padding: 14px 14px calc(14px + env(safe-area-inset-bottom)); }
+  /* web app toàn màn hình trên iPhone: thanh trạng thái đè lên lớp phủ → chừa khoảng an toàn cho mọi lớp phủ toàn màn hình */
+  .ant-drawer-left .ant-drawer-header, .ant-drawer-right .ant-drawer-header, .ant-drawer-top .ant-drawer-header { padding-top: calc(16px + env(safe-area-inset-top)) !important; }
+  .ant-drawer-bottom .ant-drawer-body { padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
+  .ant-modal:not(.ant-modal-confirm) .ant-modal-content { padding-top: calc(14px + env(safe-area-inset-top)); }
+  .ant-message { top: calc(8px + env(safe-area-inset-top)) !important; }
+  .ant-notification.ant-notification-top, .ant-notification.ant-notification-topRight, .ant-notification.ant-notification-topLeft { top: calc(12px + env(safe-area-inset-top)) !important; }
+  .ant-image-preview-operations-wrapper .ant-image-preview-operations { padding-top: calc(12px + env(safe-area-inset-top)); }
+  .ant-image-preview-close { top: calc(32px + env(safe-area-inset-top)); }
+  .ant-popover, .ant-dropdown { max-width: calc(100vw - 16px); }
   /* touch targets & inputs (16px prevents iOS auto-zoom) */
   .ant-btn:not(.ant-btn-sm):not(.ant-btn-icon-only) { min-height: 40px; }
   .ant-input, .ant-input-number-input, .ant-select-selector, .ant-picker { font-size: 16px !important; }
