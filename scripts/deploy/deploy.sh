@@ -24,9 +24,9 @@ with_env() { echo "set -a; . $APP_DIR/.env; set +a; cd $APP_DIR; $*"; }
 # ---------- 1. lấy code ----------
 if [[ ! -d "$APP_DIR/.git" ]]; then
   [[ -n "$REPO_URL" ]] || { echo "Lần đầu cần địa chỉ kho: bash $0 git@github.com:<tai-khoan>/<ten-repo>.git"; exit 1; }
-  log "Clone $REPO_URL (nhánh $BRANCH) vào $APP_DIR"
-  as_app "git clone --branch '$BRANCH' '$REPO_URL' '$APP_DIR'"
-  as_app "cd '$APP_DIR' && git config pull.ff only"
+  log "Lấy code $REPO_URL (nhánh $BRANCH) vào $APP_DIR"
+  # $APP_DIR đã có .env do setup tạo nên không clone thẳng được: khởi tạo kho tại chỗ rồi fetch + checkout
+  as_app "cd '$APP_DIR' && git init -q && (git remote get-url origin >/dev/null 2>&1 || git remote add origin '$REPO_URL') && git fetch -q origin '$BRANCH' && git checkout -q -B '$BRANCH' 'origin/$BRANCH' && git config pull.ff only"
 else
   log "Cập nhật code (git pull --ff-only, nhánh $BRANCH)"
   as_app "cd '$APP_DIR' && git fetch --all --prune && git checkout -q '$BRANCH' && git pull --ff-only"
