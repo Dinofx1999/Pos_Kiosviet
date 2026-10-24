@@ -1,14 +1,13 @@
 import { Alert, Avatar, Empty, Segmented, Skeleton, Tag } from 'antd';
 import {
-  ArrowDownOutlined, ArrowUpOutlined, AuditOutlined, BarChartOutlined, CarOutlined, ClockCircleOutlined, DollarOutlined, FileDoneOutlined, GiftOutlined,
-  InboxOutlined, PauseCircleOutlined, QuestionCircleOutlined, RightOutlined, RollbackOutlined, ShoppingCartOutlined, SwapOutlined, TagsOutlined, TeamOutlined, WalletOutlined, WarningOutlined,
+  ArrowDownOutlined, ArrowUpOutlined, CarOutlined, ClockCircleOutlined, DollarOutlined, FileDoneOutlined, GiftOutlined, PauseCircleOutlined, RightOutlined, RollbackOutlined, SwapOutlined, WarningOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { ReactNode, useMemo, useState } from 'react';
+import { ReactNode, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { HomeSales, useDashboardHome } from '../../api/dashboard';
 import { errMsg } from '../../api/client';
-import { useAuthStore, useCan } from '../../store/auth';
+import { useAuthStore } from '../../store/auth';
 import { DOC_STATUS_COLOR, DOC_STATUS_LABEL, DOC_TYPE_LABEL, money, qty, toNum } from '../../utils/format';
 import './dashboard.css';
 
@@ -96,27 +95,12 @@ function Section({ title, extra, children, className = '' }: { title: ReactNode;
 }
 
 export default function DashboardPage() {
-  const can = useCan();
   const me = useAuthStore((s) => s.me);
   const branchId = useAuthStore((s) => s.currentBranchId);
   const { data, isLoading, error } = useDashboardHome(branchId);
   const [period, setPeriod] = useState<Period>('today');
   const branchName = me?.branches.find((b) => b.id === branchId)?.name ?? (me?.branches.length ? 'Tất cả chi nhánh' : '');
 
-  const actions = useMemo(() => [
-    { key: 'pos', to: '/pos', label: 'Bán hàng', icon: <ShoppingCartOutlined />, tone: 'green', ok: can('invoice.create') },
-    { key: 'products', to: '/products', label: 'Hàng hóa', icon: <TagsOutlined />, tone: 'blue', ok: can('product.view') },
-    { key: 'receipts', to: '/purchase-receipts', label: 'Nhập hàng', icon: <InboxOutlined />, tone: 'orange', ok: can('purchase.receipt.view') },
-    { key: 'customers', to: '/customers', label: 'Khách hàng', icon: <TeamOutlined />, tone: 'pink', ok: can('customer.view') },
-    { key: 'orders', to: '/orders', label: 'Đặt hàng', icon: <FileDoneOutlined />, tone: 'indigo', ok: can('order.view') },
-    { key: 'returns', to: '/sales-returns', label: 'Trả hàng', icon: <RollbackOutlined />, tone: 'red', ok: can('return.view') },
-    { key: 'cash', to: '/cash', label: 'Sổ quỹ', icon: <WalletOutlined />, tone: 'teal', ok: can('cash.view') },
-    { key: 'reports', to: '/reports/sales', label: 'Báo cáo', icon: <BarChartOutlined />, tone: 'purple', ok: can('sales.report.view') },
-    { key: 'stocktakes', to: '/stocktakes', label: 'Kiểm kho', icon: <AuditOutlined />, tone: 'amber', ok: can('stocktake.view') },
-    { key: 'transfers', to: '/transfers', label: 'Chuyển kho', icon: <SwapOutlined />, tone: 'cyan', ok: can('transfer.view') },
-    { key: 'deliveries', to: '/deliveries', label: 'Giao hàng', icon: <CarOutlined />, tone: 'lime', ok: can('delivery.view') },
-    { key: 'help', to: '/help', label: 'Hướng dẫn', icon: <QuestionCircleOutlined />, tone: 'gray', ok: true },
-  ].filter((a) => a.ok).slice(0, 8), [can]);
 
   if (error) return <Alert type="error" message={errMsg(error)} showIcon />;
   if (isLoading || !data) return <div className="dh"><div className="dh-hero"><Skeleton active paragraph={{ rows: 3 }} /></div><Skeleton active paragraph={{ rows: 8 }} /></div>;
@@ -177,16 +161,9 @@ export default function DashboardPage() {
             </div>
           </div>
         ) : (
-          <div className="dh-hero-card dh-hero-plain">Chúc một ngày bán hàng thuận lợi! Dùng các lối tắt bên dưới để bắt đầu.</div>
+          <div className="dh-hero-card dh-hero-plain">Chúc một ngày bán hàng thuận lợi!</div>
         )}
       </div>
-
-      {/* ---------- lối tắt ---------- */}
-      {actions.length > 0 && (
-        <div className="dh-actions">
-          {actions.map((a) => <Link key={a.key} to={a.to} className={`dh-action tone-${a.tone}`}><span className="ic">{a.icon}</span><span>{a.label}</span></Link>)}
-        </div>
-      )}
 
       <div className="dh-grid">
           {todo.length > 0 && (
