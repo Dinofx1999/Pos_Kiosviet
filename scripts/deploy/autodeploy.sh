@@ -12,7 +12,9 @@ LOG=${LOG:-/var/log/erp-autodeploy.log}
 
 [[ -d "$APP_DIR/.git" ]] || exit 0
 cd "$APP_DIR"
-runuser -u "$APP_USER" -- git fetch -q origin "$BRANCH" || { echo "$(date '+%F %T') fetch thất bại" >> "$LOG"; exit 0; }
+# fetch có giới hạn thời gian: GitHub/SSH treo thì bỏ qua lượt này thay vì chặn lượt sau
+export GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=10 -o ServerAliveCountMax=3"
+timeout 60 runuser -u "$APP_USER" -- env GIT_SSH_COMMAND="$GIT_SSH_COMMAND" git fetch -q origin "$BRANCH" || { echo "$(date '+%F %T') fetch thất bại / quá 60 giây – sẽ thử lại" >> "$LOG"; exit 0; }
 LOCAL=$(runuser -u "$APP_USER" -- git rev-parse HEAD)
 REMOTE=$(runuser -u "$APP_USER" -- git rev-parse "origin/$BRANCH")
 [[ "$LOCAL" != "$REMOTE" ]] || exit 0
