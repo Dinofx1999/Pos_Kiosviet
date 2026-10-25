@@ -9,6 +9,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import 'antd/dist/reset.css';
 import './styles.css';
 import App from './App';
+import { startUpdateWatcher } from './updateWatcher';
 
 dayjs.locale('vi');
 dayjs.extend(relativeTime);
@@ -34,3 +35,5 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </QueryClientProvider>
   </React.StrictMode>,
 );
+
+startUpdateWatcher();
