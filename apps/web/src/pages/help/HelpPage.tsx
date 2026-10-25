@@ -13,7 +13,7 @@ const isSectionKey = (v: string | null): v is SectionKey => !!v && SECTIONS.some
 /** /help → index with search + section chips; /help/:slug → one guide. */
 export default function HelpPage() {
   const { slug } = useParams<{ slug?: string }>();
-  useEffect(() => { window.scrollTo({ top: 0 }); }, [slug]);
+  useEffect(() => { window.scrollTo({ top: 0 }); document.querySelector('.kv-page')?.scrollTo({ top: 0 }); }, [slug]);
   if (!slug) return <HelpIndex />;
   const guide = getGuide(slug);
   if (!guide) return <NotFound slug={slug} />;

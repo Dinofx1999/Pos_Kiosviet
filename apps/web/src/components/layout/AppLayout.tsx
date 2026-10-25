@@ -1,6 +1,6 @@
 import { App, Avatar, Badge, Button, Drawer, Dropdown, Menu, Select, Spin, Tooltip } from 'antd';
 import { AppstoreOutlined, BellOutlined, DownOutlined, FileTextOutlined, HomeOutlined, LockOutlined, LogoutOutlined, MenuOutlined, QuestionCircleOutlined, SettingOutlined, ShopOutlined, ShoppingCartOutlined, TagsOutlined, UserOutlined } from '@ant-design/icons';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { PlanBanner } from '../PlanBanner';
 import { useMeQuery, authApi } from '../../api/auth';
@@ -20,8 +20,21 @@ export default function AppLayout() {
   const refreshToken = useAuthStore((s) => s.refreshToken);
   const nav = useNavigate();
   const loc = useLocation();
-  const { modal } = App.useApp();
   const isMobile = useIsMobile();
+  const mainRef = useRef<HTMLElement>(null);
+  // phone shell: the page body is the scroll container → reset it on navigation (desktop: the window)
+  useEffect(() => { mainRef.current?.scrollTo({ top: 0 }); window.scrollTo({ top: 0 }); }, [loc.pathname]);
+  // iPhone web app: after the keyboard closes iOS may leave the layout viewport shifted up (fixed bars float);
+  // the window itself never scrolls in the phone shell, so snapping it back to 0 is always safe
+  useEffect(() => {
+    if (!isMobile) return;
+    let t: number | undefined;
+    const snap = () => { window.clearTimeout(t); t = window.setTimeout(() => { if (!(document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement)) window.scrollTo(0, 0); }, 80); };
+    document.addEventListener('focusout', snap);
+    window.visualViewport?.addEventListener('resize', snap);
+    return () => { document.removeEventListener('focusout', snap); window.visualViewport?.removeEventListener('resize', snap); window.clearTimeout(t); };
+  }, [isMobile]);
+  const { modal } = App.useApp();
   const [pwdOpen, setPwdOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -116,7 +129,7 @@ export default function AppLayout() {
   const tab = (path: string) => (loc.pathname === path || (path !== '/' && loc.pathname.startsWith(path)) ? 'on' : '');
 
   return (
-    <div style={{ minHeight: '100vh' }}>
+    <div className="kv-shell">
       <header className="kv-header">
         <span className="kv-burger" role="button" aria-label="Menu" onClick={() => setMenuOpen(true)}><MenuOutlined /></span>
         <Link to="/" className="kv-logo"><span className="dot"><ShopOutlined /></span><span>{me?.tenant.name ?? 'Retail ERP'}</span></Link>
@@ -132,7 +145,7 @@ export default function AppLayout() {
         </div>
       </header>
       <PlanBanner />
-      <main className="kv-page"><Outlet /></main>
+      <main className="kv-page" ref={mainRef}><Outlet /></main>
 
       {/* ---- phone: hamburger drawer with the full grouped menu + bottom tab bar ---- */}
       <Drawer className="kv-menu-drawer" placement="left" open={menuOpen} onClose={() => setMenuOpen(false)} width="86vw" title={<span><ShopOutlined /> {me?.tenant.name}</span>} styles={{ body: { padding: 0 } }}>

@@ -23,6 +23,7 @@ html { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .kv-pos-btn { background: var(--kv-green) !important; border-color: var(--kv-green) !important; color: #fff !important; font-weight: 600; }
 .kv-pos-btn[disabled] { opacity: .75; }
 .kv-user { display: flex; align-items: center; gap: 6px; cursor: pointer; color: #fff; padding: 0 6px; }
+.kv-shell { min-height: 100vh; }
 .kv-page { padding: 14px 16px 24px; }
 .kv-page-title { font-size: 20px; font-weight: 600; margin: 0 0 12px; color: #1f2937; }
 .kv-list { display: flex; gap: 14px; align-items: flex-start; }
@@ -157,7 +158,6 @@ html { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   body { overflow-x: hidden; overscroll-behavior-y: none; }
   /* nội dung rộng hơn màn hình (bảng, lưới) không được kéo giãn trang – header và thanh tab luôn đứng yên;
      dùng clip (không phải hidden) để các thanh nút sticky vẫn hoạt động */
-  .kv-page { overflow-x: clip; max-width: 100vw; }
   .kv-settings { align-items: stretch; }
   .kv-settings-body { width: 100%; }
   .kv-kv.kv-kv-wide { grid-template-columns: 1fr; }
@@ -175,7 +175,14 @@ html { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   .kv-header-right .ant-badge { display: none; }
   .kv-user > span:not(.ant-avatar) { display: none; }
   .kv-user { padding: 0 2px; }
-  .kv-page { padding: 10px 12px calc(76px + env(safe-area-inset-bottom)); }
+  /* khung ứng dụng: tiêu đề và thanh tab cố định, chỉ phần nội dung ở giữa cuộn – không còn phần tử "ghim" nào
+     phụ thuộc vào chiều cao cửa sổ (iPhone web app hay để khung bị lệch sau khi đóng bàn phím) */
+  .kv-shell { min-height: 0; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+  .kv-shell > .kv-header, .kv-shell > .ant-alert, .kv-shell > .kv-tabbar { flex: 0 0 auto; }
+  .kv-page { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 10px 12px 24px; }
+  .kv-page .hp-back, .kv-page .tk-sticky { top: 0; }
+  .kv-page .kv-doc-actions { bottom: 0; }
+  .kv-page .em-sticky { bottom: 0; }
   .kv-page-title { font-size: 18px; margin-bottom: 8px; }
   .kv-list { flex-direction: column; }
   .kv-main { width: 100%; }
@@ -270,7 +277,7 @@ html { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   .ant-descriptions-item-content { flex: 1 1 auto; min-width: 0; }
   .kv-kv > * { white-space: normal; }
   /* bottom tab bar */
-  .kv-tabbar { display: flex; position: fixed; left: 0; right: 0; bottom: 0; height: calc(56px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); background: #fff; border-top: 1px solid #e5e7eb; z-index: 90; }
+  .kv-tabbar { display: flex; position: static; height: calc(56px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); background: #fff; border-top: 1px solid #e5e7eb; z-index: 90; }
   .kv-tabbar a, .kv-tabbar .kv-tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 11px; color: #6b7280; text-decoration: none; }
   .kv-tabbar .anticon { font-size: 20px; }
   .kv-tabbar .on { color: var(--kv-blue); font-weight: 600; }
