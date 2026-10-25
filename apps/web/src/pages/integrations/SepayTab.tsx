@@ -100,9 +100,9 @@ export function SepayTab() {
                 <Input placeholder="vd: NGUYEN THI BAO AN" style={{ textTransform: 'uppercase' }} />
               </Form.Item>
               <Form.Item name="cashAccountId" label="Quỹ ghi nhận tiền về" className="sp-full"
-                extra={<span>Phiếu thu chuyển khoản tự động được ghi vào quỹ này (loại Ngân hàng). Bỏ trống = quỹ ngân hàng mặc định. {can('cash.view') && <Link to="/cash/accounts">Thêm quỹ ngân hàng</Link>}</span>}>
+                extra={<span>Phiếu thu chuyển khoản tự động được ghi vào quỹ này (loại Ngân hàng). {bankFunds.length ? 'Bỏ trống = quỹ ngân hàng mặc định.' : 'Chưa có quỹ ngân hàng: khi bật, hệ thống tự tạo quỹ cho đúng tài khoản trên.'} {can('cash.view') && <Link to="/cash/accounts">Quỹ tiền / tài khoản</Link>}</span>}>
                 <Select allowClear placeholder="Quỹ ngân hàng mặc định" options={bankFunds.map((f) => ({ value: f.id, label: `${f.name}${f.accountNumber ? ` · ${f.accountNumber}` : ''}${f.isDefault ? ' (mặc định)' : ''}` }))}
-                  notFoundContent={<span className="kv-hint">Chưa có quỹ loại Ngân hàng – tạo ở Sổ quỹ → Quỹ tiền / Tài khoản</span>} />
+                  notFoundContent={<span className="kv-hint">Chưa có quỹ ngân hàng – để trống, hệ thống tự tạo khi bật</span>} />
               </Form.Item>
               <Form.Item name="codePrefix" label="Tiền tố mã thanh toán" extra={<span>Mã in trong nội dung CK: <b>{prefix}</b> + 8 số, vd <code>{prefix}12345678</code>. Phải trùng với cấu hình trên SePay.</span>}
                 rules={[{ required: true, message: 'Nhập tiền tố' }, { pattern: /^[A-Za-z]{2,5}$/, message: '2–5 chữ cái, không dấu' }]} normalize={(v: string) => v?.toUpperCase()}>

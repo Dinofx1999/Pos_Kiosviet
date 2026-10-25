@@ -10,7 +10,7 @@ export const CHUYEN_KHOAN: Guide[] = [
     perms: ['Xem kết nối & lịch sử nhập dữ liệu (integration.view)', 'Nhập dữ liệu từ KiotViet / Excel, cấu hình kết nối (integration.manage) để lưu cấu hình và tạo khóa'],
     keywords: ['SePay', 'VietQR', 'QR', 'chuyển khoản', 'webhook', 'API key', 'khóa API', 'ngân hàng', 'my.sepay.vn', 'tiền tố', 'mã thanh toán', 'tự động'],
     steps: [
-      { text: 'Bấm biểu tượng người dùng góc trên bên phải → Tích hợp (KiotViet, chuyển khoản SePay) → tab Chuyển khoản tự động (SePay).', shot: 'integrations-sepay' },
+      { text: 'Vào Thiết lập cửa hàng → Thanh toán QR (SePay). Cùng màn này cũng mở được từ biểu tượng người dùng góc trên bên phải → Tích hợp → tab Chuyển khoản tự động (SePay).', shot: 'integrations-sepay' },
       { text: 'Ở thẻ Tài khoản nhận tiền: bật "Bật nhận tiền chuyển khoản tự động", chọn Ngân hàng (gõ để tìm, vd "MB" hoặc "quân đội"), nhập Số tài khoản và Chủ tài khoản (viết hoa không dấu như trên app ngân hàng).', note: 'Khung "Xem trước mã QR" hiện mã mẫu 10.000đ – quét thử bằng app ngân hàng để chắc chắn đúng tên chủ tài khoản (không cần chuyển tiền).' },
       { text: 'Chọn Quỹ ghi nhận tiền về (quỹ loại Ngân hàng; chưa có thì tạo ở Sổ quỹ → Quỹ tiền / Tài khoản), giữ Tiền tố mã thanh toán (mặc định BA) và Hiệu lực mã QR tại quầy (phút), rồi bấm Lưu cấu hình.' },
       { text: 'Ở thẻ Webhook & khóa API: bấm Sao chép cạnh URL webhook, rồi bấm Tạo khóa API → Tạo khóa. Hộp "Khóa API mới" hiện khóa MỘT lần duy nhất: bấm Sao chép khóa, dán vào nơi an toàn, bấm Tôi đã lưu khóa.' },

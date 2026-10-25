@@ -11,6 +11,7 @@ import { AuditService } from '../../infra/audit/audit.service';
 import { CTX, RequestUser } from '../../infra/cls/request-context';
 import { PrismaService, TxClient } from '../../infra/prisma/prisma.service';
 import { ApplyBankTransactionDto, BankRequestQueryDto, BankTransactionQueryDto, CreateBankRequestDto, SepayConfigDto } from './dto/bank-transfers.dto';
+import { CashbookService } from './cashbook.service';
 import { PaymentsService } from './payments.service';
 
 const PROVIDER = 'SEPAY';
@@ -35,7 +36,7 @@ const hashKey = (key: string) => createHash('sha256').update(key).digest('hex');
 @Injectable()
 export class BankTransfersService {
   private readonly log = new Logger('SePay');
-  constructor(private readonly prisma: PrismaService, private readonly payments: PaymentsService, private readonly audit: AuditService, private readonly access: AccessService, private readonly cls: ClsService) {}
+  constructor(private readonly prisma: PrismaService, private readonly payments: PaymentsService, private readonly cashbook: CashbookService, private readonly audit: AuditService, private readonly access: AccessService, private readonly cls: ClsService) {}
 
   // ================================================================ cấu hình
   private configRow(db: TxClient | PrismaService['db'] = this.prisma.db) {
@@ -74,10 +75,24 @@ export class BankTransfersService {
       if (!acc) throw Errors.notFound('Quỹ tiền', dto.cashAccountId);
       if (acc.type !== 'BANK') throw Errors.validation('Quỹ nhận tiền chuyển khoản phải là tài khoản ngân hàng', { cashAccountId: dto.cashAccountId });
     }
+    // bật nhận chuyển khoản mà gian hàng chưa có quỹ ngân hàng nào → tạo quỹ cho đúng tài khoản này,
+    // nếu không tiền về sẽ không được ghi vào quỹ nào trong sổ quỹ
+    let autoFundId: string | undefined;
+    if (enabled && !dto.cashAccountId && !existing?.cashAccountId && bankCode && accountNumber) {
+      const sameAccount = await this.prisma.db.cashAccount.findFirst({ where: { type: 'BANK', isActive: true, accountNumber }, orderBy: { createdAt: 'asc' } });
+      if (sameAccount) autoFundId = sameAccount.id;
+      else if (!(await this.prisma.db.cashAccount.findFirst({ where: { type: 'BANK', isActive: true } }))) {
+        const bank = VIETQR_BANKS.find((b) => b.shortName === bankCode);
+        const holder = dto.accountName !== undefined ? dto.accountName?.toUpperCase() ?? null : existing?.accountName ?? null;
+        const fund = await this.cashbook.createAccount(user, { name: `${bankCode} - ${accountNumber}`.slice(0, 200), type: 'BANK', bankName: bank?.name ?? bankCode, accountNumber, accountHolder: holder ?? undefined, isDefault: true });
+        autoFundId = fund.id;
+      }
+    }
     const data = {
       enabled, bankCode, accountNumber,
       ...(dto.accountName !== undefined ? { accountName: dto.accountName?.toUpperCase() ?? null } : {}),
       ...(dto.cashAccountId !== undefined ? { cashAccountId: dto.cashAccountId } : {}),
+      ...(autoFundId ? { cashAccountId: autoFundId } : {}),
       ...(dto.codePrefix ? { codePrefix: dto.codePrefix.toUpperCase() } : {}),
       ...(dto.posTtlMinutes ? { posTtlMinutes: dto.posTtlMinutes } : {}),
     };

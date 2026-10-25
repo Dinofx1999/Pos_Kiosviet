@@ -2,7 +2,7 @@ import { createProduct, createTestApp, postReceipt, registerTenant, Session, Tes
 
 const api = '/api/v1';
 
-describe('SePay – thanh toán chuyển khoản tự động (VietQR + webhook) – T-260..T-266', () => {
+describe('SePay – thanh toán chuyển khoản tự động (VietQR + webhook) – T-260..T-267', () => {
   let t: TestApp;
   let s: Session;
   let other: Session;
@@ -207,5 +207,23 @@ describe('SePay – thanh toán chuyển khoản tự động (VietQR + webhook)
     const cross = await hook({ transferAmount: 10000, content: mine.code }, otherKey);
     expect(cross.body.result).toBe('unmatched'); // mã của gian hàng A không khớp ở gian hàng B
     expect((await t.http().get(`${api}/bank-transfers/requests/${mine.id}`).set(s.auth)).body.status).toBe('PENDING');
+  });
+
+  it('T-267 bật SePay ở gian hàng chưa có quỹ ngân hàng → tự tạo quỹ ngân hàng cho đúng tài khoản (một lần); gian hàng đã có quỹ ngân hàng thì không tạo thêm', async () => {
+    const fresh = await registerTenant(t);
+    const banksBefore = (await t.http().get(`${api}/cash/accounts`).set(fresh.auth)).body.filter((a: { type: string }) => a.type === 'BANK');
+    expect(banksBefore).toHaveLength(0);
+    const saved = await t.http().put(`${api}/integrations/sepay`).set(fresh.auth).send({ enabled: true, bankCode: 'Vietcombank', accountNumber: '1029384756', accountName: 'nguyen thi bao an' });
+    expect(saved.status).toBe(200);
+    expect(saved.body.cashAccount).toMatchObject({ type: 'BANK', name: 'Vietcombank - 1029384756' });
+    const again = await t.http().put(`${api}/integrations/sepay`).set(fresh.auth).send({ codePrefix: 'BAN' });
+    expect(again.body.cashAccount.id).toBe(saved.body.cashAccount.id);
+    const banks = (await t.http().get(`${api}/cash/accounts`).set(fresh.auth)).body.filter((a: { type: string }) => a.type === 'BANK');
+    expect(banks).toHaveLength(1);
+    expect(banks[0]).toMatchObject({ accountNumber: '1029384756', accountHolder: 'NGUYEN THI BAO AN', isDefault: true });
+    // gian hàng s đã có quỹ ngân hàng (khác số TK): cấu hình không tự tạo quỹ mới
+    const sBanks = (await t.http().get(`${api}/cash/accounts`).set(s.auth)).body.filter((a: { type: string }) => a.type === 'BANK').length;
+    await t.http().put(`${api}/integrations/sepay`).set(s.auth).send({ enabled: true });
+    expect((await t.http().get(`${api}/cash/accounts`).set(s.auth)).body.filter((a: { type: string }) => a.type === 'BANK')).toHaveLength(sBanks);
   });
 });

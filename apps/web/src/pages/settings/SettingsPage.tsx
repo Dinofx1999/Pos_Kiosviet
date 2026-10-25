@@ -12,6 +12,8 @@ import { useCan } from '../../store/auth';
 import { AuditTab, LoginHistoryTab, RolesTab, UsersTab } from './SettingsTabs';
 import { LoyaltySettingsTab } from './LoyaltySettingsTab';
 import { SubscriptionTab } from './SubscriptionTab';
+import { SepayTab } from '../integrations/SepayTab';
+import '../integrations/integrations.css';
 import './loyalty.css';
 
 const TABS = [
@@ -21,6 +23,7 @@ const TABS = [
   { key: 'roles', label: 'Vai trò & phân quyền', perm: 'role.manage' },
   { key: 'config', label: 'Cấu hình & mã chứng từ', perm: 'tenant.settings.manage' },
   { key: 'loyalty', label: 'Tích điểm', perm: 'tenant.settings.manage' },
+  { key: 'payment-qr', label: 'Thanh toán QR (SePay)', perm: 'integration.view' },
   { key: 'subscription', label: 'Gói dịch vụ', perm: 'subscription.view' },
   { key: 'audit', label: 'Nhật ký hệ thống', perm: 'audit.view' },
   { key: 'logins', label: 'Lịch sử đăng nhập', perm: 'audit.view' },
@@ -34,6 +37,8 @@ export default function SettingsPage() {
   const visible = TABS.filter((t) => can(t.perm));
   const active = visible.find((t) => t.key === tab)?.key ?? visible[0]?.key;
   useEffect(() => { if (!tab && active) nav(`/settings/${active}`, { replace: true }); }, [tab, active]);
+  // điện thoại: hàng thẻ cuộn ngang – đưa thẻ đang chọn vào giữa (vd mở thẳng /settings/payment-qr)
+  useEffect(() => { if (isMobile) document.querySelector('.lp-settings-chips .ant-tag-checkable-checked')?.scrollIntoView({ inline: 'center', block: 'nearest' }); }, [active, isMobile]);
   if (!visible.length) return <Card>Bạn không có quyền truy cập thiết lập cửa hàng.</Card>;
   return (
     <div>
@@ -49,6 +54,7 @@ export default function SettingsPage() {
           {active === 'roles' && <RolesTab />}
           {active === 'config' && <ConfigTab />}
           {active === 'loyalty' && <LoyaltySettingsTab />}
+          {active === 'payment-qr' && <SepayTab />}
           {active === 'subscription' && <SubscriptionTab />}
           {active === 'audit' && <AuditTab />}
           {active === 'logins' && <LoginHistoryTab />}
