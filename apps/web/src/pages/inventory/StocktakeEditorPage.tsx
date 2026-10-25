@@ -271,7 +271,7 @@ function CountingScreen({ s }: { s: Stocktake }) {
       </div>
       <div className="tk-sticky">
         <Card size="small">
-          <ProductSearch ref={searchRef} autoFocus goodsOnly warehouseId={s.warehouseId} onPick={onPick} placeholder="Quét mã vạch hoặc tìm hàng để đếm (F3)" />
+          <ProductSearch scanContinuous ref={searchRef} autoFocus goodsOnly warehouseId={s.warehouseId} onPick={onPick} placeholder="Quét mã vạch hoặc tìm hàng để đếm (F3)" />
           <div className="tk-sticky-tools">
             <Segmented size="small" value={filter} onChange={(v) => { setFilter(v as LineFilter); setLimit(PAGE); }} options={[{ value: 'all', label: `Tất cả (${stats.total})` }, { value: 'uncounted', label: `Chưa đếm (${stats.uncountedN})` }, { value: 'diff', label: `Lệch (${stats.diffN})` }]} />
             <span className="tk-toolbar-right"><span><Switch size="small" checked={scanPlus} onChange={setScanPlus} /> Mỗi lần quét +1</span>{adding && <span className="tk-save saving"><LoadingOutlined /> đang thêm</span>}{pendingCount > 0 && <span className="tk-save saving"><LoadingOutlined /> lưu {pendingCount}</span>}</span>

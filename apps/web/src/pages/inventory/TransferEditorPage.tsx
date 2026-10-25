@@ -205,7 +205,7 @@ function TransferForm({ existing }: { existing?: Transfer }) {
                 <Select style={{ width: '100%' }} value={toId} onChange={setToId} placeholder="Chọn kho nhận" showSearch optionFilterProp="label" options={toOptions} notFoundContent={<span className="muted">Không có kho đích nào khác. Tạo kho ở Thiết lập → Chi nhánh / Kho.</span>} />
               </div>
             </div>
-            <ProductSearch ref={searchRef} autoFocus goodsOnly warehouseId={fromId} onPick={addHit} placeholder="Tìm hàng để chuyển theo mã, tên hoặc quét mã vạch (F3)" />
+            <ProductSearch scanContinuous ref={searchRef} autoFocus goodsOnly warehouseId={fromId} onPick={addHit} placeholder="Tìm hàng để chuyển theo mã, tên hoặc quét mã vạch (F3)" />
           </Card>
           <Card size="small" styles={{ body: { padding: 0 } }}>
             {isMobile ? (

@@ -8,6 +8,7 @@ import { FilterCard, FilterPanel } from '../../components/FilterPanel';
 import { useBranchWarehouses, useCan, useMe } from '../../store/auth';
 import { money, qty } from '../../utils/format';
 import { useCategoryOptions } from '../products/CategoryFilter';
+import { BarcodeScanButton } from '../../components/BarcodeScanner';
 
 export default function BalancesPage() {
   const { message, modal } = App.useApp();
@@ -43,7 +44,10 @@ export default function BalancesPage() {
           <Col xs={12} md={6}><Card size="small"><Statistic title={summary.data?.stockValue !== undefined ? 'Giá trị tồn (giá vốn)' : 'Cảnh báo tồn thấp'} value={summary.data?.stockValue !== undefined ? money(summary.data.stockValue) : summary.data?.lowStockCount ?? 0} /></Card></Col>
         </Row>
         <div className="kv-toolbar">
-          <Input.Search className="kv-search" allowClear placeholder="Theo mã, tên hàng, mã vạch" value={searchText} onChange={(e) => setSearchText(e.target.value)} onSearch={(v) => set({ search: v || undefined })} enterButton={<SearchOutlined />} />
+          <div className="kv-search input-with-scan">
+            <Input.Search allowClear placeholder="Theo mã, tên hàng, mã vạch" value={searchText} onChange={(e) => setSearchText(e.target.value)} onSearch={(v) => set({ search: v || undefined })} enterButton={<SearchOutlined />} />
+            <BarcodeScanButton title="Quét mã vạch – xem tồn kho" onScan={(c) => { setSearchText(c); set({ search: c }); }} />
+          </div>
           <span className="spacer" />
           {me?.user.isOwner && <Button icon={<SyncOutlined />} onClick={reconcile}>Đối soát</Button>}
           <Button icon={<ReloadOutlined />} onClick={() => { refetch(); summary.refetch(); }} loading={isFetching} />

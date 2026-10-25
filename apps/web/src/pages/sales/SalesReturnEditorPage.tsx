@@ -311,7 +311,7 @@ function ReturnEditor({ invoiceId, existing }: { invoiceId: string; existing?: S
 
           {mode === 'exchange' && (
             <Card size="small" style={{ marginTop: 10 }} title={<span><SwapOutlined /> Hàng đổi – hóa đơn mới</span>} extra={<Button type="link" size="small" onClick={() => setMode('return')}>Chỉ trả hàng</Button>} styles={{ body: { padding: isMobile ? 8 : 12 } }}>
-              <ProductSearch onPick={addX} warehouseId={inv.warehouseId} size={isMobile ? 'large' : 'middle'} placeholder="Tìm hàng đổi hoặc quét mã vạch" />
+              <ProductSearch scanContinuous onPick={addX} warehouseId={inv.warehouseId} size={isMobile ? 'large' : 'middle'} placeholder="Tìm hàng đổi hoặc quét mã vạch" />
               <div style={{ marginTop: 8 }}>
                 {!xLines.length && <div className="muted" style={{ padding: '12px 4px' }}>Chưa có hàng đổi. Tìm hoặc quét mã vạch để thêm.</div>}
                 {isMobile ? (

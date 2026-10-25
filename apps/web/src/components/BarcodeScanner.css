@@ -1,0 +1,18 @@
+/* Khung quét mã vạch toàn màn hình (BarcodeScanner) */
+.bc-modal .ant-modal-content { padding: 0; border-radius: 0; background: #000; height: var(--app-h, 100dvh); overflow: hidden; }
+.bc-modal.ant-modal { top: 0 !important; padding-bottom: 0; }
+.bc-wrap { position: relative; height: var(--app-h, 100dvh); background: #000; color: #fff; overflow: hidden; }
+.bc-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.bc-top { position: absolute; top: 0; left: 0; right: 0; z-index: 2; display: flex; align-items: center; gap: 8px; padding: calc(10px + env(safe-area-inset-top)) 12px 10px; background: linear-gradient(rgba(0,0,0,.6), transparent); }
+.bc-title { flex: 1; font-size: 16px; font-weight: 600; }
+.bc-btn.ant-btn { background: rgba(255,255,255,.18); border: 0; color: #fff; width: 40px; height: 40px; }
+.bc-btn.ant-btn.on { background: #facc15; color: #111; }
+.bc-frame { position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.bc-frame span { width: min(78vw, 360px); height: min(46vw, 210px); border-radius: 14px; box-shadow: 0 0 0 9999px rgba(0,0,0,.45); border: 2px solid rgba(255,255,255,.9); position: relative; overflow: hidden; }
+.bc-frame span::after { content: ''; position: absolute; left: 8%; right: 8%; top: 50%; height: 2px; background: #ef4444; box-shadow: 0 0 8px #ef4444; animation: bc-scan 1.8s ease-in-out infinite; }
+@keyframes bc-scan { 0%, 100% { transform: translateY(-70px); } 50% { transform: translateY(70px); } }
+.bc-bottom { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, rgba(0,0,0,.7)); }
+.bc-hint { text-align: center; font-size: 14px; line-height: 1.5; }
+.bc-hint b { font-size: 16px; letter-spacing: .5px; }
+.input-with-scan { display: flex; gap: 6px; align-items: stretch; }
+.input-with-scan > :first-child { flex: 1 1 auto; min-width: 0; }

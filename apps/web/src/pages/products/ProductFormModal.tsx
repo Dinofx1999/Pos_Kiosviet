@@ -7,6 +7,7 @@ import { errMsg } from '../../api/client';
 import type { Product, SearchHit } from '../../api/types';
 import { MoneyInput, QuantityInput } from '../../components/Inputs';
 import { ProductSearch } from '../../components/ProductSearch';
+import { ScanInput } from '../../components/BarcodeScanner';
 import { ImageUploader, type ImageItem } from '../../components/ImageUploader';
 import { useAuthStore, useBranchWarehouses } from '../../store/auth';
 import { money, toNum } from '../../utils/format';
@@ -125,7 +126,7 @@ export function ProductFormModal({ open, product, onClose, onSaved }: { open: bo
         <Form.Item label="Hình ảnh" style={{ marginBottom: 8 }}><ImageUploader value={images} onChange={setImages} /></Form.Item>
       </Col>
       <Col xs={24} md={12}>
-        <Form.Item name="code" label="Mã hàng" tooltip="Bỏ trống để hệ thống tự sinh (SP000001)"><Input placeholder="Mã hàng tự động" disabled={isEdit} /></Form.Item>
+        <Form.Item name="code" label="Mã hàng" tooltip="Bỏ trống để hệ thống tự sinh (SP000001); có thể quét mã vạch làm mã hàng"><ScanInput placeholder="Mã hàng tự động" disabled={isEdit} title="Quét mã vạch làm mã hàng" /></Form.Item>
         <Form.Item name="name" label="Tên hàng" rules={[{ required: true, message: 'Nhập tên hàng' }]}><Input autoFocus /></Form.Item>
         <Form.Item label="Loại hàng"><Select value={type} disabled={isEdit} onChange={(t) => setType(t)} options={[{ value: 'GOODS', label: 'Hàng hóa' }, { value: 'SERVICE', label: 'Dịch vụ' }, { value: 'COMBO', label: 'Combo - đóng gói' }]} /></Form.Item>
         <Form.Item name="categoryId" label="Nhóm hàng"><Select allowClear showSearch optionFilterProp="label" options={categories} dropdownRender={can('category.manage') ? quickAddDropdown('category') : undefined} placeholder="Chọn nhóm hàng" /></Form.Item>
@@ -140,7 +141,7 @@ export function ProductFormModal({ open, product, onClose, onSaved }: { open: bo
               <Col span={12}><Form.Item name="costPrice" label="Giá vốn" tooltip="Chỉ áp dụng khi hàng chưa có biến động kho; sau đó giá vốn do hệ thống tính bình quân"><MoneyInput disabled={!canSeeCost} /></Form.Item></Col>
             </Row>
             <Row gutter={8}>
-              <Col span={12}><Form.Item name="barcode" label="Mã vạch"><Input placeholder="Quét hoặc nhập mã vạch" /></Form.Item></Col>
+              <Col span={12}><Form.Item name="barcode" label="Mã vạch"><ScanInput placeholder="Quét hoặc nhập mã vạch" /></Form.Item></Col>
               <Col span={12}><Form.Item name="sku" label="SKU" tooltip="Bỏ trống = dùng mã hàng"><Input placeholder="tự sinh" /></Form.Item></Col>
             </Row>
           </>
@@ -187,7 +188,7 @@ export function ProductFormModal({ open, product, onClose, onSaved }: { open: bo
               columns={[
                 { title: 'Tên', render: (_, r) => <span>{form.getFieldValue('name')} {Object.values(r.attributes).length ? `- ${Object.values(r.attributes).join(' - ')}` : ''} {r.id && <Tag>đã có</Tag>}</span> },
                 { title: 'SKU', width: 140, render: (_, r, i) => <Input size="small" value={r.sku} placeholder="tự sinh" onChange={(e) => setVariants((s) => s.map((x, j) => (j === i ? { ...x, sku: e.target.value } : x)))} /> },
-                { title: 'Mã vạch', width: 140, render: (_, r, i) => <Input size="small" value={r.barcode} onChange={(e) => setVariants((s) => s.map((x, j) => (j === i ? { ...x, barcode: e.target.value } : x)))} /> },
+                { title: 'Mã vạch', width: 170, render: (_, r, i) => <ScanInput size="small" value={r.barcode} onChange={(v) => setVariants((s) => s.map((x, j) => (j === i ? { ...x, barcode: v } : x)))} /> },
                 { title: 'Giá bán', width: 130, render: (_, r, i) => <MoneyInput size="small" value={r.sellPrice} onChange={(v) => setVariants((s) => s.map((x, j) => (j === i ? { ...x, sellPrice: toNum(v) } : x)))} /> },
                 { title: 'Giá vốn', width: 130, render: (_, r, i) => <MoneyInput size="small" disabled={!canSeeCost} value={r.costPrice} onChange={(v) => setVariants((s) => s.map((x, j) => (j === i ? { ...x, costPrice: v === null ? undefined : toNum(v) } : x)))} /> },
                 { title: 'Tồn min', width: 90, render: (_, r, i) => <QuantityInput size="small" value={r.minStock} onChange={(v) => setVariants((s) => s.map((x, j) => (j === i ? { ...x, minStock: v === null ? undefined : toNum(v) } : x)))} /> },
@@ -204,7 +205,7 @@ export function ProductFormModal({ open, product, onClose, onSaved }: { open: bo
               { title: 'Tên đơn vị', render: (_, r, i) => <Input size="small" value={r.unitName} placeholder="Thùng" onChange={(e) => setUnitRows((s) => s.map((x, j) => (j === i ? { ...x, unitName: e.target.value } : x)))} /> },
               { title: 'Hệ số quy đổi về đơn vị cơ bản', width: 180, render: (_, r, i) => <InputNumber size="small" min={0.0001} value={r.conversionFactor} onChange={(v) => setUnitRows((s) => s.map((x, j) => (j === i ? { ...x, conversionFactor: toNum(v) } : x)))} /> },
               { title: 'SKU', width: 130, render: (_, r, i) => <Input size="small" value={r.sku} onChange={(e) => setUnitRows((s) => s.map((x, j) => (j === i ? { ...x, sku: e.target.value } : x)))} /> },
-              { title: 'Mã vạch', width: 130, render: (_, r, i) => <Input size="small" value={r.barcode} onChange={(e) => setUnitRows((s) => s.map((x, j) => (j === i ? { ...x, barcode: e.target.value } : x)))} /> },
+              { title: 'Mã vạch', width: 160, render: (_, r, i) => <ScanInput size="small" value={r.barcode} onChange={(v) => setUnitRows((s) => s.map((x, j) => (j === i ? { ...x, barcode: v } : x)))} /> },
               { title: 'Giá bán', width: 130, render: (_, r, i) => <MoneyInput size="small" value={r.sellPrice} onChange={(v) => setUnitRows((s) => s.map((x, j) => (j === i ? { ...x, sellPrice: v === null ? undefined : toNum(v) } : x)))} /> },
               { title: '', width: 40, render: (_, __, i) => <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => setUnitRows((s) => s.filter((_, j) => j !== i))} /> },
             ]} />

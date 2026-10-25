@@ -175,7 +175,7 @@ export default function PurchaseReceiptEditorPage() {
       </div>
       <div className="kv-doc-editor">
         <div className="kv-doc-lines">
-          <Card size="small" style={{ marginBottom: 10 }}><ProductSearch ref={searchRef} autoFocus goodsOnly warehouseId={warehouseId} onPick={addHit} /></Card>
+          <Card size="small" style={{ marginBottom: 10 }}><ProductSearch scanContinuous ref={searchRef} autoFocus goodsOnly warehouseId={warehouseId} onPick={addHit} /></Card>
           <Card size="small" styles={{ body: { padding: 0 } }}>
             {isMobile ? (
               <div className="kv-mlines">

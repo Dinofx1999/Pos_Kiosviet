@@ -89,7 +89,7 @@ export default function PurchaseOrderEditorPage() {
       </div>
       <div className="kv-doc-editor">
         <div className="kv-doc-lines">
-          <Card size="small" style={{ marginBottom: 10 }}><ProductSearch ref={searchRef} autoFocus goodsOnly warehouseId={warehouseId} onPick={addHit} placeholder="Tìm hàng hóa theo mã, tên hoặc quét mã vạch (F3)" /></Card>
+          <Card size="small" style={{ marginBottom: 10 }}><ProductSearch scanContinuous ref={searchRef} autoFocus goodsOnly warehouseId={warehouseId} onPick={addHit} placeholder="Tìm hàng hóa theo mã, tên hoặc quét mã vạch (F3)" /></Card>
           <Card size="small" styles={{ body: { padding: 0 } }}>
             <Table size="small" rowKey="key" pagination={false} dataSource={lines} locale={{ emptyText: 'Chưa có hàng hóa. Tìm hoặc quét mã vạch để thêm.' }} scroll={{ x: 1000 }}
               columns={[

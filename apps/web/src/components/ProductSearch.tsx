@@ -7,12 +7,14 @@ import { money, qty } from '../utils/format';
 import { errMsg } from '../api/client';
 import { App } from 'antd';
 import { useIsMobile } from '../hooks/useMedia';
+import { BarcodeScanButton } from './BarcodeScanner';
 
 export interface ProductSearchHandle { focus: () => void }
 
 /** Search box with debounce + barcode-scanner support (Enter with no highlighted option → lookup by barcode). */
-export const ProductSearch = forwardRef<ProductSearchHandle, { onPick: (hit: SearchHit) => void; warehouseId?: string; placeholder?: string; goodsOnly?: boolean; autoFocus?: boolean; size?: 'middle' | 'large' }>(
-  function ProductSearch({ onPick, warehouseId, placeholder = 'Tìm hàng hóa theo mã, tên hoặc quét mã vạch (F3)', goodsOnly, autoFocus, size = 'large' }, ref) {
+/** scanContinuous: nút camera quét liên tục (bán hàng) – mỗi mã quét được thêm ngay, camera giữ mở. */
+export const ProductSearch = forwardRef<ProductSearchHandle, { onPick: (hit: SearchHit) => void; warehouseId?: string; placeholder?: string; goodsOnly?: boolean; autoFocus?: boolean; size?: 'middle' | 'large'; scanContinuous?: boolean }>(
+  function ProductSearch({ onPick, warehouseId, placeholder = 'Tìm hàng hóa theo mã, tên hoặc quét mã vạch (F3)', goodsOnly, autoFocus, size = 'large', scanContinuous }, ref) {
     const { message } = App.useApp();
     const [value, setValue] = useState('');
     const [options, setOptions] = useState<{ value: string; label: React.ReactNode; hit: SearchHit }[]>([]);
@@ -50,8 +52,21 @@ export const ProductSearch = forwardRef<ProductSearchHandle, { onPick: (hit: Sea
     };
 
     const pick = (hit: SearchHit) => { window.clearTimeout(timer.current); seq.current++; onPick(hit); setValue(''); setOptions([]); };
+    /** camera: mã vạch / mã hàng khớp đúng → chọn ngay; không khớp → đưa mã vào ô tìm để xem gợi ý */
+    const onCameraScan = async (code: string) => {
+      try {
+        const hit = await catalogApi.byBarcode(code);
+        if (goodsOnly && hit.product.type !== 'GOODS') throw new Error('not goods');
+        pick(hit);
+        message.success({ content: `Đã chọn: ${hit.name}`, duration: 1.2 });
+      } catch {
+        setValue(code); runSearch(code);
+        message.warning(`Không tìm thấy hàng hóa có mã vạch/mã "${code}"`);
+      }
+    };
 
     return (
+      <div className="input-with-scan">
       <AutoComplete
         value={value} options={options} style={{ width: '100%' }} popupMatchSelectWidth={isMobile ? true : 520}
         onSearch={(q) => { setValue(q); runSearch(q); }}
@@ -66,6 +81,8 @@ export const ProductSearch = forwardRef<ProductSearchHandle, { onPick: (hit: Sea
       >
         <Input ref={inputRef} size={size} prefix={<SearchOutlined />} placeholder={placeholder} allowClear autoFocus={autoFocus} />
       </AutoComplete>
+      <BarcodeScanButton size={size} onScan={(c) => void onCameraScan(c)} continuous={scanContinuous} title={scanContinuous ? 'Quét mã vạch – thêm vào giỏ' : 'Quét mã vạch'} />
+      </div>
     );
   },
 );

@@ -8,6 +8,7 @@ import { useMovements } from '../../api/inventory';
 import { errMsg } from '../../api/client';
 import type { Product } from '../../api/types';
 import { FilterCard, FilterPanel } from '../../components/FilterPanel';
+import { BarcodeScanButton } from '../../components/BarcodeScanner';
 import { useAuthStore, useBranchWarehouses, useCan } from '../../store/auth';
 import { MOVEMENT_LABEL, PRODUCT_TYPE_LABEL, downloadBlob, dt, money, pct, qty, signedQty } from '../../utils/format';
 import { CategoryFilter } from './CategoryFilter';
@@ -68,7 +69,10 @@ export default function ProductsPage() {
       <div className="kv-main">
         <h1 className="kv-page-title">Hàng hóa</h1>
         <div className="kv-toolbar">
-          <Input.Search className="kv-search" allowClear placeholder="Theo mã, tên hàng, mã vạch" value={searchText} onChange={(e) => setSearchText(e.target.value)} onSearch={(v) => { set({ search: v || undefined }); setSp(v ? { search: v } : {}); }} enterButton={<SearchOutlined />} />
+          <div className="kv-search input-with-scan">
+            <Input.Search allowClear placeholder="Theo mã, tên hàng, mã vạch" value={searchText} onChange={(e) => setSearchText(e.target.value)} onSearch={(v) => { set({ search: v || undefined }); setSp(v ? { search: v } : {}); }} enterButton={<SearchOutlined />} />
+            <BarcodeScanButton title="Quét mã vạch – tìm hàng" onScan={(c) => { setSearchText(c); set({ search: c }); setSp({ search: c }); }} />
+          </div>
           <span className="spacer" />
           {can('product.create') && <Button type="primary" icon={<PlusOutlined />} onClick={() => setForm({ open: true, product: null })}>Thêm mới</Button>}
           {can('product.import') && (

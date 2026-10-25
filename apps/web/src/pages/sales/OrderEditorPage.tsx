@@ -229,7 +229,7 @@ function OrderEditor({ existing }: { existing?: SalesOrder }) {
       <div className="kv-doc-editor">
         <div className="kv-doc-lines">
           <Card size="small" title="Hàng đặt" extra={<span className="kv-hint">{lines.length} dòng · {qty(lines.reduce((s, l) => s + l.quantity, 0))} SP</span>} styles={{ body: { padding: isMobile ? 8 : 12 } }}>
-            <ProductSearch onPick={addHit} warehouseId={warehouseId} size={isMobile ? 'large' : 'middle'} placeholder="Tìm hàng hóa hoặc quét mã vạch" autoFocus={!isMobile && !existing} />
+            <ProductSearch scanContinuous onPick={addHit} warehouseId={warehouseId} size={isMobile ? 'large' : 'middle'} placeholder="Tìm hàng hóa hoặc quét mã vạch" autoFocus={!isMobile && !existing} />
             <div style={{ marginTop: 8 }}>
               {loadingLines && <div className="muted" style={{ padding: 8 }}>Đang tải dòng hàng…</div>}
               {!lines.length && !loadingLines && <div className="muted" style={{ padding: '12px 4px' }}>Chưa có hàng. Tìm hoặc quét mã vạch để thêm.</div>}

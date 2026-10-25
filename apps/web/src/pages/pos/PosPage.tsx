@@ -672,7 +672,7 @@ export default function PosPage() {
     <div className="pos-app">
       <header className="pos-header">
         <Link to="/" className="pos-brand"><HomeOutlined /> Quản lý</Link>
-        <div className="pos-search"><ProductSearch ref={searchRef} onPick={addHit} warehouseId={warehouseId} autoFocus={!isMobile} size="middle" placeholder="Tìm hàng (F3) hoặc quét mã vạch rồi Enter" /></div>
+        <div className="pos-search"><ProductSearch scanContinuous ref={searchRef} onPick={addHit} warehouseId={warehouseId} autoFocus={!isMobile} size="middle" placeholder="Tìm hàng (F3) hoặc quét mã vạch rồi Enter" /></div>
         <div className="pos-tabs">{tabChips}</div>
         <div className="pos-header-right">
           <Dropdown menu={shiftMenu} trigger={['click']}><span className="pos-shift"><ClockCircleOutlined /> {shift ? (isMobile ? `Ca ${shift.code}` : `Ca ${shift.code} · mở ${dt(shift.openedAt, 'HH:mm')}`) : 'Chưa mở ca'}</span></Dropdown>
@@ -684,7 +684,7 @@ export default function PosPage() {
       {isMobile && (
         <>
           <div className="pos-mtabs">{tabChips}</div>
-          <div className="pos-msearch"><ProductSearch ref={searchRef} onPick={addHit} warehouseId={warehouseId} size="large" placeholder="Tìm hàng hoặc quét mã vạch" /></div>
+          <div className="pos-msearch"><ProductSearch scanContinuous ref={searchRef} onPick={addHit} warehouseId={warehouseId} size="large" placeholder="Tìm hàng hoặc quét mã vạch" /></div>
         </>
       )}
 
