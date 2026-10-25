@@ -13,7 +13,7 @@ async function xlsx(headers: string[], rows: Array<Array<string | number>>): Pro
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
 
-describe('KiotViet migration: Excel importers, API connector, reconciliation (Module 13) – T-220..T-225', () => {
+describe('KiotViet migration: Excel importers, API connector, reconciliation (Module 13) – T-220..T-226', () => {
   let t: TestApp;
   let s: Session;
   beforeAll(async () => {
@@ -281,6 +281,27 @@ describe('KiotViet migration: Excel importers, API connector, reconciliation (Mo
     const other = await registerTenant(t);
     expect((await t.http().get(`${api}/integrations/import-jobs/${missing.body.jobId}`).set(other.auth)).status).toBe(404);
     expect((await t.http().get(`${api}/integrations/import-jobs`).set(other.auth)).body.meta.total).toBe(0);
+  });
+
+  it('T-226 invoice history sold by a unit code (1 miếng of a box of 10): line goes to the base product with the unit and base quantity = qty × factor, no placeholder product', async () => {
+    const p = await t.http().post(`${api}/products`).set(s.auth).send({ code: 'SP-HOP10', name: 'Mặt nạ hộp 10 miếng', type: 'GOODS', variants: [{ sellPrice: '180000', costPrice: '100000' }], units: [{ unitName: 'Miếng', conversionFactor: '0.1', sku: 'SP-MIENG10', sellPrice: '18000' }] });
+    expect(p.status).toBe(201);
+    const file = await xlsx(['Mã hóa đơn', 'Thời gian', 'Chi nhánh', 'Khách cần trả', 'Khách đã trả', 'Trạng thái', 'Mã hàng', 'Tên hàng', 'Số lượng', 'Đơn giá', 'Thành tiền'], [
+      ['HD004601', '23/09/2026 10:00', 'Chi nhánh trung tâm', '54000', '54000', 'Hoàn thành', 'SP-MIENG10', 'Mặt nạ hộp 10 miếng', '3', '18000', '54000'],
+    ]);
+    const done = await commit((await preview('INVOICES', file, { defaultBranchId: s.branchId })).body.jobId);
+    expect(done.body.created).toBe(1);
+    expect(done.body.failed).toBe(0);
+    expect(done.body.placeholders ?? 0).toBe(0);
+    const inv = (await t.http().get(`${api}/invoices`).set(s.auth).query({ search: 'KV-HD004601' })).body.data[0];
+    const line = (await t.http().get(`${api}/invoices/${inv.id}`).set(s.auth)).body.lines[0];
+    expect(line.variantId).toBe(p.body.variants[0].id);
+    expect(line.unitName).toBe('Miếng');
+    expect(line.productUnitId).toBe(p.body.units[0].id);
+    expect(Number(line.quantity)).toBe(3);
+    expect(Number(line.baseQuantity)).toBeCloseTo(0.3);
+    expect(Number(line.unitCost)).toBe(10000);
+    expect((await t.http().get(`${api}/products`).set(s.auth).query({ search: 'SP-MIENG10', includeInactive: 'true' })).body.data.filter((x: { code: string }) => x.code === 'SP-MIENG10')).toHaveLength(0);
   });
 
   it('T-225 KiotViet connection: creation needs all three credentials; later saves may change only the branch map or only one credential', async () => {

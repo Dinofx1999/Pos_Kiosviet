@@ -390,12 +390,24 @@ export class ImportService {
     const variants = codes.length ? await this.prisma.db.productVariant.findMany({ where: { OR: [{ sku: { in: Array.from(new Set(codes)), mode: 'insensitive' } }, { product: { code: { in: Array.from(new Set(codes)), mode: 'insensitive' } } }] }, select: { id: true, sku: true, costPrice: true, product: { select: { code: true, baseUnit: true } } } }) : [];
     const vByCode = new Map<string, (typeof variants)[number]>();
     for (const v of variants) { vByCode.set(v.product.code.toLowerCase(), v); if (v.sku) vByCode.set(v.sku.toLowerCase(), v); }
+    // KiotViet bán theo đơn vị quy đổi bằng mã riêng của ĐVT (1 miếng trong hộp 10, 1 tuýp trong set 3…) → dòng thuộc hàng gốc,
+    // số lượng gốc = SL × hệ số quy đổi; không tạo hàng giữ chỗ cho những mã này
+    const uniqCodes = Array.from(new Set(codes));
+    const unitRows = uniqCodes.length ? await this.prisma.db.productUnit.findMany({ where: { OR: [{ sku: { in: uniqCodes, mode: 'insensitive' } }, { barcode: { in: uniqCodes, mode: 'insensitive' } }] }, select: { id: true, unitName: true, conversionFactor: true, sku: true, barcode: true, product: { select: { code: true, baseUnit: true, variants: { where: { deletedAt: null }, orderBy: { createdAt: 'asc' }, take: 1, select: { id: true, sku: true, costPrice: true } } } } } }) : [];
+    const uByCode = new Map<string, { unitId: string; unitName: string; factor: Prisma.Decimal; variant: (typeof variants)[number] }>();
+    for (const u of unitRows) {
+      const base = u.product.variants[0];
+      if (!base) continue;
+      const entry = { unitId: u.id, unitName: u.unitName, factor: D(u.conversionFactor), variant: { id: base.id, sku: base.sku, costPrice: base.costPrice, product: { code: u.product.code, baseUnit: u.product.baseUnit } } as (typeof variants)[number] };
+      if (u.sku) uByCode.set(u.sku.toLowerCase(), entry);
+      if (u.barcode) uByCode.set(u.barcode.toLowerCase(), entry);
+    }
     // hóa đơn cũ có mã hàng không còn trong danh mục (đã xóa / ngừng bán ở KiotViet) → tạo hàng "ngừng kinh doanh" giữ chỗ để lịch sử đủ dòng
     if (options.createMissingProducts !== false) {
       const missing = new Map<string, { code: string; name: string; price: string }>();
       for (const g of groups.values()) for (const r of g) {
         const c = safeCode(get(r, 'lineCode'));
-        if (c && !vByCode.has(c.toLowerCase()) && !missing.has(c.toLowerCase())) missing.set(c.toLowerCase(), { code: c, name: get(r, 'lineName') || c, price: parseNumber(get(r, 'linePrice')) ?? '0' });
+        if (c && !uByCode.has(c.toLowerCase()) && !vByCode.has(c.toLowerCase()) && !missing.has(c.toLowerCase())) missing.set(c.toLowerCase(), { code: c, name: get(r, 'lineName') || c, price: parseNumber(get(r, 'linePrice')) ?? '0' });
       }
       if (missing.size) {
         const cat = (await this.prisma.db.productCategory.findFirst({ where: { name: 'Hàng ngừng kinh doanh (KiotViet)', parentId: null } }))
@@ -439,13 +451,17 @@ export class ImportService {
         const status = statusRaw.includes('huy') || statusRaw === 'cancelled' ? 'CANCELLED' : 'COMPLETED';
         const customer = get(head, 'customerCode') ? cByCode.get(safeCode(get(head, 'customerCode')).toLowerCase()) : undefined;
         const lines = g.filter((r) => get(r, 'lineCode') || get(r, 'lineName')).map((r, i) => {
-          const v = vByCode.get(safeCode(get(r, 'lineCode')).toLowerCase());
+          const lc = safeCode(get(r, 'lineCode')).toLowerCase();
+          const unit = uByCode.get(lc);
+          const v = unit?.variant ?? vByCode.get(lc);
           if (!v) throw new Error(`Dòng ${r.__row}: không tìm thấy hàng ${get(r, 'lineCode') || get(r, 'lineName')} (nhập hàng hóa trước)`);
           const quantity = toQty(parseNumber(get(r, 'lineQty')) ?? '1');
+          const factor = unit?.factor ?? D(1);
+          const unitCost = money(D(v.costPrice).times(factor));
           const unitPrice = money(parseNumber(get(r, 'linePrice')) ?? '0');
           const discount = money(parseNumber(get(r, 'lineDiscount')) ?? '0');
           const lineTotal = parseNumber(get(r, 'lineTotal')) !== null ? money(parseNumber(get(r, 'lineTotal'))!) : money(quantity.times(unitPrice).minus(discount));
-          return { lineNo: i + 1, variantId: v.id, unitName: v.product.baseUnit, quantity, baseQuantity: quantity, listPrice: unitPrice, unitPrice, discountAmount: discount, lineTotal, unitCost: v.costPrice, costTotal: money(quantity.times(v.costPrice)) };
+          return { lineNo: i + 1, variantId: v.id, productUnitId: unit?.unitId ?? null, unitName: unit?.unitName ?? v.product.baseUnit, quantity, baseQuantity: toQty(quantity.times(factor)), listPrice: unitPrice, unitPrice, discountAmount: discount, lineTotal, unitCost, costTotal: money(quantity.times(unitCost)) };
         });
         const subtotal = parseNumber(get(head, 'subtotal')) !== null ? money(parseNumber(get(head, 'subtotal'))!) : lines.reduce((s, l) => s.plus(l.lineTotal), ZERO);
         const discount = money(parseNumber(get(head, 'discount')) ?? '0');
