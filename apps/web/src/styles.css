@@ -271,6 +271,12 @@ html { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   .ant-input, .ant-input-number-input, .ant-select-selector, .ant-picker { font-size: 16px !important; }
   .ant-input-affix-wrapper, .ant-select-single .ant-select-selector, .ant-input-number, .ant-picker { min-height: 40px; }
   .ant-form-item { margin-bottom: 12px; }
+  /* ô cao 40px: khung ngoài của Select (antd cố định 24/32px theo size) phải cao theo ô bên trong, nếu không ô tràn
+     đè lên dòng dưới; ô nhập số / ô tìm trong Select kéo đủ chiều cao để chữ nằm giữa ô */
+  .ant-select-single { height: auto !important; }
+  .ant-select-single .ant-select-selection-search-input { height: 100% !important; }
+  .ant-input-number .ant-input-number-input { height: 38px !important; }
+  .ant-input-number-affix-wrapper .ant-input-number .ant-input-number-input { height: 36px !important; }
   /* grid columns without an xs breakpoint stack on phones; xs-sized columns keep their span */
   .ant-row > .ant-col:not([class*='ant-col-xs']) { flex: 0 0 100%; max-width: 100%; }
   .kv-stat-card .ant-statistic-content { font-size: 20px; }
