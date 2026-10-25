@@ -143,9 +143,19 @@ describe('KiotViet migration: Excel importers, API connector, reconciliation (Mo
     expect(pv.body.mapping.code).toBe('Mã hóa đơn');
     const done = await commit(pv.body.jobId);
     expect(done.status).toBe(200);
-    expect(done.body.created).toBe(2);
-    expect(done.body.failed).toBe(1);
-    expect(done.body.errors[0].code).toBe('HD004503');
+    // mã hàng không còn trong danh mục → tạo hàng "ngừng kinh doanh" giữ chỗ, hóa đơn vẫn đủ dòng
+    expect(done.body.created).toBe(3);
+    expect(done.body.failed).toBe(0);
+    expect(done.body.placeholders).toBe(1);
+    const ph = (await t.http().get(`${api}/products`).set(s.auth).query({ search: 'SP-KHONG-CO', includeInactive: 'true' })).body.data.find((x: { code: string }) => x.code === 'SP-KHONG-CO');
+    expect(ph).toMatchObject({ name: 'Hàng chưa nhập', isActive: false });
+    // ngày giờ trong file KiotViet là số ngày Excel → đọc đúng ngày, không thành năm 46320
+    const serialFile = await xlsx(['Mã hóa đơn', 'Thời gian', 'Chi nhánh', 'Khách cần trả', 'Khách đã trả', 'Trạng thái', 'Mã hàng', 'Tên hàng', 'Số lượng', 'Đơn giá', 'Thành tiền'], [
+      ['HD004509', '46295.93472271991', 'Chi nhánh trung tâm', '350000', '350000', 'Hoàn thành', 'SP000101', 'Serum Vitamin C 30ml', '1', '350000', '350000'],
+    ]);
+    expect((await commit((await preview('INVOICES', serialFile, { defaultBranchId: s.branchId })).body.jobId)).body.created).toBe(1);
+    const serialInv = (await t.http().get(`${api}/invoices`).set(s.auth).query({ search: 'KV-HD004509' })).body.data[0];
+    expect(new Date(new Date(serialInv.invoiceDate).getTime() + 7 * 3600_000).toISOString().slice(0, 16)).toBe('2026-09-30T22:26');
     const list = await t.http().get(`${api}/invoices`).set(s.auth).query({ search: 'KV-HD004501' });
     expect(list.body.data).toHaveLength(1);
     const detail = await t.http().get(`${api}/invoices/${list.body.data[0].id}`).set(s.auth);
@@ -168,8 +178,8 @@ describe('KiotViet migration: Excel importers, API connector, reconciliation (Mo
     expect(again.body.skipped).toBeGreaterThanOrEqual(2);
     const rec = await t.http().get(`${api}/integrations/reconcile`).set(s.auth);
     expect(rec.status).toBe(200);
-    expect(rec.body.importedInvoices.count).toBe(2);
-    expect(rec.body.importedInvoices.revenue).toBe('850000');
+    expect(rec.body.importedInvoices.count).toBe(4);
+    expect(rec.body.importedInvoices.revenue).toBe('1299000');
     expect(rec.body.customers.count).toBe(3);
     expect(Number(rec.body.stock.value)).toBeGreaterThan(0);
   });

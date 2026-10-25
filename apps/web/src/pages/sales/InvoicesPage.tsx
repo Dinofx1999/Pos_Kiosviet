@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { InvoiceQuery, SALES_KEYS, salesApi, useInvoice, useInvoices } from '../../api/sales';
+import { useSepayReady } from '../../api/bankTransfers';
 import { errMsg } from '../../api/client';
 import type { Invoice } from '../../api/types';
 import { CustomerSelect } from '../../components/CustomerSelect';
+import { DocumentQrButton } from '../../components/DocumentQrButton';
 import { FilterCard, FilterPanel } from '../../components/FilterPanel';
 import { PaymentModal } from '../../components/PaymentModal';
 import { useAuthStore, useCan } from '../../store/auth';
@@ -77,6 +79,7 @@ export function InvoiceDetail({ id }: { id: string }) {
   const [tab, setTab] = useState('info');
   const [pay, setPay] = useState(false);
   const [ship, setShip] = useState(false);
+  const sepayReady = useSepayReady();
   if (isLoading || !inv) return <div className="muted">Đang tải…</div>;
   const due = Number(inv.dueAmount ?? Number(inv.totalAmount) - Number(inv.paidAmount));
   // Module 06 relations (salesOrder / deliveries) – the Invoice type lives in api/types.ts which is owned elsewhere
@@ -155,6 +158,7 @@ export function InvoiceDetail({ id }: { id: string }) {
         {inv.status === 'COMPLETED' && <Button icon={<PrinterOutlined />} onClick={print}>In</Button>}
         {inv.status === 'COMPLETED' && can('return.create') && <Button icon={<RollbackOutlined />} onClick={() => nav(`/sales-returns/new?invoiceId=${inv.id}`)}>Trả hàng</Button>}
         {inv.status === 'COMPLETED' && !activeDelivery && can('delivery.manage') && <Button icon={<CarOutlined />} onClick={() => setShip(true)}>Tạo vận đơn</Button>}
+        {inv.status === 'COMPLETED' && can('payment.create') && sepayReady && <DocumentQrButton purpose="INVOICE" documentId={inv.id} documentCode={inv.code} due={due} customerName={inv.customer?.name} refreshKeys={SALES_KEYS} showButton={due > 0} />}
         {inv.status === 'COMPLETED' && due > 0 && can('payment.create') && <Button type="primary" icon={<DollarOutlined />} onClick={() => setPay(true)}>Thu nợ {money(due)}</Button>}
         {inv.status === 'COMPLETED' && can('invoice.cancel') && <Button danger icon={<StopOutlined />} onClick={cancel}>Hủy hóa đơn</Button>}
         {inv.status === 'DRAFT' && can('invoice.create') && <Button type="primary" icon={<ShopOutlined />} onClick={() => nav(`/pos?draft=${inv.id}`)}>Mở ở POS</Button>}

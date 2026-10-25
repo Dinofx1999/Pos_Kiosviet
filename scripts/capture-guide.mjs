@@ -136,6 +136,14 @@ const SHOTS = [
   }],
   ['pos-mixed', '/pos', async (page, ctx) => { await addToCart(page, ctx); await openPaySheet(page, ctx); await click(page, page.locator('.pos-chip', { hasText: 'Kết hợp' })); }],
   ['pos-held', '/pos', async (page) => { await click(page, page.locator('.pos-header button:has(.anticon-file-text)'), 900); }],
+  // VietQR / SePay (cần cấu hình SePay đã bật): tạo mã QR tại quầy – mã chờ thanh toán sẽ tự hết hạn
+  ['pos-qr', '/pos', async (page, ctx) => {
+    await addToCart(page, ctx); await openPaySheet(page, ctx);
+    await click(page, page.locator('.pos-chip-qr'), 400);
+    await click(page, page.locator(ctx.mobile ? '.pos-sheet .pos-pay-btn' : '.pos-side .pos-pay-btn'), 800);
+    await page.locator('.bq-qr-img').first().waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
+    await wait(page, 1500);
+  }],
   ['shifts', '/shifts'],
   ['shift-open', '/shifts', async (page) => { await click(page, button(page, /Mở ca/)); }],
   ['shift-detail', '/shifts', async (page) => { await click(page, firstRow(page), 900); }],
@@ -164,6 +172,7 @@ const SHOTS = [
   ['cash-transfers', '/cash/transfers'],
   ['cash-transfer-new', '/cash/transfers', async (page) => { await click(page, button(page, /^(?!.*Hủy).*Chuyển quỹ$/)); }],
   ['debt-offset', '/cash', async (page) => { await click(page, button(page, /Cấn trừ/)); }],
+  ['bank-transactions', '/cash/bank-transactions?status=ALL'],
   // ---- nhân viên
   ['employees', '/employees'],
   ['attendance', '/employees/attendance'],
@@ -187,6 +196,7 @@ const SHOTS = [
   ['integrations-kiotviet', '/integrations/kiotviet'],
   ['integrations-reconcile', '/integrations/reconcile'],
   ['integrations-jobs', '/integrations/jobs'],
+  ['integrations-sepay', '/integrations/sepay', async (page) => { await page.locator('.sp-preview-img').first().waitFor({ state: 'visible', timeout: 8000 }).catch(() => {}); await wait(page, 800); }],
   ['help', '/help'],
   ['help-guide', '/help/ban-hang-pos'],
 ];

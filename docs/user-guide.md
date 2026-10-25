@@ -93,6 +93,12 @@ Mục "Hướng dẫn sử dụng" (menu tài khoản → Hướng dẫn sử d�
 | `can-tru-cong-no` | Cấn trừ công nợ KH ↔ NCC | debt-offset |
 | `kiem-quy` | Kiểm quỹ | cash-accounts, cash-reconcile |
 
+### Thanh toán chuyển khoản (QR)
+| Slug | Tiêu đề | Ảnh |
+|---|---|---|
+| `sepay-cai-dat` | Cài đặt nhận tiền chuyển khoản tự động (SePay) | integrations-sepay, bank-transactions |
+| `thu-tien-qr` | Thu tiền bằng mã QR: bán tại quầy, thu nợ, cọc đơn, giao dịch chưa khớp | pos-qr, bank-transactions |
+
 ### Nhân viên
 | Slug | Tiêu đề | Ảnh |
 |---|---|---|

@@ -16,6 +16,7 @@ import { InventoryDocumentsService } from '../inventory/documents.service';
 import { CreateSupplierDto, UpdateSupplierDto } from '../purchasing/dto/purchasing.dto';
 import { SuppliersService } from '../purchasing/suppliers.service';
 import { CustomersService } from '../sales/customers.service';
+import { LoyaltyService } from '../sales/loyalty.service';
 import { CreateCustomerDto, UpdateCustomerDto } from '../sales/dto/sales.dto';
 import { categoryPath, detectMapping, FIELDS, genderOf, ImportEntity, parseDate, parseNumber, parseXlsx, RawRow, safeCode, splitList, truthy } from './import-parsers';
 
@@ -34,9 +35,11 @@ export interface ImportOptions {
   defaultBranchId?: string;
   /** skip invoices older than this date */
   invoicesFrom?: string;
+  /** invoice history: line codes missing from the catalogue become inactive placeholder products (default true) */
+  createMissingProducts?: boolean;
 }
 interface RowError { row: number; code?: string; error: string }
-interface Totals { rows: number; created: number; updated: number; skipped: number; failed: number; stockLines?: number; stockDocuments?: number; debtAdjusted?: number; units?: number }
+interface Totals { rows: number; created: number; updated: number; skipped: number; failed: number; stockLines?: number; stockDocuments?: number; debtAdjusted?: number; units?: number; products?: number; negativeStock?: number; pointsAdjusted?: number; placeholders?: number }
 
 const BATCH = 200;
 const err = (e: unknown) => (e as { response?: { message?: string }; message?: string })?.response?.message ?? (e as Error)?.message ?? String(e);
@@ -48,6 +51,7 @@ export class ImportService {
   constructor(
     private readonly prisma: PrismaService, private readonly access: AccessService, private readonly audit: AuditService, private readonly products: ProductsService,
     private readonly customers: CustomersService, private readonly suppliers: SuppliersService, private readonly documents: InventoryDocumentsService, private readonly ledger: LedgerService,
+    private readonly loyalty: LoyaltyService,
   ) {}
 
   // ---------------------------------------------------------------- jobs
@@ -72,7 +76,8 @@ export class ImportService {
 
   async previewRows(user: RequestUser, type: ImportEntity, fileName: string | null, headers: string[], rows: RawRow[], options: ImportOptions = {}, source = 'EXCEL') {
     const { mapping, unmapped, missing } = detectMapping(headers, type);
-    const stockHeaders = headers.filter((h) => /^ton kho/.test(normalize(h)) || normalize(h) === 'ton');
+    // "Tồn kho", "Tồn kho (Chi nhánh A)" và kiểu KiotViet mới "Kho: Kho bán hàng"
+    const stockHeaders = headers.filter((h) => /^ton kho/.test(normalize(h)) || normalize(h) === 'ton' || /^kho\s*:/.test(normalize(h)));
     const job = await this.prisma.db.importJob.create({ data: { tenantId: user.tenantId, type, source, status: 'PREVIEW', fileName, headers: headers as Prisma.InputJsonValue, mapping: mapping as Prisma.InputJsonValue, options: options as Prisma.InputJsonValue, payload: rows as unknown as Prisma.InputJsonValue, rowCount: rows.length, createdById: user.id } });
     const issues = this.validateRows(type, mapping, rows).slice(0, 50);
     return { jobId: job.id, type, fileName, rowCount: rows.length, headers, mapping, unmapped, missing, stockHeaders, sample: rows.slice(0, 10), issues, fields: FIELDS[type] };
@@ -163,55 +168,111 @@ export class ImportService {
     const importStock = options.importStock !== false && stockCols.length > 0;
     const codeToVariant = new Map<string, string>();
 
+    // KiotViet "hàng cùng loại": các mã có thuộc tính nối về mã chính qua "Mã HH Liên quan" → một hàng hóa nhiều biến thể
+    const lc = (v: string) => v.toLowerCase();
+    const relatedOf = new Map<string, string>();
     for (const r of baseRows) {
-      const row = Number(r.__row);
-      const code = safeCode(get(r, 'code')); const name = get(r, 'name');
-      if (!name && !code) { totals.skipped++; continue; }
+      const c = lc(safeCode(get(r, 'code'))); const rel = lc(safeCode(get(r, 'relatedCode')));
+      if (c && rel && rel !== c) relatedOf.set(c, rel);
+    }
+    const rootOf = (c: string) => { let cur = c; const seen = new Set<string>(); while (relatedOf.has(cur) && !seen.has(cur)) { seen.add(cur); cur = relatedOf.get(cur)!; } return cur; };
+    const codesInFile = new Set(baseRows.map((r) => lc(safeCode(get(r, 'code')))).filter(Boolean));
+    const groups = new Map<string, RawRow[]>();
+    for (const r of baseRows) {
+      const c = lc(safeCode(get(r, 'code')));
+      let key = c ? rootOf(c) : `__row${r.__row}`;
+      if (c && !codesInFile.has(key)) key = c; // mã chính không có trong file → mã này là một hàng hóa riêng
+      (groups.get(key) ?? groups.set(key, []).get(key)!).push(r);
+    }
+    const parseAttrs = (v: string) => {
+      const out: Record<string, string> = {};
+      for (const part of v.split('|')) { const i = part.indexOf(':'); if (i > 0) { const k = part.slice(0, i).trim(); const val = part.slice(i + 1).trim(); if (k && val) out[k] = val; } }
+      return Object.keys(out).length ? out : undefined;
+    };
+    const imagesOf = (r: RawRow) => splitList(get(r, 'images')).filter((u) => /^https?:\/\//i.test(u));
+
+    for (const [key, members] of groups) {
+      members.sort((a, b) => (lc(safeCode(get(a, 'code'))) === key ? -1 : lc(safeCode(get(b, 'code'))) === key ? 1 : Number(a.__row) - Number(b.__row)));
+      const main = members[0];
+      const row = Number(main.__row);
+      const code = safeCode(get(main, 'code')); const name = get(main, 'name');
+      if (!name && !code) { totals.skipped += members.length; continue; }
+      const multi = members.length > 1;
       try {
-        const typeRaw = normalize(get(r, 'type'));
+        const typeRaw = normalize(get(main, 'type'));
         const type = typeRaw.includes('dich vu') || typeRaw === 'service' ? 'SERVICE' : typeRaw.includes('combo') ? 'COMBO' : 'GOODS';
-        const categoryId = get(r, 'category') ? await ensureCategory(categoryPath(get(r, 'category'))) : undefined;
-        const brandId = get(r, 'brand') ? await ensureBrand(get(r, 'brand')) : undefined;
-        const sellPrice = parseNumber(get(r, 'sellPrice')) ?? '0';
-        const costPrice = parseNumber(get(r, 'costPrice')) ?? undefined;
-        const barcode = get(r, 'barcode') || undefined;
-        const images = splitList(get(r, 'images')).filter((u) => /^https?:\/\//i.test(u)).slice(0, 20).map((url, i) => ({ url, sortOrder: i }));
-        const active = truthy(get(r, 'isActive')); const allowSale = truthy(get(r, 'allowSale'));
-        const minStock = parseNumber(get(r, 'minStock')) ?? undefined; const maxStock = parseNumber(get(r, 'maxStock')) ?? undefined;
-        const taxRate = parseNumber(get(r, 'taxRate')) ?? undefined; const weight = parseNumber(get(r, 'weight')) ?? undefined;
+        const categoryId = get(main, 'category') ? await ensureCategory(categoryPath(get(main, 'category'))) : undefined;
+        const brandId = get(main, 'brand') ? await ensureBrand(get(main, 'brand')) : undefined;
+        const images = Array.from(new Set(members.flatMap(imagesOf))).slice(0, 20).map((url, i) => ({ url, sortOrder: i }));
+        const active = truthy(get(main, 'isActive')); const allowSale = truthy(get(main, 'allowSale'));
+        const taxRate = parseNumber(get(main, 'taxRate')) ?? undefined; const weight = parseNumber(get(main, 'weight')) ?? undefined;
+        const variantsIn = members.map((r) => ({
+          r, sku: multi ? safeCode(get(r, 'code')) || undefined : undefined, barcode: get(r, 'barcode') || undefined,
+          attributes: parseAttrs(get(r, 'attributes')), sellPrice: parseNumber(get(r, 'sellPrice')) ?? '0', costPrice: parseNumber(get(r, 'costPrice')) ?? undefined,
+          minStock: parseNumber(get(r, 'minStock')) ?? undefined, maxStock: parseNumber(get(r, 'maxStock')) ?? undefined,
+          imageUrl: multi ? imagesOf(r)[0] : undefined, isActive: multi ? truthy(get(r, 'isActive')) ?? undefined : undefined,
+        }));
+        // tên thuộc tính của hàng (vd ["MÀU", "SIZE"]); nhóm biến thể không có thuộc tính → dùng "Phân loại" = mã
+        let attributeNames = Array.from(new Set(variantsIn.flatMap((v) => Object.keys(v.attributes ?? {}))));
+        if (multi && !attributeNames.length) {
+          attributeNames = ['Phân loại'];
+          for (const v of variantsIn) v.attributes = { 'Phân loại': v.sku ?? safeCode(get(v.r, 'code')) };
+        }
+        const findVariant = (list: Array<{ id: string; sku: string }>, sku?: string) => (sku ? list.find((x) => lc(x.sku) === lc(sku)) : undefined) ?? (!multi ? list[0] : undefined);
         const existing = code ? await this.prisma.db.product.findFirst({ where: { code, deletedAt: null }, include: { variants: { where: { deletedAt: null }, orderBy: { createdAt: 'asc' } } } }) : null;
-        let variantId: string;
+        let variantIds: Array<string | undefined>;
         if (existing) {
-          if (!updateExisting) { totals.skipped++; variantId = existing.variants[0]?.id; }
+          if (!updateExisting) { totals.skipped += members.length; variantIds = variantsIn.map((v) => findVariant(existing.variants, v.sku)?.id); }
           else {
-            const v = existing.variants[0];
-            const dto = plainToInstance(UpdateProductDto, { name: name || undefined, categoryId, brandId, baseUnit: get(r, 'unit') || undefined, description: get(r, 'description') || undefined, taxRate, weight, allowSale: allowSale ?? undefined, isActive: active ?? undefined, ...(images.length ? { images } : {}), variants: v ? [{ id: v.id, sellPrice, barcode: barcode ?? undefined, minStock, maxStock, ...(v.onHandTotal.isZero() && costPrice ? { costPrice } : {}) }] : undefined });
+            const variants = variantsIn.map((v) => {
+              const ex = findVariant(existing.variants, v.sku) as (typeof existing.variants)[number] | undefined;
+              const common = { barcode: v.barcode, attributes: v.attributes, sellPrice: v.sellPrice, minStock: v.minStock, maxStock: v.maxStock, imageUrl: v.imageUrl, isActive: v.isActive };
+              return ex ? { id: ex.id, ...common, ...(ex.onHandTotal.isZero() && v.costPrice ? { costPrice: v.costPrice } : {}) } : { sku: v.sku, ...common, costPrice: v.costPrice };
+            });
+            const dto = plainToInstance(UpdateProductDto, { name: name || undefined, categoryId, brandId, baseUnit: get(main, 'unit') || undefined, description: get(main, 'description') || undefined, taxRate, weight, allowSale: allowSale ?? undefined, isActive: active ?? undefined, ...(images.length ? { images } : {}), ...(attributeNames.length ? { attributeNames } : {}), variants });
             await this.assertDto(dto);
             await this.products.update(user, existing.id, dto);
-            totals.updated++; variantId = v?.id;
+            const after = await this.prisma.db.productVariant.findMany({ where: { productId: existing.id, deletedAt: null }, orderBy: { createdAt: 'asc' }, select: { id: true, sku: true } });
+            variantIds = variantsIn.map((v) => findVariant(after, v.sku)?.id);
+            totals.updated += members.length;
           }
         } else {
-          const dto = plainToInstance(CreateProductDto, { code: code || undefined, name: name || code, type, categoryId, brandId, baseUnit: get(r, 'unit') || undefined, description: get(r, 'description') || undefined, taxRate, weight, allowSale: allowSale ?? undefined, images, variants: [{ barcode, sellPrice, costPrice, minStock, maxStock }] });
+          const dto = plainToInstance(CreateProductDto, {
+            code: code || undefined, name: name || code, type, categoryId, brandId, baseUnit: get(main, 'unit') || undefined, description: get(main, 'description') || undefined, taxRate, weight, allowSale: allowSale ?? undefined, images, ...(attributeNames.length ? { attributeNames } : {}),
+            variants: variantsIn.map((v) => ({ sku: v.sku, barcode: v.barcode, attributes: v.attributes, sellPrice: v.sellPrice, costPrice: v.costPrice, minStock: v.minStock, maxStock: v.maxStock, imageUrl: v.imageUrl, isActive: v.isActive })),
+          });
           await this.assertDto(dto);
           const created = await this.products.create(user, dto);
           if (active === false) await this.products.update(user, created.id, plainToInstance(UpdateProductDto, { isActive: false }));
-          totals.created++; variantId = created.variants[0].id;
+          variantIds = variantsIn.map((v) => findVariant(created.variants as Array<{ id: string; sku: string }>, v.sku)?.id);
+          totals.created += members.length; totals.products = (totals.products ?? 0) + 1;
         }
-        if (variantId && code) codeToVariant.set(code.toLowerCase(), variantId);
-        if (importStock && variantId && type === 'GOODS') {
+        for (const [i, v] of variantsIn.entries()) {
+          const variantId = variantIds[i]; const vcode = safeCode(get(v.r, 'code'));
+          if (variantId && vcode) codeToVariant.set(lc(vcode), variantId);
+          if (!(importStock && variantId && type === 'GOODS')) continue;
           for (const sc of stockCols) {
-            const q = parseNumber((r[sc.header] ?? '').trim());
-            if (q === null) continue;
-            (stockPlan.get(sc.warehouseId) ?? stockPlan.set(sc.warehouseId, []).get(sc.warehouseId)!).push({ variantId, quantity: q, unitCost: costPrice ?? '0' });
+            const rawQ = parseNumber((v.r[sc.header] ?? '').trim());
+            if (rawQ === null) continue;
+            // KiotViet xuất số lẻ dạng 1.2999999999 → làm tròn theo độ chính xác tồn kho (3 số lẻ) để lần nhập lại không sinh điều chỉnh 0
+            let q = toQty(rawQ).toString();
+            if (D(q).isNegative()) {
+              // tồn âm (bán quá tồn) ở KiotViet → nhập 0, ghi lại để kiểm kho
+              errors.push({ row: Number(v.r.__row), code: vcode, error: `Tồn âm ở KiotViet (${q}) tại "${sc.header}" → nhập 0, cần kiểm kho` });
+              totals.negativeStock = (totals.negativeStock ?? 0) + 1;
+              q = '0';
+            }
+            (stockPlan.get(sc.warehouseId) ?? stockPlan.set(sc.warehouseId, []).get(sc.warehouseId)!).push({ variantId, quantity: q, unitCost: v.costPrice ?? '0' });
           }
         }
-      } catch (e) { totals.failed++; errors.push({ row, code, error: err(e) }); }
+      } catch (e) { totals.failed += members.length; errors.push({ row, code, error: `${multi ? `(${members.length} biến thể) ` : ''}${err(e)}` }); }
     }
     // conversion units
     for (const r of unitRows) {
       const row = Number(r.__row); const base = safeCode(get(r, 'baseUnitCode'));
       try {
-        const product = await this.prisma.db.product.findFirst({ where: { code: base, deletedAt: null }, include: { units: true } });
+        const product = (await this.prisma.db.product.findFirst({ where: { code: base, deletedAt: null }, include: { units: true } }))
+          ?? (await this.prisma.db.product.findFirst({ where: { deletedAt: null, variants: { some: { sku: { equals: base, mode: 'insensitive' }, deletedAt: null } } }, include: { units: true } }));
         if (!product) throw new Error(`Không tìm thấy hàng cơ bản ${base}`);
         const unitName = get(r, 'unit') || get(r, 'name'); const factor = parseNumber(get(r, 'conversion'));
         if (!unitName || !factor || D(factor).lessThanOrEqualTo(0)) throw new Error('Thiếu tên đơn vị hoặc hệ số quy đổi');
@@ -260,17 +321,20 @@ export class ImportService {
       if (!name) { totals.skipped++; continue; }
       try {
         const debt = parseNumber(get(r, 'debt'));
+        const points = party === 'CUSTOMER' ? parseNumber(get(r, 'points')) : null;
         const common = { name, phone: get(r, 'phone') || undefined, email: /@/.test(get(r, 'email')) ? get(r, 'email') : undefined, address: [get(r, 'address'), get(r, 'ward'), get(r, 'area')].filter(Boolean).join(', ') || undefined, taxCode: get(r, 'taxCode') || undefined, groupName: get(r, 'groupName') || undefined, note: [get(r, 'note'), get(r, 'company') ? `Công ty: ${get(r, 'company')}` : ''].filter(Boolean).join(' · ') || undefined };
         if (party === 'CUSTOMER') {
           const existing = code ? await this.prisma.db.customer.findFirst({ where: { code } }) : await this.prisma.db.customer.findFirst({ where: { phone: common.phone ?? '__none__' } });
           if (existing) {
             if (updateExisting) { const dto = plainToInstance(UpdateCustomerDto, { ...common, gender: genderOf(get(r, 'gender')), birthday: dateOnly(parseDate(get(r, 'birthday'))), isActive: truthy(get(r, 'isActive')) ?? undefined }); await this.assertDto(dto); await this.customers.update(user, existing.id, dto); totals.updated++; } else totals.skipped++;
             if (options.syncDebt && debt !== null) { if (await this.syncDebt(user, 'CUSTOMER', existing.id, existing.code, debt)) totals.debtAdjusted!++; }
+            if (points !== null && (await this.syncPoints(user, existing.id, existing.code, points))) totals.pointsAdjusted = (totals.pointsAdjusted ?? 0) + 1;
           } else {
             const dto = plainToInstance(CreateCustomerDto, { code: code || undefined, ...common, gender: genderOf(get(r, 'gender')), birthday: dateOnly(parseDate(get(r, 'birthday'))), openingBalance: debt ?? undefined });
             await this.assertDto(dto);
-            await this.customers.create(user, dto);
+            const created = await this.customers.create(user, dto) as { id: string; code: string };
             totals.created++;
+            if (points !== null && (await this.syncPoints(user, created.id, created.code, points))) totals.pointsAdjusted = (totals.pointsAdjusted ?? 0) + 1;
           }
         } else {
           const existing = code ? await this.prisma.db.supplier.findFirst({ where: { code } }) : await this.prisma.db.supplier.findFirst({ where: { phone: common.phone ?? '__none__' } });
@@ -287,6 +351,17 @@ export class ImportService {
       } catch (e) { totals.failed++; errors.push({ row, code, error: err(e) }); }
     }
     return { totals, errors };
+  }
+
+  /** Đưa điểm tích lũy của khách về đúng số điểm hiện tại ở KiotViet bằng một bút toán ADJUST trong sổ điểm (chạy lại không cộng trùng). */
+  private async syncPoints(user: RequestUser, customerId: string, code: string, target: string) {
+    return this.prisma.tx(async (tx) => {
+      const c = await tx.customer.findFirst({ where: { id: customerId }, select: { points: true } });
+      const delta = D(target).toDecimalPlaces(2).minus(D(c?.points ?? 0));
+      if (delta.isZero()) return false;
+      await this.loyalty.post(tx, user, { customerId, type: 'ADJUST', points: delta, documentType: 'IMPORT', documentId: customerId, documentCode: code, note: 'Điểm tích lũy chuyển từ KiotViet' });
+      return true;
+    });
   }
 
   /** Brings the party balance to the exported figure with one ADJUSTMENT ledger entry (BR-132). */
@@ -315,6 +390,36 @@ export class ImportService {
     const variants = codes.length ? await this.prisma.db.productVariant.findMany({ where: { OR: [{ sku: { in: Array.from(new Set(codes)), mode: 'insensitive' } }, { product: { code: { in: Array.from(new Set(codes)), mode: 'insensitive' } } }] }, select: { id: true, sku: true, costPrice: true, product: { select: { code: true, baseUnit: true } } } }) : [];
     const vByCode = new Map<string, (typeof variants)[number]>();
     for (const v of variants) { vByCode.set(v.product.code.toLowerCase(), v); if (v.sku) vByCode.set(v.sku.toLowerCase(), v); }
+    // hóa đơn cũ có mã hàng không còn trong danh mục (đã xóa / ngừng bán ở KiotViet) → tạo hàng "ngừng kinh doanh" giữ chỗ để lịch sử đủ dòng
+    if (options.createMissingProducts !== false) {
+      const missing = new Map<string, { code: string; name: string; price: string }>();
+      for (const g of groups.values()) for (const r of g) {
+        const c = safeCode(get(r, 'lineCode'));
+        if (c && !vByCode.has(c.toLowerCase()) && !missing.has(c.toLowerCase())) missing.set(c.toLowerCase(), { code: c, name: get(r, 'lineName') || c, price: parseNumber(get(r, 'linePrice')) ?? '0' });
+      }
+      if (missing.size) {
+        const cat = (await this.prisma.db.productCategory.findFirst({ where: { name: 'Hàng ngừng kinh doanh (KiotViet)', parentId: null } }))
+          ?? (await this.prisma.db.productCategory.create({ data: { tenantId: user.tenantId, name: 'Hàng ngừng kinh doanh (KiotViet)' } }));
+        for (const [lc, m] of missing) {
+          try {
+            const dto = plainToInstance(CreateProductDto, { code: m.code, name: m.name.slice(0, 300), type: 'GOODS', categoryId: cat.id, description: 'Tạo tự động khi nhập lịch sử hóa đơn KiotViet (mã không còn trong danh mục)', variants: [{ sellPrice: m.price }] });
+            await this.assertDto(dto);
+            const created = await this.products.create(user, dto);
+            await this.products.update(user, created.id, plainToInstance(UpdateProductDto, { isActive: false }));
+            const v = created.variants[0] as unknown as { id: string; sku: string; costPrice: Prisma.Decimal };
+            vByCode.set(lc, { id: v.id, sku: v.sku, costPrice: D(v.costPrice ?? 0), product: { code: created.code, baseUnit: created.baseUnit ?? null } } as (typeof variants)[number]);
+            totals.placeholders = (totals.placeholders ?? 0) + 1;
+          } catch (e) { errors.push({ row: 0, code: lc, error: `Không tạo được hàng giữ chỗ: ${err(e)}` }); }
+        }
+      }
+    }
+    // hóa đơn đã nhập ở lần trước (theo mã KiotViet) → bỏ qua, nạp sẵn một lần thay vì hỏi từng hóa đơn
+    const groupCodes = Array.from(groups.keys());
+    const already = new Set<string>();
+    for (let i = 0; i < groupCodes.length; i += 5000) {
+      const found = await this.prisma.db.invoice.findMany({ where: { imported: true, externalRef: { in: groupCodes.slice(i, i + 5000) } }, select: { externalRef: true } });
+      for (const f of found) if (f.externalRef) already.add(f.externalRef);
+    }
     const customers = await this.prisma.db.customer.findMany({ select: { id: true, code: true, phone: true, name: true } });
     const cByCode = new Map(customers.map((c) => [c.code.toLowerCase(), c]));
     const sellers = await this.prisma.db.user.findMany({ select: { id: true, fullName: true, username: true } });
@@ -346,8 +451,7 @@ export class ImportService {
         const discount = money(parseNumber(get(head, 'discount')) ?? '0');
         const total = parseNumber(get(head, 'total')) !== null ? money(parseNumber(get(head, 'total'))!) : subtotal.minus(discount);
         const paid = money(parseNumber(get(head, 'paid')) ?? total.toString());
-        const existing = await this.prisma.db.invoice.findFirst({ where: { externalRef: code, imported: true } });
-        if (existing) { totals.skipped++; continue; }
+        if (already.has(code)) { totals.skipped++; continue; }
         const invCode = `KV-${code}`;
         await this.prisma.tx(async (tx) => {
           if (await tx.invoice.findFirst({ where: { code: invCode } })) throw new Error(`Mã ${invCode} đã tồn tại`);

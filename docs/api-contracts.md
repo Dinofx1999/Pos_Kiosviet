@@ -225,6 +225,19 @@ Mã lỗi: `POINTS_INSUFFICIENT`, `POINTS_MAX_REDEEM`.
 | GET | `/platform/tenants?search&status&page` · PATCH `/platform/tenants/:id` `{status?, planCode?, planExpiresAt?, trialEndsAt?, planNote?}` | header `x-platform-key` = `PLATFORM_ADMIN_KEY` |
 Mã lỗi: `PLAN_LIMIT_REACHED`, `TRIAL_EXPIRED`, `PLAN_EXPIRED`, `TENANT_SUSPENDED`, `ATTENDANCE_OPEN`, `ATTENDANCE_NOT_OPEN`.
 
+## Thanh toán chuyển khoản tự động (SePay)
+| Method | Path | Quyền |
+|---|---|---|
+| GET / PUT | `/integrations/sepay` `{enabled?, bankCode?, accountNumber?, accountName?, cashAccountId?, codePrefix?, posTtlMinutes?}` → `{enabled, ready, bankCode, accountNumber, accountName, cashAccount, codePrefix, posTtlMinutes, hasWebhookKey, webhookKeyLast4, webhookPath, lastWebhookAt, stats30d}` | `integration.view` / `integration.manage` |
+| POST | `/integrations/sepay/key` → `{apiKey, webhookKeyLast4, webhookPath}` (khóa chỉ trả về một lần) | `integration.manage` |
+| GET | `/bank-transfers/banks` → `VIETQR_BANKS` | đăng nhập |
+| POST | `/bank-transfers/requests` `{purpose: POS|INVOICE|SALES_ORDER, branchId?, documentId?, amount?, note?}` → `{id, code, status, amount, paidAmount, usedAmount, remaining, available, bankCode, bankName, accountNumber, accountName, transferContent, qrUrl, expiresAt, expired, documentCode}`; 409 `SEPAY_NOT_CONFIGURED`, `NOTHING_DUE`, `OVERPAYMENT` | POS: `invoice.create`; còn lại `payment.create` |
+| GET | `/bank-transfers/requests/:id` (POS hỏi định kỳ) · POST `/bank-transfers/requests/:id/cancel` (chỉ PENDING, 409 `REQUEST_NOT_PENDING`) · GET `/bank-transfers/requests?status&purpose&documentId` | `invoice.create` / `payment.create` / `cash.view` |
+| GET | `/bank-transfers/transactions?status=MATCHED|UNMATCHED|APPLIED|IGNORED&search` → `{data, meta, unmatchedCount}` | `cash.view` |
+| POST | `/bank-transfers/transactions/:id/apply` `{target: INVOICE|SALES_ORDER|CUSTOMER, documentId?, customerId?, note?}` → `{status: APPLIED, paymentId, paymentCode}` · POST `.../:id/ignore` `{note?}`; 409 `TRANSACTION_HANDLED` | `payment.create` |
+| POST | `/webhooks/sepay` (công khai) header `Authorization: Apikey <khóa>`, body SePay `{id, gateway, transactionDate, accountNumber, code, content, transferType, transferAmount, accumulated, subAccount, referenceCode, description}` → 200 `{success: true, result: matched|unmatched|ignored|duplicate, transactionId, requestCode, paymentId, note}`; 401 `{success: false}` khi khóa sai | khóa webhook |
+| — | Thanh toán hóa đơn (`/invoices/checkout`, `/invoices/:id/complete`): mỗi dòng `payments[]` nhận thêm `bankRequestId` → phiếu thu BANK_TRANSFER dùng tiền đã nhận của mã; 409 `BANK_PAYMENT_NOT_RECEIVED` / `BANK_PAYMENT_INSUFFICIENT` | `invoice.complete` |
+
 ## Dashboard
 | GET `/dashboard/overview` → `{products, variants, lowStock, stockValue, warehouses, salesToday?{invoices, revenue, grossProfit, byMethod}, recentMovements[], recentDocuments[]}` | `dashboard.view` |
 | GET `/dashboard/home?branchId?` → `{timezone, sales: {today, yesterday, week, lastWeek, month, lastMonth: {invoices, revenue, customers, grossProfit?}, byHour[], byDay[] (30 ngày), topProducts[5] (7 ngày), recentInvoices[8], unpaid{count, amount}, returnsToday} \| null, todo: {pendingOrders, deliveriesInProgress, transfersToReceive, birthdaysToday, heldInvoices} (null khi thiếu quyền), inventory: {skuCount, onHandTotal, stockValue?, lowStockCount, products, warehouses, recentDocuments[5]} \| null, shift: {code, openedAt, invoices, revenue, cashNet} \| null}` — ngày theo múi giờ gian hàng; không có `sales.report.view` → chỉ số liệu do chính mình bán; `grossProfit`/`stockValue` cần quyền xem giá vốn | `dashboard.view` |

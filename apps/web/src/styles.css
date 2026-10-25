@@ -138,6 +138,13 @@ html { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .pos-chip { border: 1px solid #d1d5db; border-radius: 16px; padding: 3px 12px; cursor: pointer; font-size: 13px; user-select: none; }
 .pos-chip.on { background: var(--kv-blue); color: #fff; border-color: var(--kv-blue); }
 .pos-chip.small { padding: 1px 8px; font-size: 12px; }
+/* VietQR / SePay option: stands out from the plain method chips */
+.pos-chip-qr { border-color: #16a34a; color: #15803d; font-weight: 600; background: #f0fdf4; display: inline-flex; align-items: center; gap: 4px; }
+.pos-chip-qr.on { background: #16a34a; border-color: #16a34a; color: #fff; }
+.pos-qr-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 8px 10px; display: grid; gap: 4px; }
+.pos-qr-amt { font-size: 18px; color: #15803d; font-variant-numeric: tabular-nums; }
+.pos-qr-pending { padding: 6px 10px; }
+.pos-qr-pending .ant-alert-message { font-size: 13px; }
 .pos-suggest { display: flex; flex-wrap: wrap; gap: 4px; }
 .pos-due { color: #d97706; }
 .pos-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 8px; margin-top: auto; }
@@ -152,6 +159,9 @@ html { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .kv-burger { display: none; color: #fff; font-size: 20px; width: 40px; height: 40px; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; }
 .kv-tabbar { display: none; }
 .kv-menu-drawer .ant-menu-inline { border-inline-end: none !important; }
+.kv-menu-badge { display: inline-flex; align-items: center; gap: 6px; }
+.kv-menu-badge .ant-badge-count { box-shadow: none; }
+.kv-menu-dotted { font-size: inherit !important; color: inherit !important; line-height: inherit !important; }
 .kv-menu-drawer .ant-menu-item, .kv-menu-drawer .ant-menu-submenu-title { height: 44px !important; line-height: 44px !important; font-size: 15px; }
 @media (max-width: 767px) {
   html { -webkit-text-size-adjust: 100%; overflow-x: hidden; }

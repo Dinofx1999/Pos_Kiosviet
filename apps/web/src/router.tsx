@@ -32,6 +32,7 @@ import SalesReturnEditorPage from './pages/sales/SalesReturnEditorPage';
 import CashbookPage from './pages/finance/CashbookPage';
 import CashAccountsPage from './pages/finance/CashAccountsPage';
 import CashTransfersPage from './pages/finance/CashTransfersPage';
+import BankTransactionsPage from './pages/finance/BankTransactionsPage';
 import HelpPage from './pages/help/HelpPage';
 import PromotionsPage from './pages/promotions/PromotionsPage';
 import IntegrationsPage from './pages/integrations/IntegrationsPage';
@@ -125,6 +126,7 @@ export const router = createBrowserRouter([
           { path: '/cash', element: <RequirePerm perm="cash.view"><CashbookPage /></RequirePerm> },
           { path: '/cash/accounts', element: <RequirePerm perm="cash.view"><CashAccountsPage /></RequirePerm> },
           { path: '/cash/transfers', element: <RequirePerm perm="cash.view"><CashTransfersPage /></RequirePerm> },
+          { path: '/cash/bank-transactions', element: <RequirePerm perm="cash.view"><BankTransactionsPage /></RequirePerm> },
           { path: '/integrations', element: <RequirePerm perm="integration.view"><IntegrationsPage /></RequirePerm> },
           { path: '/integrations/:tab', element: <RequirePerm perm="integration.view"><IntegrationsPage /></RequirePerm> },
           { path: '/employees', element: <RequirePerm perm="attendance.view"><EmployeesPage /></RequirePerm> },

@@ -88,7 +88,7 @@ export const BAN_HANG: Guide[] = [
     perms: ['Thanh toán / hoàn thành hóa đơn (invoice.complete)'],
     keywords: ['payment', 'tiền mặt', 'chuyển khoản', 'thẻ', 'ví điện tử', 'kết hợp', 'tiền thừa', 'bán nợ', 'in', 'F9'],
     steps: [
-      { text: 'Trong bảng thanh toán (điện thoại: bấm THANH TOÁN để mở), chọn phương thức: Tiền mặt, Chuyển khoản, Thẻ, Ví điện tử hoặc Kết hợp.', shot: 'pos-cart' },
+      { text: 'Trong bảng thanh toán (điện thoại: bấm THANH TOÁN để mở), chọn phương thức: QR chuyển khoản (khi đã cài SePay), Tiền mặt, Chuyển khoản, Thẻ, Ví điện tử hoặc Kết hợp.', shot: 'pos-cart', note: 'QR chuyển khoản: bấm TẠO MÃ QR, khách quét mã – hóa đơn tự lưu khi tiền về (xem bài "Thu tiền bằng mã QR").' },
       { text: 'Tiền mặt: nhập "Tiền khách đưa" (hoặc chạm mệnh giá gợi ý) – "Tiền thừa trả khách" hiện ngay. Chuyển khoản / Thẻ / Ví: nhập Số tiền và Tham chiếu (mã GD, 4 số cuối thẻ…).' },
       { text: 'Kết hợp: thêm từng dòng phương thức + số tiền (tối đa 3), bấm Thêm phương thức nếu cần.', shot: 'pos-mixed' },
       { text: 'Nếu tổng thu nhỏ hơn "Khách cần trả", phần thiếu hiện "Còn nợ (ghi vào công nợ khách)" – bắt buộc đã chọn khách hàng và cửa hàng cho phép bán nợ.' },
@@ -99,7 +99,7 @@ export const BAN_HANG: Guide[] = [
       'Bán nợ bị từ chối nếu dư nợ dự kiến vượt Hạn mức nợ của khách.',
       'Nếu cửa hàng bật "Bắt buộc mở ca", POS yêu cầu mở ca trước khi thanh toán.',
     ],
-    related: ['ban-hang-pos', 'pos-khach-hang', 'hoa-don', 'mo-ca', 'cong-no-khach'],
+    related: ['ban-hang-pos', 'pos-khach-hang', 'hoa-don', 'mo-ca', 'cong-no-khach', 'thu-tien-qr'],
   },
   {
     slug: 'giu-don',
@@ -129,7 +129,7 @@ export const BAN_HANG: Guide[] = [
     steps: [
       { text: 'Vào Giao dịch → Hóa đơn (điện thoại: tab Hóa đơn). Lọc theo Trạng thái (Hoàn thành, Giữ đơn, Đã hủy), Chi nhánh, Thời gian, Khách hàng, Công nợ; tìm theo mã hóa đơn, khách, SĐT, hàng hóa.', shot: 'invoices' },
       { text: 'Bấm vào một hóa đơn để xem tab Thông tin (khách, nhân viên bán, ca, tổng tiền hàng, giảm giá, khuyến mãi, thuế, đã thanh toán, còn nợ, giá vốn / lợi nhuận), Thanh toán, Trả hàng, Bút toán kho.', shot: 'invoice-detail' },
-      { text: 'Các nút ở cuối chi tiết: In, Trả hàng, Tạo vận đơn, Thu nợ (khi còn nợ – mở phiếu thu phân bổ vào hóa đơn), Hủy hóa đơn.' },
+      { text: 'Các nút ở cuối chi tiết: In, Trả hàng, Tạo vận đơn, Thu qua QR (khi còn nợ và đã cài SePay – khách quét mã, phiếu thu tự ghi), Thu nợ (khi còn nợ – mở phiếu thu phân bổ vào hóa đơn), Hủy hóa đơn.' },
       { text: 'Hủy hóa đơn: bấm Hủy hóa đơn, nhập Lý do hủy và xác nhận. Hàng được hoàn tồn, phiếu thu của hóa đơn bị hủy theo, công nợ và điểm được đảo.' },
     ],
     notes: [
@@ -151,14 +151,14 @@ export const BAN_HANG: Guide[] = [
       { text: 'Thêm hàng bằng ô "Tìm hàng hóa hoặc quét mã vạch"; nhập Số lượng, Đơn giá (giá niêm yết; sửa cần quyền), Giảm giá dòng và Giảm giá đơn.' },
       { text: 'Nếu khách cọc ngay: nhập số tiền ở "Khách cọc ngay", chọn Phương thức và Tham chiếu. Bấm Lưu phiếu tạm (F9) hoặc Xác nhận đặt hàng (F10) – đơn xác nhận sẽ giữ tồn cho khách.' },
       { text: 'Theo dõi đơn ở danh sách Đặt hàng: Phiếu tạm, Đang xử lý (đã giữ hàng), Đã lập hóa đơn, Đã hủy; cột Đã cọc / Còn phải thu.', shot: 'orders' },
-      { text: 'Mở đơn để thao tác: Nhận cọc (thêm tiền cọc), Hủy xác nhận (để sửa dòng hàng), Tạo vận đơn, Hoàn tất → hóa đơn (chọn phương thức thu phần còn lại hoặc "Khách trả sau"), Hủy đơn.', shot: 'order-detail' },
+      { text: 'Mở đơn để thao tác: Nhận cọc (thêm tiền cọc), Cọc qua QR (khách quét mã VietQR, tiền cọc tự ghi khi tiền về), Hủy xác nhận (để sửa dòng hàng), Tạo vận đơn, Hoàn tất → hóa đơn (chọn phương thức thu phần còn lại hoặc "Khách trả sau"), Hủy đơn.', shot: 'order-detail' },
     ],
     notes: [
       'Đơn đã xác nhận chỉ sửa được ghi chú / ngày hẹn / nhân viên; muốn đổi hàng hãy Hủy xác nhận trước. Tiền cọc không vượt tổng đơn; đơn đã có cọc không đổi khách.',
       'Khi hoàn tất, hóa đơn lập với giá đã chốt trên đơn, tiền cọc chuyển sang hóa đơn, phần thiếu ghi nợ (khách lẻ phải trả đủ). Khuyến mãi tự động không áp cho đơn đặt hàng – chỉ áp dụng khi bán tại POS.',
       'Hủy đơn: với tiền cọc chọn Hoàn cọc (bắt buộc với khách lẻ) hoặc Giữ làm số dư có của khách. Không hủy đơn đang có vận đơn lấy / giao – hủy vận đơn trước.',
     ],
-    related: ['giao-hang-cod', 'hoa-don', 'giu-don', 'ton-kho'],
+    related: ['giao-hang-cod', 'hoa-don', 'giu-don', 'ton-kho', 'thu-tien-qr'],
   },
   {
     slug: 'giao-hang-cod',

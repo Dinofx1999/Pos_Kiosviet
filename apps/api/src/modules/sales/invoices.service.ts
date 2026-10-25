@@ -12,6 +12,7 @@ import { OutboxService } from '../../infra/outbox/outbox.service';
 import { PrismaService, TxClient } from '../../infra/prisma/prisma.service';
 import { LedgerService } from '../finance/ledger.service';
 import { PaymentInput, PaymentsService } from '../finance/payments.service';
+import { BankTransfersService } from '../finance/bank-transfers.service';
 import { StockEngineService } from '../inventory/stock-engine.service';
 import { CompleteInvoiceDto, CreateInvoiceDto, InvoiceLineDto, InvoicePaymentDto, InvoiceQueryDto, PosPriceQueryDto, UpdateInvoiceDto } from './dto/sales.dto';
 import { AppliedPromotion, GiftOffer, PromoLine } from './promotion-engine';
@@ -49,7 +50,7 @@ export class InvoicesService {
   constructor(
     private readonly prisma: PrismaService, private readonly engine: StockEngineService, private readonly numbering: NumberingService,
     private readonly audit: AuditService, private readonly outbox: OutboxService, private readonly access: AccessService,
-    private readonly ledger: LedgerService, private readonly payments: PaymentsService, private readonly shifts: ShiftsService, private readonly promotions: PromotionsService, private readonly loyalty: LoyaltyService,
+    private readonly ledger: LedgerService, private readonly payments: PaymentsService, private readonly shifts: ShiftsService, private readonly promotions: PromotionsService, private readonly loyalty: LoyaltyService, private readonly bankTransfers: BankTransfersService,
   ) {}
 
   // ---------------------------------------------------------------- queries
@@ -337,7 +338,10 @@ export class InvoicesService {
 
     await tx.invoice.update({ where: { id }, data: { status: 'COMPLETED', completedAt: new Date(), shiftId, costTotal, version: { increment: 1 } } });
     for (const [i, p] of paymentsIn.entries()) {
-      await this.payments.createInTx(tx, user, { branchId: inv.branchId, direction: 'IN', method: p.method as PaymentMethod, partyType: customer ? 'CUSTOMER' : null, partyId: customer?.id ?? null, shiftId, amount: money(p.amount), reference: p.reference, cashAccountId: p.cashAccountId, note: `Thanh toán hóa đơn ${inv.code}`, allocations: [{ documentType: 'INVOICE', documentId: inv.id, amount: money(p.amount) }], code: paymentCodes[i], permissionChecked: true });
+      // chuyển khoản qua mã VietQR/SePay: chỉ dùng được phần tiền đã thực nhận cho mã đó (BR-173)
+      const bankReq = p.bankRequestId ? await this.bankTransfers.lockPosRequestInTx(tx, user, p.bankRequestId, inv.branchId, money(p.amount)) : null;
+      const payment = await this.payments.createInTx(tx, user, { branchId: inv.branchId, direction: 'IN', method: (bankReq ? 'BANK_TRANSFER' : p.method) as PaymentMethod, partyType: customer ? 'CUSTOMER' : null, partyId: customer?.id ?? null, shiftId, amount: money(p.amount), reference: p.reference ?? (bankReq ? `SePay ${bankReq.code}` : undefined), cashAccountId: bankReq ? bankReq.cashAccountId : p.cashAccountId, note: `Thanh toán hóa đơn ${inv.code}`, allocations: [{ documentType: 'INVOICE', documentId: inv.id, amount: money(p.amount) }], code: paymentCodes[i], permissionChecked: true });
+      if (bankReq) await this.bankTransfers.markConsumedInTx(tx, bankReq, money(p.amount), { id: inv.id, code: inv.code }, payment.id);
     }
     if (pointsValue.greaterThan(0) && customer) {
       await this.payments.createInTx(tx, user, { branchId: inv.branchId, direction: 'IN', method: 'POINTS', partyType: 'CUSTOMER', partyId: customer.id, shiftId, amount: pointsValue, note: `Thanh toán bằng ${inv.pointsRedeemed.toString()} điểm`, allocations: [{ documentType: 'INVOICE', documentId: inv.id, amount: pointsValue }], code: pointsCode, permissionChecked: true, allowOffset: true });

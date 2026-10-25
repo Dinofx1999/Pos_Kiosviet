@@ -12,7 +12,8 @@ export interface ShiftQuery { page?: number; pageSize?: number; search?: string;
 export interface SalesReportQuery { from?: string; to?: string; branchId?: string; sellerId?: string; groupBy?: 'day' | 'month' }
 
 export interface InvoiceLineInput { variantId: string; batchId?: string; productUnitId?: string; quantity: string; unitPrice?: string; discountAmount?: string; note?: string; isGift?: boolean; promotionId?: string }
-export interface InvoicePaymentInput { method: string; amount: string; reference?: string }
+/** `bankRequestId`: a VietQR / SePay code that already received the money (server books it as BANK_TRANSFER into the configured fund). */
+export interface InvoicePaymentInput { method: string; amount: string; reference?: string; bankRequestId?: string }
 export interface InvoiceInput { branchId: string; warehouseId: string; customerId?: string; sellerId?: string; priceBookId?: string; invoiceDate?: string; discountAmount?: string; note?: string; lines: InvoiceLineInput[]; payments?: InvoicePaymentInput[]; voucherCode?: string; excludePromotionIds?: string[]; applyPromotions?: boolean; redeemPoints?: string }
 export interface InvoiceUpdateInput { version: number; warehouseId?: string; customerId?: string | null; sellerId?: string; priceBookId?: string | null; discountAmount?: string; note?: string; lines?: InvoiceLineInput[]; voucherCode?: string | null; excludePromotionIds?: string[]; applyPromotions?: boolean; redeemPoints?: string }
 

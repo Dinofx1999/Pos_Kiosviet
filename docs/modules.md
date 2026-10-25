@@ -174,7 +174,8 @@ Các cột **DB / BE / API / FE / Test** phản ánh thành phần **thực tế
 | Kết nối KiotViet Public API (người dùng tự nhập thông tin, secret mã hóa), kiểm tra kết nối, kéo dữ liệu | ✅ | ✅ | ✅ | ✅ | ✅ T-223 | ✅ |
 | Đối soát sau nhập (số lượng, tồn, công nợ, hóa đơn lịch sử) | — | ✅ | ✅ | ✅ | ✅ T-222 | ✅ |
 | Import/export Excel hàng hóa, báo cáo Excel | — | ✅ | ✅ | ✅ | ✅ | ✅ |
-| API key cho bên thứ ba, webhook từ outbox, đồng bộ sàn TMĐT, máy in nhiệt, thanh toán QR | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
+| Thanh toán chuyển khoản tự động qua SePay: VietQR theo mã (POS, hóa đơn còn nợ, cọc đơn), webhook khớp mã → phiếu thu BANK_TRANSFER, giao dịch chưa khớp gắn tay / bỏ qua | ✅ | ✅ | ✅ | 🟡 | ✅ T-260..T-266 | 🟡 FE đang xây |
+| API key cho bên thứ ba, webhook từ outbox, đồng bộ sàn TMĐT, máy in nhiệt | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
 ## MODULE 14 — SaaS
 | Chức năng | DB | BE | API | FE | Test | Trạng thái |
 |---|---|---|---|---|---|---|

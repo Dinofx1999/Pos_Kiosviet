@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { PlanBanner } from '../PlanBanner';
 import { useMeQuery, authApi } from '../../api/auth';
+import { useUnmatchedBankCount } from '../../api/bankTransfers';
 import { useIsMobile } from '../../hooks/useMedia';
 import { useAuthStore } from '../../store/auth';
 import { ChangePasswordModal } from '../ChangePasswordModal';
@@ -37,6 +38,8 @@ export default function AppLayout() {
   const { modal } = App.useApp();
   const [pwdOpen, setPwdOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  // SePay: transfers that matched no payment code wait in Sổ quỹ → Giao dịch chuyển khoản
+  const { data: unmatchedBank = 0 } = useUnmatchedBankCount(!!me && can('cash.view'));
 
   // close the mobile menu after navigation
   useEffect(() => { setMenuOpen(false); }, [loc.pathname, loc.search]);
@@ -80,12 +83,13 @@ export default function AppLayout() {
       can('user.manage') && { key: '/settings/users', label: <Link to="/settings/users">Người dùng</Link> },
       can('role.manage') && { key: '/settings/roles', label: <Link to="/settings/roles">Vai trò</Link> },
     ].filter(Boolean) });
-    list.push({ key: 'cash', label: 'Sổ quỹ', children: [
+    list.push({ key: 'cash', label: unmatchedBank > 0 ? <Badge dot offset={[4, 0]} className="kv-menu-dotted">Sổ quỹ</Badge> : 'Sổ quỹ', children: [
       can('cash.view') ? { key: '/cash', label: <Link to="/cash">Sổ quỹ tổng hợp</Link> } : soon('Sổ quỹ tổng hợp'),
       can('payment.view') ? { key: '/payments?direction=IN', label: <Link to="/payments?direction=IN">Phiếu thu</Link> } : soon('Phiếu thu'),
       can('payment.view') ? { key: '/payments?direction=OUT', label: <Link to="/payments?direction=OUT">Phiếu chi</Link> } : soon('Phiếu chi'),
       can('cash.view') && { key: '/cash/accounts', label: <Link to="/cash/accounts">Quỹ tiền / Tài khoản</Link> },
       can('cash.view') && { key: '/cash/transfers', label: <Link to="/cash/transfers">Chuyển quỹ / Bàn giao ca</Link> },
+      can('cash.view') && { key: '/cash/bank-transactions', label: <Link to="/cash/bank-transactions" className="kv-menu-badge">Giao dịch chuyển khoản{unmatchedBank > 0 && <Badge count={unmatchedBank} size="small" overflowCount={99} />}</Link> },
     ].filter(Boolean) });
     if (can('inventory.view') || can('purchase.report.view') || can('supplier.debt.view') || can('sales.report.view') || can('customer.debt.view') || can('report.profit.view')) list.push({ key: 'reports', label: 'Báo cáo', children: [
       can('sales.report.view') && { key: '/reports/sales', label: <Link to="/reports/sales">Doanh thu</Link> },
@@ -102,14 +106,14 @@ export default function AppLayout() {
       can('report.profit.view') && { key: '/reports/tax', label: <Link to="/reports/tax">Thuế GTGT</Link> },
     ].filter(Boolean) });
     return list;
-  }, [can, me]);
+  }, [can, me, unmatchedBank]);
 
   const selected = useMemo(() => {
     const p = loc.pathname;
     if (p === '/') return ['/'];
     if (p.startsWith('/inventory/documents')) return ['/inventory/documents'];
     if (p.startsWith('/payments')) return [`/payments${loc.search.includes('direction=IN') ? '?direction=IN' : loc.search.includes('direction=OUT') ? '?direction=OUT' : ''}`];
-    const hit = ['/products', '/price-books', '/inventory/balances', '/inventory/movements', '/settings/users', '/settings/roles', '/suppliers', '/purchase-orders', '/purchase-receipts', '/purchase-returns', '/reports/purchasing', '/reports/supplier-debt', '/reports/sales', '/reports/customer-debt', '/invoices', '/customers', '/shifts', '/sales-returns', '/cash/accounts', '/cash/transfers', '/cash', '/help', '/transfers', '/stocktakes', '/promotions', '/orders', '/deliveries', '/reports/inventory-nxt', '/reports/slow-movers', '/reports/products', '/reports/profit', '/reports/valuation', '/reports/tax', '/integrations', '/employees/attendance', '/employees/commissions', '/employees/performance', '/employees'].find((k) => p.startsWith(k));
+    const hit = ['/products', '/price-books', '/inventory/balances', '/inventory/movements', '/settings/users', '/settings/roles', '/suppliers', '/purchase-orders', '/purchase-receipts', '/purchase-returns', '/reports/purchasing', '/reports/supplier-debt', '/reports/sales', '/reports/customer-debt', '/invoices', '/customers', '/shifts', '/sales-returns', '/cash/accounts', '/cash/transfers', '/cash/bank-transactions', '/cash', '/help', '/transfers', '/stocktakes', '/promotions', '/orders', '/deliveries', '/reports/inventory-nxt', '/reports/slow-movers', '/reports/products', '/reports/profit', '/reports/valuation', '/reports/tax', '/integrations', '/employees/attendance', '/employees/commissions', '/employees/performance', '/employees'].find((k) => p.startsWith(k));
     return hit ? [hit] : [];
   }, [loc.pathname, loc.search]);
 
@@ -121,7 +125,7 @@ export default function AppLayout() {
   const userMenu = { items: [
     can('tenant.settings.manage') || can('branch.manage') || can('user.manage') ? { key: 'settings', icon: <SettingOutlined />, label: 'Thiết lập cửa hàng', onClick: () => nav('/settings') } : null,
     { key: 'pwd', icon: <LockOutlined />, label: 'Đổi mật khẩu', onClick: () => setPwdOpen(true) },
-    can('integration.view') ? { key: 'integrations', icon: <AppstoreOutlined />, label: 'Tích hợp & chuyển dữ liệu (KiotViet)', onClick: () => nav('/integrations') } : null,
+    can('integration.view') ? { key: 'integrations', icon: <AppstoreOutlined />, label: 'Tích hợp (KiotViet, chuyển khoản SePay)', onClick: () => nav('/integrations') } : null,
     { key: 'help', icon: <QuestionCircleOutlined />, label: 'Hướng dẫn sử dụng', onClick: () => nav('/help') },
     { type: 'divider' },
     { key: 'logout', icon: <LogoutOutlined />, label: 'Đăng xuất', onClick: doLogout },

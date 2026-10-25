@@ -5,6 +5,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { CompleteOrderResult, ORDER_KEYS, OrderLine, SalesOrder, ordersApi, useOrder } from '../../api/orders';
 import { useCurrentShift } from '../../api/sales';
+import { useSepayReady } from '../../api/bankTransfers';
+import { DocumentQrButton } from '../../components/DocumentQrButton';
 import { normalizeError } from '../../api/client';
 import { useIsMobile } from '../../hooks/useMedia';
 import { useAuthStore, useCan } from '../../store/auth';
@@ -261,6 +263,7 @@ export function OrderDetail({ id, onDeleted }: { id: string; onDeleted?: () => v
   const [shipping, setShipping] = useState(false);
   const [noting, setNoting] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const sepayReady = useSepayReady();
   if (isLoading) return <div className="muted">Đang tải…</div>;
   if (error || !o) return <Alert type="error" showIcon message={error ? orderErrMsg(error) : 'Không tìm thấy đơn đặt hàng'} />;
   const due = toNum(o.dueAmount);
@@ -318,6 +321,7 @@ export function OrderDetail({ id, onDeleted }: { id: string; onDeleted?: () => v
         {o.status === 'DRAFT' && can('order.create') && deposit <= 0 && <Button danger icon={<DeleteOutlined />} onClick={remove}>Xóa</Button>}
         {o.status === 'CONFIRMED' && can('order.create') && <Button icon={<EditOutlined />} onClick={() => setNoting(true)}>Ghi chú / hẹn giao</Button>}
         {(o.status === 'DRAFT' || o.status === 'CONFIRMED') && can('order.create') && due > 0 && <Button icon={<DollarOutlined />} onClick={() => setDepositing(true)}>Nhận cọc</Button>}
+        {can('payment.create') && sepayReady && <DocumentQrButton purpose="SALES_ORDER" documentId={o.id} documentCode={o.code} due={due} customerName={o.customer?.name} editableAmount refreshKeys={ORDER_KEYS} showButton={(o.status === 'DRAFT' || o.status === 'CONFIRMED') && due > 0} />}
         {(o.status === 'DRAFT' || o.status === 'CONFIRMED') && !o.delivery && can('delivery.manage') && <Button icon={<CarOutlined />} onClick={() => setShipping(true)}>Tạo vận đơn</Button>}
         {o.status === 'CONFIRMED' && can('order.confirm') && <Button icon={<RollbackOutlined />} loading={busy === 'unconfirm'} onClick={unconfirm}>Hủy xác nhận</Button>}
         {(o.status === 'DRAFT' || o.status === 'CONFIRMED') && can('order.cancel') && (o.status === 'CONFIRMED' || deposit > 0) && <Button danger icon={<StopOutlined />} onClick={() => setCancelling(true)}>Hủy đơn</Button>}

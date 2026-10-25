@@ -76,6 +76,7 @@ export class InvoicePaymentDto {
   @ApiProperty() @IsDecimalStr({ positive: true }) amount: string;
   @ApiPropertyOptional() @IsOptional() @TrimToUndefined() @IsString() @MaxLength(200) reference?: string;
   @ApiPropertyOptional({ description: 'Quỹ nhận tiền (bỏ trống = quỹ mặc định theo phương thức)' }) @IsOptional() @IsUUID() cashAccountId?: string;
+  @ApiPropertyOptional({ description: 'Yêu cầu chuyển khoản (VietQR / SePay) đã nhận tiền – phiếu thu ghi BANK_TRANSFER vào quỹ đã cấu hình' }) @IsOptional() @IsUUID() bankRequestId?: string;
 }
 export class CreateInvoiceDto {
   @ApiProperty() @IsUUID() branchId: string;

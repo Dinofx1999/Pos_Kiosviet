@@ -8,6 +8,7 @@ export type SectionKey =
   | 'ban-hang'
   | 'khach-hang'
   | 'so-quy'
+  | 'chuyen-khoan'
   | 'nhan-vien'
   | 'bao-cao'
   | 'kiotviet'

@@ -16,6 +16,6 @@ import { ShiftsService } from './shifts.service';
   imports: [InventoryModule, FinanceModule],
   controllers: [CustomersController, ShiftsController, InvoicesController, SalesReportsController, SalesReturnsController, PromotionsController, OrdersController, DeliveriesController],
   providers: [CustomersService, ShiftsService, InvoicesService, SalesReportsService, SalesReturnsService, PromotionsService, OrdersService, DeliveriesService, LoyaltyService],
-  exports: [CustomersService, InvoicesService, SalesReportsService, PromotionsService],
+  exports: [CustomersService, InvoicesService, SalesReportsService, PromotionsService, LoyaltyService],
 })
 export class SalesModule {}

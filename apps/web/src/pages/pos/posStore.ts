@@ -59,6 +59,8 @@ export interface CartTab {
   priceBookAuto?: boolean;
   /** Module 11 – loyalty: whole points the customer spends on this invoice (sent as redeemPoints, BR-141) */
   redeemPoints?: number;
+  /** VietQR / SePay code created for this cart (kept until the sale completes or the code is cancelled – money may already be on it) */
+  bankRequest?: { id: string; code: string; amount: number };
 }
 
 interface PosState {

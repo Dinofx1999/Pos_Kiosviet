@@ -1,16 +1,18 @@
-import { App, Badge, Button, Drawer, Dropdown, Input, InputNumber, Select, Space, Spin, Switch, Table, Tag, Tooltip } from 'antd';
-import { CloseOutlined, ClockCircleOutlined, DeleteOutlined, FileTextOutlined, GiftOutlined, HomeOutlined, MinusOutlined, PlusOutlined, RollbackOutlined, SaveOutlined, TagOutlined, UserOutlined, WalletOutlined } from '@ant-design/icons';
+import { Alert, App, Badge, Button, Drawer, Dropdown, Input, InputNumber, Select, Space, Spin, Switch, Table, Tag, Tooltip } from 'antd';
+import { CloseOutlined, ClockCircleOutlined, DeleteOutlined, FileTextOutlined, GiftOutlined, HomeOutlined, MinusOutlined, PlusOutlined, QrcodeOutlined, RollbackOutlined, SaveOutlined, TagOutlined, UserOutlined, WalletOutlined } from '@ant-design/icons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMeQuery } from '../../api/auth';
+import { bankApi, markSepayUnavailable, useSepayReady, type BankRequest } from '../../api/bankTransfers';
 import { catalogApi, usePriceBooks } from '../../api/catalog';
 import { errMsg, normalizeError } from '../../api/client';
 import { orgApi } from '../../api/org';
 import { pts } from '../../api/loyalty';
 import { ApplicablePriceBook, PosPreview, PosPreviewGift, VariantLite, promotionsApi } from '../../api/promotions';
-import { SALES_KEYS, salesApi, useCurrentShift } from '../../api/sales';
+import { SALES_KEYS, salesApi, useCurrentShift, type InvoicePaymentInput } from '../../api/sales';
 import type { ApiError, Invoice, SearchHit } from '../../api/types';
+import { BankQrModal } from '../../components/BankQrModal';
 import { CustomerSelect } from '../../components/CustomerSelect';
 import { MoneyInput } from '../../components/Inputs';
 import { ProductSearch, ProductSearchHandle } from '../../components/ProductSearch';
@@ -26,7 +28,7 @@ const suggest = (total: number) => Array.from(new Set([total, ...[10000, 20000, 
 
 export default function PosPage() {
   useMeQuery(true);
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const qc = useQueryClient();
   const nav = useNavigate();
   const [sp, setSp] = useSearchParams();
@@ -66,6 +68,13 @@ export default function PosPage() {
   const [voucherBusy, setVoucherBusy] = useState(false);
   const [applicable, setApplicable] = useState<ApplicablePriceBook[] | null>(null);
   const canPriceBook = can('invoice.pricebook.select');
+  // VietQR / SePay: the code on screen, and the state of the automatic completion once the money arrived
+  const sepayReady = useSepayReady();
+  const [qr, setQr] = useState<{ tabId: string; req: BankRequest } | null>(null);
+  const [qrBusy, setQrBusy] = useState(false);
+  const [qrDone, setQrDone] = useState<{ state: 'idle' | 'completing' | 'error'; error?: string }>({ state: 'idle' });
+  const completingRef = useRef(false);
+  useEffect(() => { if (payMode === 'QR' && !sepayReady) setPayMode('CASH'); }, [payMode, sepayReady]);
 
   useEffect(() => { if (!tab && tabs[0]) setActive(tabs[0].id); }, [tab, tabs]);
   useEffect(() => { if (can('invoice.seller.change') && can('user.manage')) orgApi.users({ pageSize: 100, status: 'ACTIVE' }).then((r) => setSellers(r.data.map((u) => ({ id: u.id, fullName: u.fullName })))).catch(() => undefined); }, [me?.user.id]);
@@ -91,6 +100,7 @@ export default function PosPage() {
   const maxPts = loyalty ? Math.floor(toNum(loyalty.maxRedeemPoints)) : 0;
   const payments: PaymentRow[] = useMemo(() => {
     if (payMode === 'MIXED') return mixed.filter((m) => m.amount > 0);
+    if (payMode === 'QR') return payable > 0 ? [{ method: 'BANK_TRANSFER', amount: payable }] : [];
     if (payMode === 'CASH') { const given = cashGiven ?? payable; return given > 0 ? [{ method: 'CASH', amount: Math.min(given, payable) }] : []; }
     const amt = single.amount ?? payable;
     return amt > 0 ? [{ method: payMode, amount: Math.min(amt, payable), reference: single.reference || undefined }] : [];
@@ -265,34 +275,130 @@ export default function PosPage() {
     else message.error(err.message);
   };
 
-  const checkout = async () => {
-    if (!tab || busy) return;
-    const v = validate(tab); if (v) { message.warning(v); return; }
-    if (due > 0 && !tab.customerId) { message.warning('Thanh toán thiếu (bán nợ) phải chọn khách hàng'); setSheet(true); setTimeout(() => customerRef.current?.querySelector('input')?.focus(), 150); return; }
-    if (paid > payable + 0.01) { message.warning('Tổng thanh toán vượt quá số tiền cần trả'); return; }
+  /** Saves the sale (new cart → checkout, held order → update + complete) and shows the receipt. Returns the error message on failure. */
+  const submitSale = async (t: CartTab, pays: InvoicePaymentInput[], receiptCash?: number): Promise<{ ok: true } | { ok: false; message: string }> => {
     setBusy(true);
     try {
-      const pays = payments.map((p) => ({ method: p.method, amount: String(p.amount), reference: p.reference }));
       let inv: Invoice;
-      if (tab.draftId) {
-        const updated = await salesApi.updateInvoice(tab.draftId, { version: tab.draftVersion ?? 1, ...buildUpdate(tab) });
+      if (t.draftId) {
+        const updated = await salesApi.updateInvoice(t.draftId, { version: t.draftVersion ?? 1, ...buildUpdate(t) });
+        // keep the new version on the tab: a retry (e.g. after a QR completion error) must not hit VERSION_CONFLICT
+        updateTab(t.id, { draftVersion: updated.version });
         inv = await salesApi.complete(updated.id, pays, updated.version);
-      } else inv = await salesApi.checkout({ ...buildInput(tab), payments: pays });
+      } else inv = await salesApi.checkout({ ...buildInput(t), payments: pays });
       SALES_KEYS.forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
-      ['promotions', 'promotion', 'vouchers', 'promotion-report', 'customer-points'].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
+      ['promotions', 'promotion', 'vouchers', 'promotion-report', 'customer-points', 'bank-transactions', 'bank-requests'].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
       // loyalty: the receipt prints the balance left after this sale
       let pointsBalance: string | undefined;
       if (inv.customerId && (toNum(inv.pointsEarned) > 0 || toNum(inv.pointsRedeemed) > 0)) { try { pointsBalance = (await salesApi.customer(inv.customerId)).points; } catch { /* receipt without the balance */ } }
       setSheet(false);
-      setReceipt({ inv, cashGiven: payMode === 'CASH' ? (cashGiven ?? payable) : undefined, pointsBalance });
-      if (tab.draftId) closeTab(tab.id); else resetTab(tab.id); // a completed held order leaves the POS tab bar
+      setReceipt({ inv, cashGiven: receiptCash, pointsBalance });
+      if (t.draftId) closeTab(t.id); else resetTab(t.id); // a completed held order leaves the POS tab bar
       resetPayBox(); setVoucherInput(''); setVoucherErr(null);
       message.success(`Đã thanh toán ${inv.code}`);
-    } catch (e) { handleApiError(e); } finally { setBusy(false); }
+      return { ok: true };
+    } catch (e) { handleApiError(e); return { ok: false, message: normalizeError(e).message }; } finally { setBusy(false); }
+  };
+
+  const checkout = async () => {
+    if (!tab || busy) return;
+    if (payMode === 'QR') { void startQr(); return; }
+    const v = validate(tab); if (v) { message.warning(v); return; }
+    if (due > 0 && !tab.customerId) { message.warning('Thanh toán thiếu (bán nợ) phải chọn khách hàng'); setSheet(true); setTimeout(() => customerRef.current?.querySelector('input')?.focus(), 150); return; }
+    if (paid > payable + 0.01) { message.warning('Tổng thanh toán vượt quá số tiền cần trả'); return; }
+    await submitSale(tab, payments.map((p) => ({ method: p.method, amount: String(p.amount), reference: p.reference })), payMode === 'CASH' ? (cashGiven ?? payable) : undefined);
+  };
+
+  // ---------------------------------------------------------------- VietQR / SePay (BR-170..): code → customer transfers → sale completes by itself
+  const requireShift = me?.settings?.['pos.requireOpenShift'] === true;
+  const openQr = (tabId: string, req: BankRequest) => { completingRef.current = false; setQrDone({ state: 'idle' }); setQr({ tabId, req }); };
+  const createQr = async (t: CartTab) => {
+    setQrBusy(true);
+    try {
+      // VND: round up so the transfer always covers the invoice (the bank part sent with the sale is capped at what is due)
+      const req = await bankApi.createRequest({ purpose: 'POS', branchId: branchId!, amount: String(Math.ceil(payable - 0.001)), note: t.draftCode ? `Đơn giữ ${t.draftCode}` : undefined });
+      updateTab(t.id, { bankRequest: { id: req.id, code: req.code, amount: toNum(req.amount) } });
+      openQr(t.id, req);
+    } catch (e) {
+      const err = normalizeError(e);
+      if (err.code === 'SEPAY_NOT_CONFIGURED') { markSepayUnavailable(qc); setPayMode('CASH'); }
+      message.error(err.message);
+    } finally { setQrBusy(false); }
+  };
+  const startQr = async () => {
+    if (!tab || busy || qrBusy) return;
+    const v = validate(tab); if (v) { message.warning(v); return; }
+    if (previewing) { message.info('Đang tính lại tổng tiền – thử lại sau giây lát'); return; }
+    if (!(payable > 0)) { message.warning('Hóa đơn không còn số tiền cần thu – chọn phương thức khác'); return; }
+    if (requireShift && shift === null) { message.warning('Bạn cần mở ca bán hàng trước khi thu tiền'); setShiftOpen(true); return; }
+    if (tab.bankRequest) {
+      // the cart already has a code: reopen it when it holds money or still asks for this amount, otherwise replace it
+      setQrBusy(true);
+      try {
+        const cur = await bankApi.request(tab.bankRequest.id);
+        if (toNum(cur.available) > 0 || (cur.status === 'PENDING' && !cur.expired && toNum(cur.amount) >= payable - 0.001 && toNum(cur.amount) - payable < 1)) { openQr(tab.id, cur); return; }
+        if (cur.status === 'PENDING') await bankApi.cancelRequest(cur.id).catch(() => undefined);
+      } catch { /* gone → new code */ } finally { setQrBusy(false); }
+      updateTab(tab.id, { bankRequest: undefined });
+    }
+    await createQr(tab);
+  };
+  const renewQr = async () => {
+    if (!qr || !tab) return;
+    if (qr.req.status === 'PENDING') await bankApi.cancelRequest(qr.req.id).catch(() => undefined);
+    updateTab(qr.tabId, { bankRequest: undefined });
+    await createQr(tab);
+  };
+  /** Bank part = what the code received (capped at what is due); the rest in cash only when the cashier asks for it. */
+  const qrSplit = (r: BankRequest) => { const bank = Math.min(toNum(r.available), payable); return { bank, rest: Math.max(0, Math.round((payable - bank) * 100) / 100) }; };
+  const completeWithQr = async (r: BankRequest, cashRest: boolean) => {
+    if (!tab || completingRef.current) return;
+    if (qr && tab.id !== qr.tabId) { setActive(qr.tabId); message.info('Đã chuyển về hóa đơn của mã QR – bấm lại để hoàn tất'); return; }
+    const { bank, rest } = qrSplit(r);
+    if (!(bank > 0) || (rest > 0 && !cashRest)) return;
+    completingRef.current = true;
+    setQrDone({ state: 'completing' });
+    const pays: InvoicePaymentInput[] = [{ method: 'BANK_TRANSFER', amount: String(bank), bankRequestId: r.id }];
+    if (rest > 0) pays.push({ method: 'CASH', amount: String(rest) });
+    const res = await submitSale(tab, pays);
+    completingRef.current = false;
+    if (res.ok) { setQr(null); setQrDone({ state: 'idle' }); }
+    else { setQrDone({ state: 'error', error: res.message }); qc.invalidateQueries({ queryKey: ['bank-request', r.id] }); }
+  };
+  const onQrUpdate = (r: BankRequest) => {
+    if (!qr || r.id !== qr.req.id) return;
+    if (r.status === 'CANCELLED') { updateTab(qr.tabId, { bankRequest: undefined }); return; }
+    // money covers the invoice → complete automatically (once)
+    if (toNum(r.available) > 0 && qrSplit(r).rest <= 0 && qrDone.state === 'idle') void completeWithQr(r, false);
+  };
+  const closeQr = (latest: BankRequest | null) => {
+    if (!qr) return;
+    if (!latest || latest.status === 'CANCELLED') { updateTab(qr.tabId, { bankRequest: undefined }); setQr(null); return; }
+    if (completingRef.current) return;
+    if (toNum(latest.available) > 0) {
+      modal.confirm({
+        title: 'Hóa đơn chưa hoàn tất', okText: 'Đóng', cancelText: 'Ở lại',
+        content: <span>Đã nhận <b>{money(latest.available)}</b> qua mã <b>{latest.code}</b> nhưng hóa đơn chưa được lưu. Mã vẫn gắn với giỏ hàng này – chọn lại <b>QR chuyển khoản</b> để mở lại và hoàn tất.</span>,
+        onOk: () => setQr(null),
+      });
+      return;
+    }
+    setQr(null);
+  };
+  const reopenQr = async () => {
+    if (!tab?.bankRequest) return;
+    setQrBusy(true);
+    try {
+      const cur = await bankApi.request(tab.bankRequest.id);
+      if (cur.status === 'CANCELLED') { updateTab(tab.id, { bankRequest: undefined }); message.info(`Mã ${cur.code} đã hủy`); return; }
+      setPayMode('QR');
+      openQr(tab.id, cur);
+    } catch (e) { message.error(errMsg(e)); updateTab(tab.id, { bankRequest: undefined }); } finally { setQrBusy(false); }
   };
 
   const hold = async () => {
     if (!tab || busy) return;
+    if (tab.bankRequest) { message.warning(`Giỏ hàng đang gắn mã chuyển khoản ${tab.bankRequest.code} – hoàn tất thanh toán hoặc hủy mã trước khi giữ đơn`); return; }
     const v = validate(tab); if (v) { message.warning(v); return; }
     setBusy(true);
     try {
@@ -345,6 +451,7 @@ export default function PosPage() {
   // ---------------------------------------------------------------- keyboard (desktop)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (qr) return; // the QR screen is modal – no cart shortcuts underneath it
       const map: Record<string, () => void> = {
         F2: () => addTab(), F3: () => searchRef.current?.focus(), F4: () => customerRef.current?.querySelector('input')?.focus(), F6: () => discountRef.current?.focus?.(),
         F7: () => void hold(), F9: () => void checkout(), Escape: () => { if (receipt) setReceipt(null); else if (sheet) setSheet(false); },
@@ -394,7 +501,16 @@ export default function PosPage() {
       {tabs.map((t) => (
         <span key={t.id} className={`pos-tab${t.id === tab?.id ? ' active' : ''}`} onClick={() => setActive(t.id)}>
           {t.name}{t.lines.length > 0 && <Badge count={t.lines.length} size="small" style={{ marginLeft: 6, background: t.id === tab?.id ? '#fff' : '#9ca3af', color: '#0f3d8a' }} />}
-          <CloseOutlined className="pos-tab-close" onClick={(e) => { e.stopPropagation(); closeTab(t.id); }} />
+          <CloseOutlined className="pos-tab-close" onClick={(e) => {
+            e.stopPropagation();
+            if (!t.bankRequest) { closeTab(t.id); return; }
+            const code = t.bankRequest;
+            modal.confirm({
+              title: `Đóng ${t.name}?`, okText: 'Đóng & hủy mã', okButtonProps: { danger: true }, cancelText: 'Bỏ qua',
+              content: <span>Giỏ hàng đang gắn mã chuyển khoản <b>{code.code}</b>. Mã sẽ được hủy; nếu khách đã chuyển tiền, khoản tiền nằm ở Sổ quỹ → Giao dịch chuyển khoản / cần xử lý tay.</span>,
+              onOk: async () => { await bankApi.cancelRequest(code.id).catch(() => undefined); closeTab(t.id); },
+            });
+          }} />
         </span>
       ))}
       <Tooltip title="Thêm hóa đơn (F2)"><span className="pos-tab add" onClick={() => addTab()}><PlusOutlined /></span></Tooltip>
@@ -498,9 +614,21 @@ export default function PosPage() {
 
       <div className="pos-pay">
         <div className="pos-chips">
+          {sepayReady && <span className={`pos-chip pos-chip-qr${payMode === 'QR' ? ' on' : ''}`} onClick={() => setPayMode('QR')} role="button"><QrcodeOutlined /> QR chuyển khoản</span>}
           {METHODS.map((m) => <span key={m} className={`pos-chip${payMode === m ? ' on' : ''}`} onClick={() => setPayMode(m)}>{PAYMENT_METHOD_LABEL[m]}</span>)}
           <span className={`pos-chip${payMode === 'MIXED' ? ' on' : ''}`} onClick={() => setPayMode('MIXED')}>Kết hợp</span>
         </div>
+        {payMode === 'QR' && (
+          <div className="pos-qr-box">
+            <div className="pos-row"><span>Khách chuyển khoản</span><b className="pos-qr-amt">{money(payable)}</b></div>
+            <div className="kv-hint">Bấm <b>Tạo mã QR</b> → khách quét bằng app ngân hàng → hóa đơn <b>tự hoàn tất</b> khi tiền về tài khoản, không cần kiểm tra app ngân hàng.</div>
+          </div>
+        )}
+        {tab?.bankRequest && !qr && (
+          <Alert className="pos-qr-pending" type="warning" showIcon icon={<QrcodeOutlined />}
+            message={<span>Giỏ hàng đang gắn mã chuyển khoản <b>{tab.bankRequest.code}</b> ({money(tab.bankRequest.amount)})</span>}
+            action={<Button size="small" type="primary" loading={qrBusy} onClick={reopenQr}>Mở lại</Button>} />
+        )}
         {payMode === 'CASH' && (
           <>
             <div className="pos-row"><span>Tiền khách đưa</span><MoneyInput size="large" style={{ width: 170 }} value={cashGiven ?? payable} onChange={(v) => setCashGiven(v === null || v === undefined ? null : toNum(v))} onFocus={(e) => e.target.select()} /></div>
@@ -508,7 +636,7 @@ export default function PosPage() {
             {change > 0 && <div className="pos-row"><span>Tiền thừa trả khách</span><b className="pos">{money(change)}</b></div>}
           </>
         )}
-        {payMode !== 'CASH' && payMode !== 'MIXED' && (
+        {payMode !== 'CASH' && payMode !== 'MIXED' && payMode !== 'QR' && (
           <>
             <div className="pos-row"><span>Số tiền</span><MoneyInput size="large" style={{ width: 170 }} value={single.amount ?? payable} max={payable} onChange={(v) => setSingle((s) => ({ ...s, amount: v === null || v === undefined ? null : Math.min(toNum(v), payable) }))} /></div>
             <Input size="small" placeholder="Tham chiếu (mã GD, 4 số cuối thẻ…)" value={single.reference} onChange={(e) => setSingle((s) => ({ ...s, reference: e.target.value }))} />
@@ -532,7 +660,9 @@ export default function PosPage() {
 
       <div className="pos-actions">
         {can('invoice.create') && <Button size="large" icon={<SaveOutlined />} onClick={hold} loading={busy} disabled={!tab?.lines.length}>{isMobile ? 'Giữ đơn' : 'Giữ đơn (F7)'}</Button>}
-        <Button size="large" type="primary" className="pos-pay-btn" onClick={checkout} loading={busy} disabled={!tab?.lines.length || !can('invoice.complete')}>{isMobile ? 'THANH TOÁN' : 'THANH TOÁN (F9)'}</Button>
+        {payMode === 'QR'
+          ? <Button size="large" type="primary" className="pos-pay-btn" icon={<QrcodeOutlined />} onClick={() => void startQr()} loading={busy || qrBusy} disabled={!tab?.lines.length || !can('invoice.complete')}>{isMobile ? 'TẠO MÃ QR' : 'TẠO MÃ QR (F9)'}</Button>
+          : <Button size="large" type="primary" className="pos-pay-btn" onClick={checkout} loading={busy} disabled={!tab?.lines.length || !can('invoice.complete')}>{isMobile ? 'THANH TOÁN' : 'THANH TOÁN (F9)'}</Button>}
       </div>
       {tab?.draftId && <div className="kv-hint" style={{ textAlign: 'center' }}>Đang mở đơn giữ {tab.draftCode}</div>}
     </aside>
@@ -628,6 +758,28 @@ export default function PosPage() {
       <ShiftOpenModal open={shiftOpen} branchId={branchId} onClose={() => setShiftOpen(false)} onOpened={() => refetchShift()} />
       <ShiftCloseModal open={shiftClose} shiftId={shift?.id} onClose={() => setShiftClose(false)} onClosed={() => refetchShift()} />
       <HeldOrdersDrawer open={held} branchId={branchId} onClose={() => setHeld(false)} onReopen={(inv) => void loadDraft(inv)} />
+      <BankQrModal open={!!qr} request={qr?.req ?? null} cancelOnClose onUpdate={onQrUpdate} onClose={closeQr} onRenew={() => void renewQr()} renewing={qrBusy}
+        title={`Thanh toán chuyển khoản · ${money(qr ? toNum(qr.req.amount) : payable)}`}
+        subtitle={tab ? `${tab.draftCode ?? tab.name}${tab.customerLabel ? ` · ${tab.customerLabel}` : ' · Khách lẻ'} · ${tab.lines.reduce((x, l) => x + l.quantity, 0)} SL` : undefined}
+        renderActions={(r) => {
+          const { bank, rest } = qrSplit(r);
+          if (r.status !== 'PARTIAL' || !(bank > 0) || !(rest > 0)) return null;
+          return <Button type="primary" icon={<WalletOutlined />} loading={qrDone.state === 'completing'} onClick={() => modal.confirm({
+            title: 'Thu phần còn lại bằng tiền mặt?', okText: 'Hoàn tất hóa đơn', cancelText: 'Chờ tiếp',
+            content: <span>Hóa đơn được lưu với chuyển khoản <b>{money(bank)}</b> (mã {r.code}) + tiền mặt <b>{money(rest)}</b>.</span>,
+            onOk: () => completeWithQr(r, true),
+          })}>Thu {money(rest)} tiền mặt</Button>;
+        }}
+        renderPaid={(r) => {
+          const { bank, rest } = qrSplit(r);
+          if (qrDone.state === 'error') return (
+            <Alert type="error" showIcon message="Chưa lưu được hóa đơn" description={<span>{qrDone.error}<br />Tiền đã nhận ({money(r.available)}) vẫn giữ trên mã {r.code}. Sửa lỗi rồi thử lại, hoặc đóng và chọn lại QR chuyển khoản sau.<div style={{ marginTop: 8 }}><Button type="primary" onClick={() => { completingRef.current = false; setQrDone({ state: 'idle' }); void completeWithQr(r, rest > 0); }}>Thử hoàn tất lại</Button></div></span>} />
+          );
+          if (rest > 0) return (
+            <Alert type="warning" showIcon message={`Tiền đã nhận (${money(bank)}) chưa đủ hóa đơn (${money(payable)})`} description={<span>Giỏ hàng đã thay đổi sau khi tạo mã. <Button size="small" type="primary" loading={qrDone.state === 'completing'} onClick={() => void completeWithQr(r, true)}>Thu {money(rest)} tiền mặt & hoàn tất</Button></span>} />
+          );
+          return <div className="bq-done"><Spin /><div><b>Đang lưu hóa đơn…</b><div className="kv-hint">Biên lai sẽ hiện ngay sau đây.</div></div></div>;
+        }} />
       <ReceiptModal invoice={receipt?.inv ?? null} cashGiven={receipt?.cashGiven} pointsBalance={receipt?.pointsBalance} onClose={() => { setReceipt(null); if (!isMobile) searchRef.current?.focus(); }} />
       {!branchId && <div className="pos-blocker">Chưa có chi nhánh · <a onClick={() => nav('/')}>về trang quản lý</a></div>}
     </div>

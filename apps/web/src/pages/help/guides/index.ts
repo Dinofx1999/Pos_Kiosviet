@@ -6,6 +6,7 @@ import { MUA_HANG } from './muaHang';
 import { BAN_HANG } from './banHang';
 import { KHACH_HANG } from './khachHang';
 import { SO_QUY } from './soQuy';
+import { CHUYEN_KHOAN } from './chuyenKhoan';
 import { NHAN_VIEN } from './nhanVien';
 import { BAO_CAO } from './baoCao';
 import { KIOTVIET } from './kiotviet';
@@ -21,13 +22,14 @@ export const SECTIONS: Section[] = [
   { key: 'ban-hang', title: 'Bán hàng', blurb: 'Mở ca, bán tại POS, hóa đơn, đặt hàng & cọc, giao hàng, trả / đổi hàng, đóng ca' },
   { key: 'khach-hang', title: 'Khách hàng', blurb: 'Hồ sơ khách, nhóm khách, công nợ & thu nợ, điểm tích lũy, sinh nhật' },
   { key: 'so-quy', title: 'Sổ quỹ', blurb: 'Quỹ tiền, phiếu thu / chi, loại thu chi, chuyển quỹ, cấn trừ, kiểm quỹ' },
+  { key: 'chuyen-khoan', title: 'Thanh toán chuyển khoản (QR)', blurb: 'Cài SePay, mã VietQR tại quầy, thu nợ & cọc qua QR, giao dịch chưa khớp' },
   { key: 'nhan-vien', title: 'Nhân viên', blurb: 'Danh sách, chấm công, hoa hồng, hiệu suất' },
   { key: 'bao-cao', title: 'Báo cáo', blurb: 'Doanh thu, lãi lỗ, hàng bán chạy, nhập xuất tồn, tồn lâu, giá trị tồn, công nợ, thuế, Excel' },
   { key: 'kiotviet', title: 'Chuyển dữ liệu từ KiotViet', blurb: 'Xuất file từ KiotViet, nhập Excel, kết nối API, đối soát, thứ tự khuyến nghị' },
   { key: 'goi-dich-vu', title: 'Gói dịch vụ', blurb: 'Hạn mức, dùng thử, chế độ chỉ đọc khi hết hạn' },
 ];
 
-export const GUIDES: Guide[] = [...BAT_DAU, ...HANG_HOA, ...KHO, ...MUA_HANG, ...BAN_HANG, ...KHACH_HANG, ...SO_QUY, ...NHAN_VIEN, ...BAO_CAO, ...KIOTVIET, ...GOI_DICH_VU];
+export const GUIDES: Guide[] = [...BAT_DAU, ...HANG_HOA, ...KHO, ...MUA_HANG, ...BAN_HANG, ...KHACH_HANG, ...SO_QUY, ...CHUYEN_KHOAN, ...NHAN_VIEN, ...BAO_CAO, ...KIOTVIET, ...GOI_DICH_VU];
 
 const bySlug = new Map(GUIDES.map((g) => [g.slug, g]));
 export const getGuide = (slug: string | undefined) => (slug ? bySlug.get(slug) : undefined);
