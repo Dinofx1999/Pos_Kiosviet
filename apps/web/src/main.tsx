@@ -10,6 +10,7 @@ import 'antd/dist/reset.css';
 import './styles.css';
 import App from './App';
 import { startUpdateWatcher } from './updateWatcher';
+import { startIosViewportFix } from './iosViewport';
 
 dayjs.locale('vi');
 dayjs.extend(relativeTime);
@@ -36,4 +37,5 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   </React.StrictMode>,
 );
 
+startIosViewportFix();
 startUpdateWatcher();

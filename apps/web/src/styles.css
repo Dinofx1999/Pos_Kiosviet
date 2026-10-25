@@ -177,7 +177,7 @@ html { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   .kv-user { padding: 0 2px; }
   /* khung ứng dụng: tiêu đề và thanh tab cố định, chỉ phần nội dung ở giữa cuộn – không còn phần tử "ghim" nào
      phụ thuộc vào chiều cao cửa sổ (iPhone web app hay để khung bị lệch sau khi đóng bàn phím) */
-  .kv-shell { min-height: 0; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+  .kv-shell { min-height: 0; height: var(--app-h, 100dvh); display: flex; flex-direction: column; overflow: hidden; }
   .kv-shell > .kv-header, .kv-shell > .ant-alert, .kv-shell > .kv-tabbar { flex: 0 0 auto; }
   .kv-page { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 10px 12px 24px; }
   .kv-page .hp-back, .kv-page .tk-sticky { top: 0; }
@@ -238,7 +238,7 @@ html { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   .kv-settings-menu .ant-menu-item { white-space: nowrap; }
   /* modals & drawers: full screen on phones */
   .ant-modal { max-width: 100vw !important; width: 100vw !important; margin: 0 !important; top: 0 !important; padding-bottom: 0 !important; }
-  .ant-modal .ant-modal-content { min-height: 100vh; min-height: 100dvh; border-radius: 0; padding: 14px 14px calc(14px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; }
+  .ant-modal .ant-modal-content { min-height: 100vh; min-height: var(--app-h, 100dvh); border-radius: 0; padding: 14px 14px calc(14px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; }
   .ant-modal .ant-modal-body { flex: 1; overflow: auto; }
   .ant-modal .ant-modal-footer { position: sticky; bottom: 0; background: #fff; padding-top: 10px; display: flex; gap: 8px; }
   .ant-modal .ant-modal-footer .ant-btn { flex: 1; height: 44px; margin: 0 !important; }
@@ -293,7 +293,7 @@ html { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 /* ---------- POS on phones ---------- */
 .pos-mbar, .pos-mtabs, .pos-mcart { display: none; }
 @media (max-width: 767px) {
-  .pos-app { height: 100dvh; }
+  .pos-app { height: var(--app-h, 100dvh); }
   .pos-header { height: auto; min-height: 48px; padding: calc(6px + env(safe-area-inset-top)) 8px 6px; flex-wrap: wrap; gap: 6px; }
   .pos-brand { font-size: 13px; }
   .pos-header .pos-tabs, .pos-header .pos-search { display: none; }
@@ -462,4 +462,17 @@ html { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   .pos-lp-input .ant-space-compact { flex: 1 1 100%; }
   .pos-lp-input .ant-input-number { flex: 1 1 auto; min-width: 0; max-width: none !important; }
   .pos-lp-input .ant-btn { min-height: 40px; }
+}
+
+/* ---------- iPhone web app (iOS 26): vùng hiển thị ngắn hơn màn hình đúng bằng thanh trạng thái ----------
+   --app-h / --ios-gap do src/iosViewport.ts đo; ngoài iPhone standalone hai biến không tồn tại → giá trị mặc định */
+html.ios-standalone .kv-login { min-height: var(--app-h, 100vh); }
+html.ios-standalone .ant-drawer, html.ios-standalone .ant-drawer-mask, html.ios-standalone .ant-modal-wrap, html.ios-standalone .ant-modal-mask,
+html.ios-standalone .ant-image-preview-wrap, html.ios-standalone .ant-image-preview-mask { bottom: calc(0px - var(--ios-gap, 0px)) !important; }
+@media (max-width: 767px) {
+  /* khung đặt cố định từ mép trên, cao đúng bằng màn hình thật → thanh tab nằm sát đáy, cửa sổ không bao giờ cuộn */
+  html.ios-standalone .kv-shell, html.ios-standalone .pos-app { position: fixed; top: 0; left: 0; right: 0; }
+  html.ios-standalone .pos-mbar { bottom: calc(0px - var(--ios-gap, 0px)); }
+  html.ios-standalone .kv-filter-toggle { bottom: calc(68px + env(safe-area-inset-bottom) - var(--ios-gap, 0px)); }
+  html.ios-standalone .cb-bar, html.ios-standalone .sr-actions, html.ios-standalone .tk-actions, html.ios-standalone .od-actions { bottom: calc(56px + env(safe-area-inset-bottom) - var(--ios-gap, 0px)); }
 }
