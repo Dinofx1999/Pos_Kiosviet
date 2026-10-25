@@ -1,4 +1,5 @@
-import { Alert, App, Button, Empty, Form, Input, InputNumber, Modal, Pagination, Radio, Skeleton, Table, Tag } from 'antd';
+import { Alert, App, Button, Empty, Form, Input, InputNumber, Modal, Pagination, Radio, Skeleton, Tag } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { EditOutlined, GiftOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';

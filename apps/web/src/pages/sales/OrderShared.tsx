@@ -1,4 +1,5 @@
-import { Alert, App, Button, Descriptions, Input, Modal, Radio, Switch, Table, Tag } from 'antd';
+import { Alert, App, Button, Descriptions, Input, Modal, Radio, Switch, Tag } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { CarOutlined, CheckCircleOutlined, CheckOutlined, DeleteOutlined, DollarOutlined, EditOutlined, FileTextOutlined, RollbackOutlined, StopOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';

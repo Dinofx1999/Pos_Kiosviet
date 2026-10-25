@@ -1,4 +1,5 @@
-import { App, Button, Descriptions, Drawer, Empty, Modal, Table, Tag } from 'antd';
+import { App, Button, Descriptions, Drawer, Empty, Modal, Tag } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { PrinterOutlined } from '@ant-design/icons';
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';

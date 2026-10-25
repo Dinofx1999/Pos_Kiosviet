@@ -1,4 +1,5 @@
-import { Alert, App, Button, Empty, Input, Modal, Pagination, Segmented, Select, Skeleton, Table, Tag, Tooltip } from 'antd';
+import { Alert, App, Button, Empty, Input, Modal, Pagination, Segmented, Select, Skeleton, Tag, Tooltip } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { CheckOutlined, LinkOutlined, QrcodeOutlined, ReloadOutlined, SearchOutlined, SettingOutlined, StopOutlined } from '@ant-design/icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';

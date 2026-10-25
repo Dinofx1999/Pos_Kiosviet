@@ -1,5 +1,6 @@
 import './transfers.css';
-import { Alert, App, Button, Card, Descriptions, Input, Modal, Progress, Radio, Segmented, Select, Switch, Table, Tag } from 'antd';
+import { Alert, App, Button, Card, Descriptions, Input, Modal, Progress, Radio, Segmented, Select, Switch, Tag } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { ArrowLeftOutlined, CheckCircleFilled, CheckOutlined, DeleteOutlined, ExclamationCircleFilled, LoadingOutlined, MinusOutlined, PlusOutlined, ReloadOutlined, StopOutlined } from '@ant-design/icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';

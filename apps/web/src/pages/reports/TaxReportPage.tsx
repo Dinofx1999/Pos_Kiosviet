@@ -1,4 +1,5 @@
-import { Alert, Button, Card, Empty, Skeleton, Table } from 'antd';
+import { Alert, Button, Card, Empty, Skeleton } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { ReloadOutlined } from '@ant-design/icons';
 import { useState } from 'react';
 import { errMsg } from '../../api/client';

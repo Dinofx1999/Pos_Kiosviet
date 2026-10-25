@@ -1,4 +1,5 @@
-import { Alert, App, Descriptions, Input, Modal, Switch, Table, Tag } from 'antd';
+import { Alert, App, Descriptions, Input, Modal, Switch, Tag } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { SwapOutlined } from '@ant-design/icons';
 import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';

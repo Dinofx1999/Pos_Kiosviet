@@ -1,4 +1,5 @@
-import { App, Button, DatePicker, Descriptions, Empty, Input, Radio, Select, Space, Table, Tag } from 'antd';
+import { App, Button, DatePicker, Descriptions, Empty, Input, Radio, Select, Space, Tag } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { CheckOutlined, DeleteOutlined, EditOutlined, PlusOutlined, PrinterOutlined, ReloadOutlined, SearchOutlined, StopOutlined } from '@ant-design/icons';
 
 import { useState } from 'react';
@@ -50,14 +51,14 @@ export default function DocumentsPage() {
             pagination={{ current: q.page, pageSize: q.pageSize, total: data?.meta.total ?? 0, showSizeChanger: true, pageSizeOptions: [15, 20, 50, 100], showTotal: (t) => `${t} phiếu` }}
             columns={[
               { title: 'Mã phiếu', dataIndex: 'code', width: 150, render: (v) => <b>{v}</b> },
-              { title: 'Loại', dataIndex: 'type', width: 110, render: (v, r) => <span><Tag color={v === 'RECEIPT' ? 'blue' : v === 'ISSUE' ? 'orange' : 'purple'}>{DOC_TYPE_LABEL[v]}</Tag>{r.reason && <div className="kv-hint">{REASON_LABEL[r.reason] ?? r.reason}</div>}</span> },
+              { title: 'Loại', dataIndex: 'type', width: 110, mobile: 'badge', mobileRender: (v, r) => <Tag color={v === 'RECEIPT' ? 'blue' : v === 'ISSUE' ? 'orange' : 'purple'}>{DOC_TYPE_LABEL[v]}{r.reason ? ` · ${REASON_LABEL[r.reason] ?? r.reason}` : ''}</Tag>, render: (v, r) => <span><Tag color={v === 'RECEIPT' ? 'blue' : v === 'ISSUE' ? 'orange' : 'purple'}>{DOC_TYPE_LABEL[v]}</Tag>{r.reason && <div className="kv-hint">{REASON_LABEL[r.reason] ?? r.reason}</div>}</span> },
               { title: 'Kho', render: (_, r) => r.warehouse?.name, width: 140 },
               { title: 'Chi nhánh', render: (_, r) => r.branch?.name, width: 150 },
               { title: 'Số dòng', render: (_, r) => r._count?.lines, width: 70, className: 'num' },
               { title: 'Tổng SL', dataIndex: 'totalQuantity', className: 'num', width: 90, render: (v) => qty(v) },
-              { title: 'Tổng giá trị', dataIndex: 'totalCost', className: 'num', width: 120, render: (v) => money(v) },
-              { title: 'Trạng thái', dataIndex: 'status', width: 110, render: (v) => <Tag color={DOC_STATUS_COLOR[v]}>{DOC_STATUS_LABEL[v]}</Tag> },
-              { title: 'Thời gian', dataIndex: 'createdAt', width: 130, render: (v, r) => <span>{dt(v)}{r.postedAt && <div className="kv-hint">Ghi sổ: {dt(r.postedAt)}</div>}</span> },
+              { title: 'Tổng giá trị', dataIndex: 'totalCost', className: 'num', width: 120, mobile: 'right', render: (v) => money(v) },
+              { title: 'Trạng thái', dataIndex: 'status', width: 110, mobile: 'badge', render: (v) => <Tag color={DOC_STATUS_COLOR[v]}>{DOC_STATUS_LABEL[v]}</Tag> },
+              { title: 'Thời gian', dataIndex: 'createdAt', width: 130, mobile: 'subtitle', mobileRender: (v) => dt(v), render: (v, r) => <span>{dt(v)}{r.postedAt && <div className="kv-hint">Ghi sổ: {dt(r.postedAt)}</div>}</span> },
               { title: 'Ghi chú', dataIndex: 'note', ellipsis: true },
             ]} />
         </div>

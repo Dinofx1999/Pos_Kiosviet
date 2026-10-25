@@ -1,4 +1,5 @@
-import { Alert, App, Button, DatePicker, Descriptions, Empty, Input, Modal, Pagination, Radio, Select, Skeleton, Table, Tag } from 'antd';
+import { Alert, App, Button, DatePicker, Descriptions, Empty, Input, Modal, Pagination, Radio, Select, Skeleton, Tag } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { ArrowRightOutlined, PlusOutlined, ReloadOutlined, SearchOutlined, StopOutlined, SwapOutlined } from '@ant-design/icons';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';

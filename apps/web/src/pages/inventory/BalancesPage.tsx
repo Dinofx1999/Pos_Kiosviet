@@ -1,4 +1,5 @@
-import { App, Button, Card, Checkbox, Col, Empty, Input, Row, Select, Statistic, Table, Tag } from 'antd';
+import { App, Button, Card, Checkbox, Col, Empty, Input, Row, Select, Statistic, Tag } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { ReloadOutlined, SearchOutlined, SyncOutlined } from '@ant-design/icons';
 import { useState } from 'react';
 import { BalanceQuery, inventoryApi, useBalanceSummary, useBalances } from '../../api/inventory';

@@ -1,4 +1,5 @@
-import { Alert, Button, Empty, Input, InputNumber, Segmented, Skeleton, Table, Tag } from 'antd';
+import { Alert, Button, Empty, Input, InputNumber, Segmented, Skeleton, Tag } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import type { ColumnsType } from 'antd/es/table';
 import { ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';

@@ -1,4 +1,5 @@
-import { App, Button, Col, Divider, Form, Input, InputNumber, Modal, Row, Select, Switch, Table, Tabs, Tag } from 'antd';
+import { App, Button, Col, Divider, Form, Input, InputNumber, Modal, Row, Select, Switch, Tabs, Tag } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { catalogApi, useBrands, useInvalidate, useUnits } from '../../api/catalog';

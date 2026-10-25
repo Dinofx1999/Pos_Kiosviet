@@ -1,4 +1,5 @@
-import { Alert, Button, Card, Skeleton, Statistic, Table } from 'antd';
+import { Alert, Button, Card, Skeleton, Statistic } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { DollarOutlined } from '@ant-design/icons';
 import { useState } from 'react';
 import { ExportButton } from './ReportShared';

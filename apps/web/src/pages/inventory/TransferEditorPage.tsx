@@ -1,5 +1,6 @@
 import './transfers.css';
-import { Alert, App, Button, Card, DatePicker, Input, Modal, Radio, Select, Space, Table, Tag } from 'antd';
+import { Alert, App, Button, Card, DatePicker, Input, Modal, Radio, Select, Space, Tag } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { ArrowLeftOutlined, ArrowRightOutlined, CheckOutlined, DeleteOutlined, InboxOutlined, MinusOutlined, PlusOutlined, SaveOutlined, SendOutlined, StopOutlined } from '@ant-design/icons';
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';

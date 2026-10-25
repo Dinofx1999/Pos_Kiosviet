@@ -1,4 +1,5 @@
-import { Alert, Button, Card, Empty, Segmented, Skeleton, Table } from 'antd';
+import { Alert, Button, Card, Empty, Segmented, Skeleton } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { ReloadOutlined } from '@ant-design/icons';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';

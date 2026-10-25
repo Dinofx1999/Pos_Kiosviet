@@ -1,4 +1,5 @@
-import { DatePicker, Empty, Select, Table, Tag } from 'antd';
+import { DatePicker, Empty, Select, Tag } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import dayjs, { Dayjs } from 'dayjs';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';

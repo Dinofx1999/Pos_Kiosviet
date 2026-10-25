@@ -1,4 +1,5 @@
-import { Button, Descriptions, Drawer, Empty, Skeleton, Table, Tag } from 'antd';
+import { Button, Descriptions, Drawer, Empty, Skeleton, Tag } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { DownloadOutlined } from '@ant-design/icons';
 import type { ReactNode } from 'react';
 import { useImportJob, type ImportIssue, type ImportJobStatus, type ImportSource, type ImportTotals, type ImportType } from '../../api/integrations';

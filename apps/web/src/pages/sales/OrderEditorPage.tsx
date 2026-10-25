@@ -1,4 +1,5 @@
-import { Alert, App, Button, Card, DatePicker, Input, Select, Switch, Table, Tag } from 'antd';
+import { Alert, App, Button, Card, DatePicker, Input, Select, Switch, Tag } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { ArrowLeftOutlined, CarOutlined, CheckOutlined, DeleteOutlined, DollarOutlined, MinusOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';

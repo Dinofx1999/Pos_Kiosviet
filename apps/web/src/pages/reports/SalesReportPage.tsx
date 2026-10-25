@@ -1,4 +1,5 @@
-import { Alert, Card, Col, DatePicker, Radio, Row, Select, Skeleton, Statistic, Table } from 'antd';
+import { Alert, Card, Col, DatePicker, Radio, Row, Select, Skeleton, Statistic } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import dayjs, { Dayjs } from 'dayjs';
 import { useState } from 'react';
 import { ExportButton } from './ReportShared';

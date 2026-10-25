@@ -70,7 +70,7 @@ export class DashboardHomeService {
       this.prisma.raw.$queryRaw<Array<{ id: string; code: string; invoice_date: Date; total_amount: Prisma.Decimal; paid_amount: Prisma.Decimal; status: string; customer_name: string | null; seller_name: string | null; lines: bigint }>>`SELECT i.id, i.code, i.invoice_date, i.total_amount, i.paid_amount, i.status::text AS status, c.name AS customer_name, u.full_name AS seller_name, (SELECT count(*) FROM invoice_lines l WHERE l.invoice_id = i.id)::bigint AS lines
         FROM invoices i LEFT JOIN customers c ON c.id = i.customer_id LEFT JOIN users u ON u.id = i.seller_id
         WHERE i.tenant_id = ${tid} AND i.status IN ('COMPLETED','CANCELLED') ${branchIn('i.branch_id')} ${sellerEq('i.seller_id')} ORDER BY i.invoice_date DESC LIMIT 8`,
-      this.prisma.raw.$queryRaw<Array<{ count: bigint; amount: Prisma.Decimal }>>`SELECT count(*)::bigint AS count, COALESCE(SUM(total_amount - paid_amount),0) AS amount ${base} AND paid_amount < total_amount`,
+      this.prisma.raw.$queryRaw<Array<{ count: bigint; amount: Prisma.Decimal }>>`SELECT count(*)::bigint AS count, COALESCE(SUM(total_amount - paid_amount),0) AS amount ${base} AND paid_amount < total_amount AND NOT imported`,
       this.prisma.raw.$queryRaw<Array<{ count: bigint; amount: Prisma.Decimal }>>`SELECT count(*)::bigint AS count, COALESCE(SUM(total_refund),0) AS amount FROM sales_returns WHERE tenant_id = ${tid} AND status = 'COMPLETED' AND ${localDate('return_date')} = ${today} ${branchIn('branch_id')}`,
     ]);
     const byKey = Object.fromEntries(p.map((r) => [r.k, r])) as Record<string, PeriodRow>;

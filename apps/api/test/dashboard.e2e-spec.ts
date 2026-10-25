@@ -1,8 +1,9 @@
+import * as ExcelJS from 'exceljs';
 import { createProduct, createTestApp, postReceipt, registerTenant, Session, TestApp } from './helpers';
 
 const api = '/api/v1';
 
-describe('Dashboard home screen (GET /dashboard/home) – T-250', () => {
+describe('Dashboard home screen (GET /dashboard/home) – T-250, T-251', () => {
   let t: TestApp;
   let s: Session;
   let cashierAuth: { Authorization: string };
@@ -75,5 +76,27 @@ describe('Dashboard home screen (GET /dashboard/home) – T-250', () => {
     expect(other.status).toBe(200);
     expect(other.body.sales.today.invoices).toBe(0);
     expect(other.body.sales.recentInvoices).toEqual([]);
+  });
+
+  it('T-251 KiotViet history is not "unpaid": imported invoices keep their figures but stay out of the unpaid card and the unpaid list (filtered in the database, paginated)', async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Sheet1');
+    ws.addRow(['Mã hóa đơn', 'Thời gian', 'Khách cần trả', 'Khách đã trả', 'Trạng thái', 'Mã hàng', 'Tên hàng', 'Số lượng', 'Đơn giá', 'Thành tiền']);
+    ws.addRow(['HD009001', '15/01/2025 10:00', '500000', '100000', 'Hoàn thành', 'SP-HOME-CU', 'Hàng cũ', '1', '500000', '500000']);
+    const pv = await t.http().post(`${api}/integrations/import/preview`).set(s.auth).field('type', 'INVOICES').field('options', JSON.stringify({ defaultBranchId: s.branchId })).attach('file', Buffer.from(await wb.xlsx.writeBuffer()), 'hd.xlsx');
+    expect(pv.status).toBe(201);
+    const done = await t.http().post(`${api}/integrations/import/${pv.body.jobId}/commit`).set(s.auth).send({});
+    expect(done.body.created).toBe(1);
+    const hist = (await t.http().get(`${api}/invoices`).set(s.auth).query({ search: 'KV-HD009001' })).body.data;
+    expect(hist).toHaveLength(1);
+    expect(hist[0].dueAmount).toBe('400000');
+    expect((await t.http().get(`${api}/dashboard/home`).set(s.auth)).body.sales.unpaid).toEqual({ count: 1, amount: '60000.00' });
+    const due = await t.http().get(`${api}/invoices`).set(s.auth).query({ unpaid: 'true' });
+    expect(due.status).toBe(200);
+    expect(due.body.meta.total).toBe(1);
+    expect(due.body.data.map((r: { dueAmount: string }) => r.dueAmount)).toEqual(['60000']);
+    const page2 = await t.http().get(`${api}/invoices`).set(s.auth).query({ unpaid: 'true', page: 2, pageSize: 1 });
+    expect(page2.body.meta.total).toBe(1);
+    expect(page2.body.data).toEqual([]);
   });
 });

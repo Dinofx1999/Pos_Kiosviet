@@ -1,4 +1,5 @@
-import { App, Button, Descriptions, Dropdown, Empty, Image, Input, Modal, Radio, Select, Table, Tabs, Tag, Upload } from 'antd';
+import { App, Button, Descriptions, Dropdown, Empty, Image, Input, Modal, Radio, Select, Tabs, Tag, Upload } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { DeleteOutlined, DownloadOutlined, EditOutlined, PlusOutlined, StopOutlined, CheckCircleOutlined, UploadOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -31,15 +32,15 @@ export default function ProductsPage() {
   const act = async (fn: () => Promise<unknown>, ok: string) => { try { await fn(); message.success(ok); invalidate('products', 'product', 'dashboard'); } catch (e) { message.error(errMsg(e)); } };
 
   const columns = useMemo(() => [
-    { title: '', dataIndex: 'imageUrl', width: 44, render: (v: string | null) => v ? <Image src={v} width={32} height={32} style={{ objectFit: 'cover', borderRadius: 4 }} preview={false} /> : <div style={{ width: 32, height: 32, background: '#eef2f7', borderRadius: 4 }} /> },
-    { title: 'Mã hàng', dataIndex: 'code', width: 120, sorter: true, render: (v: string) => <b>{v}</b> },
-    { title: 'Tên hàng', dataIndex: 'name', sorter: true, render: (v: string, r: Product) => <span>{v} {r.type !== 'GOODS' && <Tag color={r.type === 'COMBO' ? 'purple' : 'cyan'}>{PRODUCT_TYPE_LABEL[r.type]}</Tag>} {r.variants.length > 1 && <Tag>{r.variants.length} biến thể</Tag>} {r.trackBatch && <Tag color="gold">Lô</Tag>}</span> },
+    { title: '', dataIndex: 'imageUrl', width: 44, mobile: 'image' as const, render: (v: string | null) => v ? <Image src={v} width={32} height={32} style={{ objectFit: 'cover', borderRadius: 4 }} preview={false} /> : <div style={{ width: 32, height: 32, background: '#eef2f7', borderRadius: 4 }} /> },
+    { title: 'Mã hàng', dataIndex: 'code', width: 120, sorter: true, mobile: 'subtitle' as const, render: (v: string) => <b>{v}</b> },
+    { title: 'Tên hàng', dataIndex: 'name', sorter: true, mobile: 'title' as const, render: (v: string, r: Product) => <span>{v} {r.type !== 'GOODS' && <Tag color={r.type === 'COMBO' ? 'purple' : 'cyan'}>{PRODUCT_TYPE_LABEL[r.type]}</Tag>} {r.variants.length > 1 && <Tag>{r.variants.length} biến thể</Tag>} {r.trackBatch && <Tag color="gold">Lô</Tag>}</span> },
     { title: 'Nhóm hàng', width: 140, render: (_: unknown, r: Product) => r.category?.name ?? <span className="muted">—</span> },
-    { title: 'Giá bán', dataIndex: 'sellPrice', className: 'num', width: 110, render: (v: string, r: Product) => r.variants.length > 1 ? <span>{money(Math.min(...r.variants.map((x) => Number(x.sellPrice))))}{r.variants.length > 1 ? '+' : ''}</span> : money(v) },
+    { title: 'Giá bán', dataIndex: 'sellPrice', className: 'num', width: 110, mobile: 'right' as const, render: (v: string, r: Product) => r.variants.length > 1 ? <span>{money(Math.min(...r.variants.map((x) => Number(x.sellPrice))))}{r.variants.length > 1 ? '+' : ''}</span> : money(v) },
     ...(canSeeCost ? [{ title: 'Giá vốn', dataIndex: 'costPrice', className: 'num', width: 110, render: (v: string) => money(v) }] : []),
     { title: 'Tồn kho', dataIndex: 'onHand', className: 'num', width: 90, render: (v: string, r: Product) => r.type === 'SERVICE' ? <span className="muted">—</span> : <span className={Number(v) <= 0 ? 'neg' : ''}>{qty(v)}</span> },
-    { title: 'Trạng thái', dataIndex: 'isActive', width: 120, render: (v: boolean) => v ? <Tag color="green">Đang kinh doanh</Tag> : <Tag>Ngừng kinh doanh</Tag> },
-    { title: 'Ngày tạo', dataIndex: 'createdAt', width: 130, sorter: true, render: (v: string) => dt(v) },
+    { title: 'Trạng thái', dataIndex: 'isActive', width: 120, mobile: 'badge' as const, mobileRender: (v: boolean) => (v ? null : <Tag>Ngừng KD</Tag>), render: (v: boolean) => v ? <Tag color="green">Đang kinh doanh</Tag> : <Tag>Ngừng kinh doanh</Tag> },
+    { title: 'Ngày tạo', dataIndex: 'createdAt', width: 130, sorter: true, mobile: 'hide' as const, render: (v: string) => dt(v) },
   ], [canSeeCost]);
 
   return (

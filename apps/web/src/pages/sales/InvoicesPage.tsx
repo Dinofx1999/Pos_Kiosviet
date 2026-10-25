@@ -1,4 +1,5 @@
-import { App, Button, DatePicker, Descriptions, Empty, Input, Modal, Radio, Table, Tabs, Tag } from 'antd';
+import { App, Button, DatePicker, Descriptions, Empty, Input, Modal, Radio, Tabs, Tag } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { CarOutlined, DollarOutlined, PrinterOutlined, ReloadOutlined, RollbackOutlined, SearchOutlined, ShopOutlined, StopOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -53,15 +54,15 @@ export default function InvoicesPage() {
             pagination={{ current: q.page, pageSize: q.pageSize, total: data?.meta.total ?? 0, showSizeChanger: true, pageSizeOptions: [15, 20, 50, 100], showTotal: (t) => `${t} hóa đơn` }}
             columns={[
               { title: 'Mã HĐ', dataIndex: 'code', width: 120, render: (v) => <b>{v}</b> },
-              { title: 'Thời gian', dataIndex: 'invoiceDate', width: 140, render: (v) => dt(v) },
-              { title: 'Khách hàng', render: (_, r) => r.customer ? <span>{r.customer.name}<span className="muted"> · {r.customer.phone ?? r.customer.code}</span></span> : <span className="muted">Khách lẻ</span> },
+              { title: 'Thời gian', dataIndex: 'invoiceDate', width: 140, mobile: 'subtitle', render: (v) => dt(v) },
+              { title: 'Khách hàng', mobile: 'subtitle', render: (_, r) => r.customer ? <span>{r.customer.name}<span className="muted"> · {r.customer.phone ?? r.customer.code}</span></span> : <span className="muted">Khách lẻ</span> },
               { title: 'NV bán', width: 140, render: (_, r) => r.seller?.fullName },
               { title: 'Chi nhánh', width: 150, render: (_, r) => r.branch?.name },
-              { title: 'Tổng tiền', dataIndex: 'totalAmount', className: 'num', width: 120, render: (v) => <b>{money(v)}</b> },
+              { title: 'Tổng tiền', dataIndex: 'totalAmount', className: 'num', width: 120, mobile: 'right', render: (v) => <b>{money(v)}</b> },
               { title: 'Đã thanh toán', dataIndex: 'paidAmount', className: 'num', width: 120, render: (v) => money(v) },
               { title: 'Còn nợ', dataIndex: 'dueAmount', className: 'num', width: 110, render: (v, r) => r.status === 'COMPLETED' ? <span className={Number(v) > 0 ? 'neg' : ''}>{money(v)}</span> : '' },
               ...(canCost ? [{ title: 'Lợi nhuận', className: 'num', width: 110, render: (_: unknown, r: Invoice) => r.status === 'COMPLETED' && r.costTotal !== undefined ? money(Number(r.totalAmount) - Number(r.costTotal)) : '' }] : []),
-              { title: 'Trạng thái', dataIndex: 'status', width: 110, render: (v) => <Tag color={INVOICE_STATUS_COLOR[v]}>{INVOICE_STATUS_LABEL[v]}</Tag> },
+              { title: 'Trạng thái', dataIndex: 'status', width: 110, mobile: 'badge', render: (v) => <Tag color={INVOICE_STATUS_COLOR[v]}>{INVOICE_STATUS_LABEL[v]}</Tag> },
             ]} />
         </div>
       </div>

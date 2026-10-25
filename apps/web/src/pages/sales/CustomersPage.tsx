@@ -1,4 +1,5 @@
-import { App, Button, Descriptions, Empty, Input, Radio, Select, Table, Tabs, Tag } from 'antd';
+import { App, Button, Descriptions, Empty, Input, Radio, Select, Tabs, Tag } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { CheckCircleOutlined, DollarOutlined, EditOutlined, PlusOutlined, ReloadOutlined, SearchOutlined, StopOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';

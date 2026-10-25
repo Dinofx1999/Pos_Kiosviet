@@ -1,4 +1,5 @@
-import { Alert, App, Button, Empty, Form, Input, Modal, Select, Skeleton, Switch, Table, Tabs, Tag } from 'antd';
+import { Alert, App, Button, Empty, Form, Input, Modal, Select, Skeleton, Switch, Tabs, Tag } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { AuditOutlined, BankOutlined, BookOutlined, CheckCircleOutlined, EditOutlined, PlusOutlined, ReloadOutlined, StarFilled, StarOutlined, StopOutlined, WalletOutlined } from '@ant-design/icons';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';

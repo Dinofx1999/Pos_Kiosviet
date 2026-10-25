@@ -1,4 +1,5 @@
-import { Alert, Button, Card, Empty, Input, Segmented, Skeleton, Table } from 'antd';
+import { Alert, Button, Card, Empty, Input, Segmented, Skeleton } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import type { ColumnsType } from 'antd/es/table';
 import { FallOutlined, ReloadOutlined, RiseOutlined, SearchOutlined } from '@ant-design/icons';
 import { useState } from 'react';

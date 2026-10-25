@@ -1,5 +1,6 @@
 import './transfers.css';
-import { App, Button, DatePicker, Descriptions, Empty, Input, Pagination, Progress, Radio, Select, Table, Tag } from 'antd';
+import { App, Button, DatePicker, Descriptions, Empty, Input, Pagination, Progress, Radio, Select, Tag } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { CheckOutlined, DownOutlined, EditOutlined, EyeOutlined, PlusOutlined, ReloadOutlined, SearchOutlined, StopOutlined, UpOutlined } from '@ant-design/icons';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';

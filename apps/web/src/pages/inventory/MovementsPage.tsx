@@ -1,4 +1,5 @@
-import { Button, DatePicker, Empty, Input, Select, Table, Tag } from 'antd';
+import { Button, DatePicker, Empty, Input, Select, Tag } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';

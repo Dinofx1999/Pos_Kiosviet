@@ -1,0 +1,43 @@
+/* Danh sách dạng thẻ trên điện thoại (ResponsiveTable) */
+.rt-list { display: flex; flex-direction: column; gap: 8px; }
+.rt-list .ant-spin-container { display: flex; flex-direction: column; gap: 8px; }
+.rt-card { background: #fff; border-radius: 10px; padding: 10px 12px; box-shadow: 0 1px 2px rgba(15, 23, 42, .06); border: 1px solid #eef0f4; min-width: 0; }
+.rt-card.rt-click { cursor: pointer; }
+.rt-card.rt-click:active { background: #f8fafc; }
+.rt-head { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.rt-img { flex: 0 0 auto; width: 48px; height: 48px; border-radius: 8px; overflow: hidden; background: #f1f5f9; display: flex; align-items: center; justify-content: center; }
+.rt-img img, .rt-img .ant-image, .rt-img .ant-image-img { width: 48px !important; height: 48px !important; object-fit: cover; border-radius: 8px; }
+.rt-main { flex: 1 1 auto; min-width: 0; }
+.rt-title { font-size: 15px; font-weight: 600; color: #111827; line-height: 1.35; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; word-break: break-word; }
+.rt-title > span { min-width: 0; }
+.rt-badges { display: inline-flex; flex-wrap: wrap; gap: 4px; font-weight: 400; }
+.rt-badges .ant-tag { margin-inline-end: 0; }
+.rt-sub { font-size: 13px; color: #6b7280; margin-top: 2px; line-height: 1.4; word-break: break-word; }
+.rt-right { flex: 0 0 auto; text-align: right; font-size: 15px; font-weight: 600; color: #111827; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; max-width: 45%; }
+.rt-right .ant-tag { margin-inline-end: 0; font-weight: 400; }
+.rt-chev { flex: 0 0 auto; color: #9ca3af; font-size: 11px; margin-top: 5px; transition: transform .2s; }
+.rt-open .rt-chev { transform: rotate(180deg); }
+.rt-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px 10px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #e5e7eb; }
+.rt-f { display: flex; flex-direction: column; min-width: 0; }
+.rt-f.rt-full { grid-column: 1 / -1; }
+.rt-l { font-size: 11.5px; color: #8a94a6; line-height: 1.3; }
+.rt-v { font-size: 13.5px; color: #1f2937; line-height: 1.4; word-break: break-word; }
+.rt-v .ant-tag { margin-inline-end: 4px; }
+.rt-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #f1f5f9; }
+.rt-expanded { margin: 10px -12px -10px; padding: 10px 12px; border-top: 1px solid #e5e7eb; background: #f8fafc; border-radius: 0 0 10px 10px; cursor: default; }
+.rt-expanded .ant-descriptions-item { padding-bottom: 4px !important; }
+.rt-expanded .rt-card { box-shadow: none; padding: 8px 10px; }
+.rt-expanded .rt-title { font-size: 14px; }
+.rt-empty { background: #fff; border-radius: 10px; padding: 16px; text-align: center; color: #6b7280; }
+.rt-caption { font-size: 13px; }
+.rt-pager { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 4px 2px 8px; }
+.rt-total { color: #6b7280; font-size: 13px; }
+.rt-summary .ant-table-placeholder { display: none; }
+.rt-summary { border-radius: 10px; overflow: hidden; }
+/* thẻ đã có nền riêng → khung trắng bao ngoài trong suốt trên điện thoại */
+@media (max-width: 767px) {
+  .kv-card:has(> .rt-list) { background: transparent; box-shadow: none; padding: 0; }
+}
+.rt-card.kv-line-error, .rt-card.pos-line-error { border-color: #fca5a5; background: #fff1f0; }
+.rt-card.tk-row-short { border-left: 3px solid #f59e0b; }
+.rt-card.muted { opacity: .65; }

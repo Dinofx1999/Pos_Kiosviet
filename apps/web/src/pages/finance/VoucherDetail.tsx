@@ -1,4 +1,5 @@
-import { App, Button, Descriptions, Input, Table, Tag } from 'antd';
+import { App, Button, Descriptions, Input, Tag } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { StopOutlined } from '@ant-design/icons';
 import { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';

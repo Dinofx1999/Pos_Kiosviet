@@ -1,4 +1,5 @@
-import { App, Button, Card, Form, Input, InputNumber, Menu, Modal, Select, Switch, Table, Tag } from 'antd';
+import { App, Button, Card, Form, Input, InputNumber, Menu, Modal, Select, Switch, Tag } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { EditOutlined, PlusOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';

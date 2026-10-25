@@ -1,4 +1,5 @@
-import { Alert, App, Button, Card, Input, Modal, Select, Space, Table, Tag, DatePicker } from 'antd';
+import { Alert, App, Button, Card, Input, Modal, Select, Space, Tag, DatePicker } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { CheckOutlined, DeleteOutlined, MinusOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';

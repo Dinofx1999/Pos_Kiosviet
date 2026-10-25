@@ -69,9 +69,11 @@ export class InvoicesService {
     const include = { customer: { select: { id: true, code: true, name: true, phone: true } }, seller: { select: { id: true, fullName: true } }, branch: { select: { id: true, name: true } }, _count: { select: { lines: true } } };
     const order = orderBy(q, ['invoiceDate', 'createdAt', 'code', 'totalAmount', 'status'], 'invoiceDate');
     if (q.unpaid === 'true') {
-      const all = await this.prisma.db.invoice.findMany({ where: { AND: [where, { status: 'COMPLETED' }] }, include, orderBy: order });
-      const due = all.filter((r) => D(r.totalAmount).minus(D(r.paidAmount)).greaterThan(0));
-      return paginated(due.slice((q.page - 1) * q.pageSize, q.page * q.pageSize).map((r) => this.listView(r, user)), due.length, q);
+      // lọc ngay trong CSDL (không nạp cả lịch sử hóa đơn vào bộ nhớ). Hóa đơn nhập từ KiotViet chỉ là lịch sử:
+      // "khách đã trả" trong file không cập nhật khi khách trả nợ về sau → nợ thật nằm ở công nợ khách (đồng bộ từ KiotViet)
+      const dueWhere: Prisma.InvoiceWhereInput = { AND: [where, { status: 'COMPLETED', imported: false, paidAmount: { lt: this.prisma.raw.invoice.fields.totalAmount } }] };
+      const [due, dueCount] = await Promise.all([this.prisma.db.invoice.findMany({ where: dueWhere, include, ...skipTake(q), orderBy: order }), this.prisma.db.invoice.count({ where: dueWhere })]);
+      return paginated(due.map((r) => this.listView(r, user)), dueCount, q);
     }
     const [rows, total] = await Promise.all([this.prisma.db.invoice.findMany({ where, include, ...skipTake(q), orderBy: order }), this.prisma.db.invoice.count({ where })]);
     return paginated(rows.map((r) => this.listView(r, user)), total, q);

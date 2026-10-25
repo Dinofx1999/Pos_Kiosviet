@@ -1,4 +1,5 @@
-import { App, Button, Card, DatePicker, Form, Input, InputNumber, Modal, Select, Table, Tag } from 'antd';
+import { App, Button, Card, DatePicker, Form, Input, InputNumber, Modal, Select, Tag } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';

@@ -25,10 +25,9 @@ export function startIosViewportFix() {
   if ((navigator as IOSNavigator).standalone !== true) return;
   const root = document.documentElement;
   root.classList.add('ios-standalone');
-  let lastReport = '';
   let translucentSeen = false; // env(safe-area-inset-top) đôi khi đọc ra 0 ngay lúc mở → nhớ lần đọc được > 0
 
-  const apply = (reason: string) => {
+  const apply = () => {
     const landscape = window.matchMedia('(orientation: landscape)').matches;
     const full = landscape ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height);
     const inner = window.innerHeight;
@@ -41,21 +40,15 @@ export function startIosViewportFix() {
     const shortFrame = !landscape && translucentSeen && missing >= 20 && missing <= 100;
     if (missing <= 100) root.classList.toggle('ios-short-frame', shortFrame);
     root.style.setProperty('--app-h', `${inner}px`);
-    // ghi số đo vào nhật ký truy cập của máy chủ (không chứa dữ liệu cá nhân) để kiểm chứng trên máy thật
-    const report = [reason, `ih${inner}`, `sh${full}`, `sw${Math.min(screen.width, screen.height)}`, `vv${Math.round(window.visualViewport?.height ?? 0)}`, `sat${ins.top}`, `sab${ins.bottom}`, `short${shortFrame ? 1 : 0}`].join('_');
-    if (report.replace(/^[a-z]+_/, '') !== lastReport.replace(/^[a-z]+_/, '')) {
-      lastReport = report;
-      void fetch(`/?_diag=${encodeURIComponent(report)}`, { cache: 'no-store' }).catch(() => undefined);
-    }
   };
 
-  apply('load');
-  window.setTimeout(() => apply('settle'), 600);
+  apply();
+  window.setTimeout(apply, 600);
   let t: number | undefined;
-  const later = (reason: string, ms = 120) => { window.clearTimeout(t); t = window.setTimeout(() => apply(reason), ms); };
-  window.addEventListener('resize', () => later('resize'));
-  window.visualViewport?.addEventListener('resize', () => later('vv'));
-  window.addEventListener('orientationchange', () => later('rotate', 400));
-  document.addEventListener('focusout', () => later('blur', 400));
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') later('resume', 200); });
+  const later = (ms = 120) => { window.clearTimeout(t); t = window.setTimeout(apply, ms); };
+  window.addEventListener('resize', () => later());
+  window.visualViewport?.addEventListener('resize', () => later());
+  window.addEventListener('orientationchange', () => later(400));
+  document.addEventListener('focusout', () => later(400));
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') later(200); });
 }

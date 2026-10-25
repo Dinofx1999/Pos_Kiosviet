@@ -1,4 +1,5 @@
-import { Button, Card, Empty, Pagination, Select, Skeleton, Table } from 'antd';
+import { Button, Card, Empty, Pagination, Select, Skeleton } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { ReloadOutlined } from '@ant-design/icons';
 import { useState } from 'react';
 import { type ImportJob, type ImportJobQuery, type ImportType, useImportJobs } from '../../api/integrations';

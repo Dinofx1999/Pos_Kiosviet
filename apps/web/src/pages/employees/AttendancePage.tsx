@@ -1,4 +1,5 @@
-import { Alert, App, Button, Card, Checkbox, Empty, Form, Input, Modal, Select, Skeleton, Switch, Table, Tabs, Tag } from 'antd';
+import { Alert, App, Button, Card, Checkbox, Empty, Form, Input, Modal, Select, Skeleton, Switch, Tabs, Tag } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { ClockCircleOutlined, EditOutlined, LoginOutlined, LogoutOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';

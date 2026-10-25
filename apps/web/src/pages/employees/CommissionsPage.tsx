@@ -1,4 +1,5 @@
-import { Alert, App, Button, Card, DatePicker, Empty, Form, Input, InputNumber, Modal, Segmented, Skeleton, Switch, Table, Tabs, Tag, Tooltip } from 'antd';
+import { Alert, App, Button, Card, DatePicker, Empty, Form, Input, InputNumber, Modal, Segmented, Skeleton, Switch, Tabs, Tag, Tooltip } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { CloseOutlined, DeleteOutlined, EditOutlined, InfoCircleOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';

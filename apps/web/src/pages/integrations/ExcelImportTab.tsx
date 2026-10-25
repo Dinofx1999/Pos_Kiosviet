@@ -1,4 +1,5 @@
-import { Alert, App, Button, Card, DatePicker, Empty, Select, Spin, Steps, Switch, Table, Tag, Upload } from 'antd';
+import { Alert, App, Button, Card, DatePicker, Empty, Select, Spin, Steps, Switch, Tag, Upload } from 'antd';
+import Table from '../../components/ResponsiveTable';
 import { ArrowLeftOutlined, CheckCircleOutlined, FileExcelOutlined, InboxOutlined, ReloadOutlined, ShopOutlined, SolutionOutlined, TeamOutlined, UploadOutlined } from '@ant-design/icons';
 import type { Dayjs } from 'dayjs';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
