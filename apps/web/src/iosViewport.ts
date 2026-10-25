@@ -1,5 +1,6 @@
 /**
- * iPhone web app (Thêm vào màn hình chính, thanh trạng thái trong suốt) trên iOS 26:
+ * iPhone web app (Thêm vào màn hình chính) trên iOS 26 – chỉ còn dùng cho các máy đã thêm ứng dụng khi còn bật
+ * thanh trạng thái trong suốt (index.html nay dùng `default`; thêm lại vào màn hình chính là hết lỗi):
  * vùng hiển thị của trang bắt đầu dưới thanh trạng thái nhưng NGẮN hơn màn hình đúng bằng chiều cao thanh trạng thái
  * (đo thực tế iPhone 440×956: innerHeight 894, thiếu 62). Dải 62pt ở đáy nằm ngoài trang – trang không vẽ được vào đó,
  * iOS tô nó bằng màu nền của trang. Vì vậy:
@@ -25,6 +26,7 @@ export function startIosViewportFix() {
   const root = document.documentElement;
   root.classList.add('ios-standalone');
   let lastReport = '';
+  let translucentSeen = false; // env(safe-area-inset-top) đôi khi đọc ra 0 ngay lúc mở → nhớ lần đọc được > 0
 
   const apply = (reason: string) => {
     const landscape = window.matchMedia('(orientation: landscape)').matches;
@@ -32,8 +34,11 @@ export function startIosViewportFix() {
     const inner = window.innerHeight;
     const missing = full - inner;
     const ins = safeInsets();
-    // thiếu 20–100pt ở chế độ dọc = lỗi khung ngắn của iOS (thiếu nhiều hơn là bàn phím đang mở → không kết luận)
-    const shortFrame = !landscape && missing >= 20 && missing <= 100;
+    // Lỗi khung ngắn chỉ xảy ra khi trang nằm dưới thanh trạng thái trong suốt (safe-area-inset-top > 0) mà vẫn thiếu
+    // 20–100pt ở đáy. Ở chế độ thanh trạng thái thường, trang bắt đầu dưới thanh trạng thái nên thiếu đúng chừng đó là
+    // bình thường (inset-top = 0) → không gắn cờ. Thiếu nhiều hơn = bàn phím đang mở → không kết luận.
+    if (ins.top > 0) translucentSeen = true;
+    const shortFrame = !landscape && translucentSeen && missing >= 20 && missing <= 100;
     if (missing <= 100) root.classList.toggle('ios-short-frame', shortFrame);
     root.style.setProperty('--app-h', `${inner}px`);
     // ghi số đo vào nhật ký truy cập của máy chủ (không chứa dữ liệu cá nhân) để kiểm chứng trên máy thật
