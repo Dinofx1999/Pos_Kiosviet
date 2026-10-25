@@ -271,16 +271,26 @@ export class ImportService {
     for (const r of unitRows) {
       const row = Number(r.__row); const base = safeCode(get(r, 'baseUnitCode'));
       try {
-        const product = (await this.prisma.db.product.findFirst({ where: { code: base, deletedAt: null }, include: { units: true } }))
-          ?? (await this.prisma.db.product.findFirst({ where: { deletedAt: null, variants: { some: { sku: { equals: base, mode: 'insensitive' }, deletedAt: null } } }, include: { units: true } }));
+        const include = { units: true, variants: { where: { deletedAt: null }, orderBy: { createdAt: 'asc' as const }, select: { id: true, sku: true } } };
+        const product = (await this.prisma.db.product.findFirst({ where: { code: base, deletedAt: null }, include }))
+          ?? (await this.prisma.db.product.findFirst({ where: { deletedAt: null, variants: { some: { sku: { equals: base, mode: 'insensitive' }, deletedAt: null } } }, include }));
         if (!product) throw new Error(`Không tìm thấy hàng cơ bản ${base}`);
         const unitName = get(r, 'unit') || get(r, 'name'); const factor = parseNumber(get(r, 'conversion'));
         if (!unitName || !factor || D(factor).lessThanOrEqualTo(0)) throw new Error('Thiếu tên đơn vị hoặc hệ số quy đổi');
+        // mã ĐVT → đúng biến thể gốc + hệ số (hàng nhiều biến thể có nhiều mã ĐVT cùng tên ĐVT, product_units chỉ giữ được một)
+        const unitCode = safeCode(get(r, 'code')).toLowerCase();
+        const baseVariant = product.variants.find((v) => v.sku?.toLowerCase() === base.toLowerCase()) ?? product.variants[0];
+        if (unitCode && baseVariant) {
+          const alias = { variantId: baseVariant.id, unitName: unitName.slice(0, 50), factor: D(factor) };
+          await this.prisma.db.importCodeAlias.upsert({ where: { tenantId_source_code: { tenantId: user.tenantId, source: 'KIOTVIET', code: unitCode } }, update: alias, create: { tenantId: user.tenantId, source: 'KIOTVIET', code: unitCode, ...alias } });
+        }
         const units = product.units.filter((u) => u.unitName.toLowerCase() !== unitName.toLowerCase()).map((u) => ({ id: u.id, unitName: u.unitName, conversionFactor: u.conversionFactor.toString(), sku: u.sku ?? undefined, barcode: u.barcode ?? undefined, sellPrice: u.sellPrice?.toString() }));
         units.push({ id: undefined as unknown as string, unitName, conversionFactor: factor, sku: safeCode(get(r, 'code')) || undefined, barcode: get(r, 'barcode') || undefined, sellPrice: parseNumber(get(r, 'sellPrice')) ?? undefined });
         const dto = plainToInstance(UpdateProductDto, { units: units.map((u) => ({ ...u, id: u.id || undefined })) });
         await this.assertDto(dto);
         await this.products.update(user, product.id, dto);
+        const unitId = (await this.prisma.db.productUnit.findFirst({ where: { productId: product.id, unitName: { equals: unitName, mode: 'insensitive' } }, select: { id: true } }))?.id;
+        if (unitCode && unitId) await this.prisma.db.importCodeAlias.updateMany({ where: { source: 'KIOTVIET', code: unitCode }, data: { productUnitId: unitId } });
         totals.units!++;
       } catch (e) { totals.failed++; errors.push({ row, code: get(r, 'code'), error: err(e) }); }
     }
@@ -394,7 +404,7 @@ export class ImportService {
     // số lượng gốc = SL × hệ số quy đổi; không tạo hàng giữ chỗ cho những mã này
     const uniqCodes = Array.from(new Set(codes));
     const unitRows = uniqCodes.length ? await this.prisma.db.productUnit.findMany({ where: { OR: [{ sku: { in: uniqCodes, mode: 'insensitive' } }, { barcode: { in: uniqCodes, mode: 'insensitive' } }] }, select: { id: true, unitName: true, conversionFactor: true, sku: true, barcode: true, product: { select: { code: true, baseUnit: true, variants: { where: { deletedAt: null }, orderBy: { createdAt: 'asc' }, take: 1, select: { id: true, sku: true, costPrice: true } } } } } }) : [];
-    const uByCode = new Map<string, { unitId: string; unitName: string; factor: Prisma.Decimal; variant: (typeof variants)[number] }>();
+    const uByCode = new Map<string, { unitId: string | null; unitName: string | null; factor: Prisma.Decimal; variant: (typeof variants)[number] }>();
     for (const u of unitRows) {
       const base = u.product.variants[0];
       if (!base) continue;
@@ -402,6 +412,8 @@ export class ImportService {
       if (u.sku) uByCode.set(u.sku.toLowerCase(), entry);
       if (u.barcode) uByCode.set(u.barcode.toLowerCase(), entry);
     }
+    const aliases = uniqCodes.length ? await this.prisma.db.importCodeAlias.findMany({ where: { source: 'KIOTVIET', code: { in: uniqCodes } }, select: { code: true, productUnitId: true, unitName: true, factor: true, variant: { select: { id: true, sku: true, costPrice: true, deletedAt: true, product: { select: { code: true, baseUnit: true } } } } } }) : [];
+    for (const a of aliases) if (!a.variant.deletedAt) uByCode.set(a.code, { unitId: a.productUnitId, unitName: a.unitName, factor: D(a.factor), variant: { id: a.variant.id, sku: a.variant.sku, costPrice: a.variant.costPrice, product: a.variant.product } as (typeof variants)[number] });
     // hóa đơn cũ có mã hàng không còn trong danh mục (đã xóa / ngừng bán ở KiotViet) → tạo hàng "ngừng kinh doanh" giữ chỗ để lịch sử đủ dòng
     if (options.createMissingProducts !== false) {
       const missing = new Map<string, { code: string; name: string; price: string }>();

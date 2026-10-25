@@ -41,7 +41,7 @@ export async function createTestApp(): Promise<TestApp> {
 let counter = 0;
 export function uniqueCode(prefix = 't') {
   counter++;
-  return `${prefix}${Date.now().toString(36)}${counter}`.toLowerCase().slice(0, 40);
+  return `${prefix}${Date.now().toString(36)}${process.pid.toString(36)}${counter}`.toLowerCase().slice(0, 40); // pid: các worker song song không trùng mã cùng mili-giây
 }
 
 export interface Session {

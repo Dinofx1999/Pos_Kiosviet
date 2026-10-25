@@ -4,7 +4,7 @@ import { CTX } from '../cls/request-context';
 
 /** Models that carry tenant_id and must always be filtered by the current tenant. */
 export const TENANT_MODELS = new Set<string>([
-  'BankGatewayConfig', 'BankTransferRequest', 'BankTransaction',
+  'BankGatewayConfig', 'BankTransferRequest', 'BankTransaction', 'ImportCodeAlias',
   'TenantSetting', 'Branch', 'Warehouse', 'User', 'Role', 'AuditLog', 'DocumentSequence', 'IdempotencyKey',
   'OutboxEvent', 'ProductCategory', 'Brand', 'Unit', 'Product', 'ProductVariant', 'ProductUnit', 'ProductImage',
   'ComboItem', 'ProductBatch', 'PriceBook', 'StockBalance', 'StockMovement', 'CostLedgerEntry', 'StockReservation',

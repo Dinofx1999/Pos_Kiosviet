@@ -13,7 +13,7 @@ async function xlsx(headers: string[], rows: Array<Array<string | number>>): Pro
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
 
-describe('KiotViet migration: Excel importers, API connector, reconciliation (Module 13) – T-220..T-226', () => {
+describe('KiotViet migration: Excel importers, API connector, reconciliation (Module 13) – T-220..T-227', () => {
   let t: TestApp;
   let s: Session;
   beforeAll(async () => {
@@ -302,6 +302,32 @@ describe('KiotViet migration: Excel importers, API connector, reconciliation (Mo
     expect(Number(line.baseQuantity)).toBeCloseTo(0.3);
     expect(Number(line.unitCost)).toBe(10000);
     expect((await t.http().get(`${api}/products`).set(s.auth).query({ search: 'SP-MIENG10', includeInactive: 'true' })).body.data.filter((x: { code: string }) => x.code === 'SP-MIENG10')).toHaveLength(0);
+  });
+
+  it('T-227 variant group whose variants each have a "1 MIẾNG" unit with its own code: every unit code maps to its own variant when importing invoice history', async () => {
+    const headers = ['Loại hàng', 'Mã hàng', 'Tên hàng', 'Giá bán', 'Giá vốn', 'Tồn kho', 'ĐVT', 'Mã ĐVT Cơ bản', 'Quy đổi', 'Thuộc tính', 'Mã HH Liên quan', 'Đang kinh doanh'];
+    const file = await xlsx(headers, [
+      ['Hàng hóa', 'MN-DO', 'Mặt nạ set 10 - Đỏ', '180000', '100000', '5', 'HỘP', '', '', 'MÀU:Đỏ', 'MN-DO', 'Đang kinh doanh'],
+      ['Hàng hóa', 'MN-VANG', 'Mặt nạ set 10 - Vàng', '180000', '120000', '5', 'HỘP', '', '', 'MÀU:Vàng', 'MN-DO', 'Đang kinh doanh'],
+      ['Hàng hóa', 'MN-DO-M', 'Mặt nạ set 10 - Đỏ', '18000', '', '', '1 MIẾNG', 'MN-DO', '0.1', 'MÀU:Đỏ', 'MN-DO', 'Đang kinh doanh'],
+      ['Hàng hóa', 'MN-VANG-M', 'Mặt nạ set 10 - Vàng', '18000', '', '', '1 MIẾNG', 'MN-VANG', '0.1', 'MÀU:Vàng', 'MN-DO', 'Đang kinh doanh'],
+    ]);
+    const prod = await commit((await preview('PRODUCTS', file, { defaultWarehouseId: s.warehouseId })).body.jobId);
+    expect(prod.body.failed).toBe(0);
+    expect(prod.body.units).toBe(2);
+    const inv = await xlsx(['Mã hóa đơn', 'Thời gian', 'Chi nhánh', 'Khách cần trả', 'Khách đã trả', 'Trạng thái', 'Mã hàng', 'Tên hàng', 'Số lượng', 'Đơn giá', 'Thành tiền'], [
+      ['HD004701', '24/09/2026 10:00', 'Chi nhánh trung tâm', '90000', '90000', 'Hoàn thành', 'MN-DO-M', 'Mặt nạ set 10 - Đỏ', '2', '18000', '36000'],
+      ['HD004701', '24/09/2026 10:00', 'Chi nhánh trung tâm', '90000', '90000', 'Hoàn thành', 'MN-VANG-M', 'Mặt nạ set 10 - Vàng', '3', '18000', '54000'],
+    ]);
+    const done = await commit((await preview('INVOICES', inv, { defaultBranchId: s.branchId })).body.jobId);
+    expect(done.body.created).toBe(1);
+    expect(done.body.placeholders ?? 0).toBe(0);
+    const id = (await t.http().get(`${api}/invoices`).set(s.auth).query({ search: 'KV-HD004701' })).body.data[0].id;
+    const lines = (await t.http().get(`${api}/invoices/${id}`).set(s.auth)).body.lines as Array<{ variant: { sku: string }; unitName: string; baseQuantity: string; unitCost: string }>;
+    expect(lines.map((l) => [l.variant.sku, l.unitName, Number(l.baseQuantity), Number(l.unitCost)])).toEqual([['MN-DO', '1 MIẾNG', 0.2, 10000], ['MN-VANG', '1 MIẾNG', 0.3, 12000]]);
+    // chạy lại file hàng hóa: không lỗi, không tạo thêm hàng
+    const again = await commit((await preview('PRODUCTS', file, { defaultWarehouseId: s.warehouseId, updateExisting: true })).body.jobId);
+    expect(again.body.failed).toBe(0);
   });
 
   it('T-225 KiotViet connection: creation needs all three credentials; later saves may change only the branch map or only one credential', async () => {

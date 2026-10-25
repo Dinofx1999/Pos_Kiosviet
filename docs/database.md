@@ -94,3 +94,6 @@ inventory_documents 1─n inventory_document_lines ─▶ product_variants
 ## Migration
 * Dùng `prisma migrate dev` (dev) / `prisma migrate deploy` (prod). Không dùng `db push` và không reset DB để xử lý lỗi migration.
 * Migration đầu tiên: `apps/api/prisma/migrations/*_init`.
+
+### import_code_aliases (25/10/2026)
+Mã hàng phụ của hệ thống cũ (`source` = KIOTVIET, `code` viết thường, duy nhất theo gian hàng) → `variant_id` + `product_unit_id` / `unit_name` / `factor`. Ghi khi nhập dòng ĐVT quy đổi của file hàng hóa KiotViet; đọc khi nhập lịch sử hóa đơn. Xóa theo biến thể / gian hàng (cascade).
