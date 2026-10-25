@@ -1,10 +1,11 @@
 /**
- * iPhone web app (Thêm vào màn hình chính, thanh trạng thái trong suốt):
- * từ iOS 26, window.innerHeight / 100vh / 100dvh và vùng của `position: fixed` ngắn hơn màn hình đúng bằng chiều cao
- * thanh trạng thái → thanh tab dưới và các thanh nút bị "đẩy lên", để hở một dải trống ở đáy.
- * Ta đo chiều cao màn hình thật (screen) và ghi ra hai biến CSS:
- *   --app-h   chiều cao khung ứng dụng đúng bằng màn hình
- *   --ios-gap phần bị thiếu (0 khi iOS không mắc lỗi) – các phần tử ghim đáy trừ đi giá trị này
+ * iPhone web app (Thêm vào màn hình chính, thanh trạng thái trong suốt) trên iOS 26:
+ * vùng hiển thị của trang bắt đầu dưới thanh trạng thái nhưng NGẮN hơn màn hình đúng bằng chiều cao thanh trạng thái
+ * (đo thực tế iPhone 440×956: innerHeight 894, thiếu 62). Dải 62pt ở đáy nằm ngoài trang – trang không vẽ được vào đó,
+ * iOS tô nó bằng màu nền của trang. Vì vậy:
+ *   - khung ứng dụng cao đúng bằng vùng hiển thị thật (--app-h = innerHeight, đo lại khi xoay / bàn phím / quay lại);
+ *   - khi phát hiện lỗi (lớp `ios-short-frame`): thanh tab bỏ phần đệm "home indicator" (vạch home đã nằm ngoài trang)
+ *     và nền gốc của trang chuyển sang trắng để dải đáy liền màu với thanh tab.
  * Chỉ bật trong chế độ standalone của iOS (navigator.standalone); trình duyệt thường và Android không đổi gì.
  */
 type IOSNavigator = Navigator & { standalone?: boolean };
@@ -30,13 +31,13 @@ export function startIosViewportFix() {
     const full = landscape ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height);
     const inner = window.innerHeight;
     const missing = full - inner;
-    // thiếu hụt nhỏ (thanh trạng thái 20–62px) = lỗi iOS; thiếu nhiều hơn là bàn phím đang mở → để nguyên
-    const gap = missing > 0 && missing <= 100 ? missing : 0;
-    root.style.setProperty('--app-h', `${inner + gap}px`);
-    root.style.setProperty('--ios-gap', `${gap}px`);
-    // ghi số đo vào nhật ký truy cập của máy chủ (không chứa dữ liệu cá nhân) để kiểm chứng trên máy thật
     const ins = safeInsets();
-    const report = [reason, `ih${inner}`, `sh${full}`, `sw${Math.min(screen.width, screen.height)}`, `vv${Math.round(window.visualViewport?.height ?? 0)}`, `sat${ins.top}`, `sab${ins.bottom}`, `gap${gap}`].join('_');
+    // thiếu 20–100pt ở chế độ dọc = lỗi khung ngắn của iOS (thiếu nhiều hơn là bàn phím đang mở → không kết luận)
+    const shortFrame = !landscape && missing >= 20 && missing <= 100;
+    if (missing <= 100) root.classList.toggle('ios-short-frame', shortFrame);
+    root.style.setProperty('--app-h', `${inner}px`);
+    // ghi số đo vào nhật ký truy cập của máy chủ (không chứa dữ liệu cá nhân) để kiểm chứng trên máy thật
+    const report = [reason, `ih${inner}`, `sh${full}`, `sw${Math.min(screen.width, screen.height)}`, `vv${Math.round(window.visualViewport?.height ?? 0)}`, `sat${ins.top}`, `sab${ins.bottom}`, `short${shortFrame ? 1 : 0}`].join('_');
     if (report.replace(/^[a-z]+_/, '') !== lastReport.replace(/^[a-z]+_/, '')) {
       lastReport = report;
       void fetch(`/?_diag=${encodeURIComponent(report)}`, { cache: 'no-store' }).catch(() => undefined);
@@ -44,6 +45,7 @@ export function startIosViewportFix() {
   };
 
   apply('load');
+  window.setTimeout(() => apply('settle'), 600);
   let t: number | undefined;
   const later = (reason: string, ms = 120) => { window.clearTimeout(t); t = window.setTimeout(() => apply(reason), ms); };
   window.addEventListener('resize', () => later('resize'));

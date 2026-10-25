@@ -464,15 +464,19 @@ html { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   .pos-lp-input .ant-btn { min-height: 40px; }
 }
 
-/* ---------- iPhone web app (iOS 26): vùng hiển thị ngắn hơn màn hình đúng bằng thanh trạng thái ----------
-   --app-h / --ios-gap do src/iosViewport.ts đo; ngoài iPhone standalone hai biến không tồn tại → giá trị mặc định */
+/* ---------- iPhone web app (iOS 26): vùng hiển thị của trang ngắn hơn màn hình đúng bằng thanh trạng thái ----------
+   --app-h do src/iosViewport.ts đo (= vùng hiển thị thật); lớp ios-short-frame khi iOS mắc lỗi khung ngắn */
 html.ios-standalone .kv-login { min-height: var(--app-h, 100vh); }
-html.ios-standalone .ant-drawer, html.ios-standalone .ant-drawer-mask, html.ios-standalone .ant-modal-wrap, html.ios-standalone .ant-modal-mask,
-html.ios-standalone .ant-image-preview-wrap, html.ios-standalone .ant-image-preview-mask { bottom: calc(0px - var(--ios-gap, 0px)) !important; }
+/* dải đáy nằm ngoài trang được iOS tô bằng màu nền gốc → trắng, liền với thanh tab / thanh thanh toán */
+html.ios-short-frame, html.ios-short-frame body { background: #fff; }
 @media (max-width: 767px) {
-  /* khung đặt cố định từ mép trên, cao đúng bằng màn hình thật → thanh tab nằm sát đáy, cửa sổ không bao giờ cuộn */
+  /* khung đặt cố định từ mép trên, cao đúng bằng vùng hiển thị → cửa sổ không bao giờ cuộn, không có gì bị đẩy */
   html.ios-standalone .kv-shell, html.ios-standalone .pos-app { position: fixed; top: 0; left: 0; right: 0; }
-  html.ios-standalone .pos-mbar { bottom: calc(0px - var(--ios-gap, 0px)); }
-  html.ios-standalone .kv-filter-toggle { bottom: calc(68px + env(safe-area-inset-bottom) - var(--ios-gap, 0px)); }
-  html.ios-standalone .cb-bar, html.ios-standalone .sr-actions, html.ios-standalone .tk-actions, html.ios-standalone .od-actions { bottom: calc(56px + env(safe-area-inset-bottom) - var(--ios-gap, 0px)); }
+  html.ios-short-frame .kv-shell { background: var(--kv-bg); }
+  /* vạch home đã nằm trong dải ngoài trang → bỏ phần đệm an toàn ở đáy */
+  html.ios-short-frame .kv-tabbar { height: 56px; padding-bottom: 0; }
+  html.ios-short-frame .pos-mbar { padding-bottom: 8px; }
+  html.ios-short-frame .cb-bar, html.ios-short-frame .sr-actions, html.ios-short-frame .tk-actions, html.ios-short-frame .od-actions { bottom: 56px; }
+  html.ios-short-frame .kv-filter-toggle { bottom: 68px; }
+  html.ios-short-frame .ant-drawer-body { padding-bottom: 14px; }
 }
