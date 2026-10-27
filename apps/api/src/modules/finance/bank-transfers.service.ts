@@ -59,8 +59,17 @@ export class BankTransfersService {
   /** Trạng thái tối thiểu cho thu ngân: có dùng được QR không, ngân hàng nào (không lộ khóa / quỹ). */
   async status() {
     const c = await this.configRow();
-    const ready = !!(c?.enabled && c.bankCode && c.accountNumber);
-    return { ready, bankCode: ready ? c!.bankCode : null, bankName: ready ? VIETQR_BANKS.find((b) => b.shortName === c!.bankCode)?.name ?? c!.bankCode : null, posTtlMinutes: c?.posTtlMinutes ?? 15 };
+    const hasAccount = !!(c?.bankCode && c.accountNumber);
+    const ready = !!(c?.enabled && hasAccount);
+    // tài khoản nhận tiền (in sẵn trên mã VietQR, không bí mật): khi SePay chưa bật, màn bán hàng vẫn hiện QR để khách quét
+    // và thu ngân bấm "Đã nhận tiền" sau khi kiểm tra app ngân hàng
+    return {
+      ready, posTtlMinutes: c?.posTtlMinutes ?? 15, codePrefix: c?.codePrefix ?? 'BA',
+      bankCode: hasAccount ? c!.bankCode : null,
+      bankName: hasAccount ? VIETQR_BANKS.find((b) => b.shortName === c!.bankCode)?.name ?? c!.bankCode : null,
+      accountNumber: hasAccount ? c!.accountNumber : null,
+      accountName: hasAccount ? c!.accountName ?? null : null,
+    };
   }
 
   async saveConfig(user: RequestUser, dto: SepayConfigDto) {

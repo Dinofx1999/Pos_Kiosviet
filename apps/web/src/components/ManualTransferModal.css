@@ -1,0 +1,8 @@
+/* Thu chuyển khoản xác nhận tay (ManualTransferModal) */
+.mt-qr { display: flex; justify-content: center; margin-bottom: 10px; }
+.mt-qr img { width: min(100%, 280px); height: auto; border-radius: 10px; border: 1px solid #e5e7eb; background: #fff; }
+.mt-rows { display: grid; gap: 4px; background: #f8fafc; border-radius: 10px; padding: 8px 12px; }
+.mt-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 30px; }
+.mt-row .k { color: #6b7280; font-size: 13px; flex: 0 0 auto; }
+.mt-row .v { text-align: right; overflow-wrap: anywhere; font-size: 14px; }
+.mt-row .v b { font-size: 15px; letter-spacing: .3px; }

@@ -121,7 +121,7 @@ describe('SePay – thanh toán chuyển khoản tự động (VietQR + webhook)
     expect(late.body.result).toBe('unmatched');
     expect(late.body.note).toContain('đã dùng cho hóa đơn');
     // thu ngân đọc được trạng thái QR (không cần quyền tích hợp)
-    expect((await t.http().get(`${api}/bank-transfers/status`).set(cashierAuth)).body).toMatchObject({ ready: true, bankCode: 'MBBank' });
+    expect((await t.http().get(`${api}/bank-transfers/status`).set(cashierAuth)).body).toMatchObject({ ready: true, bankCode: 'MBBank', accountNumber: '0123456789' });
     expect((await t.http().get(`${api}/integrations/sepay`).set(cashierAuth)).status).toBe(403);
   });
 
@@ -211,6 +211,11 @@ describe('SePay – thanh toán chuyển khoản tự động (VietQR + webhook)
 
   it('T-267 bật SePay ở gian hàng chưa có quỹ ngân hàng → tự tạo quỹ ngân hàng cho đúng tài khoản (một lần); gian hàng đã có quỹ ngân hàng thì không tạo thêm', async () => {
     const fresh = await registerTenant(t);
+    // chưa có tài khoản → không có QR thủ công
+    expect((await t.http().get(`${api}/bank-transfers/status`).set(fresh.auth)).body).toMatchObject({ ready: false, bankCode: null, accountNumber: null });
+    // có tài khoản nhưng chưa bật SePay → ready false nhưng vẫn trả tài khoản để hiện VietQR xác nhận thủ công
+    await t.http().put(`${api}/integrations/sepay`).set(fresh.auth).send({ enabled: false, bankCode: 'Vietcombank', accountNumber: '1029384756', accountName: 'nguyen thi bao an' });
+    expect((await t.http().get(`${api}/bank-transfers/status`).set(fresh.auth)).body).toMatchObject({ ready: false, bankCode: 'Vietcombank', accountNumber: '1029384756', accountName: 'NGUYEN THI BAO AN' });
     const banksBefore = (await t.http().get(`${api}/cash/accounts`).set(fresh.auth)).body.filter((a: { type: string }) => a.type === 'BANK');
     expect(banksBefore).toHaveLength(0);
     const saved = await t.http().put(`${api}/integrations/sepay`).set(fresh.auth).send({ enabled: true, bankCode: 'Vietcombank', accountNumber: '1029384756', accountName: 'nguyen thi bao an' });

@@ -41,6 +41,9 @@ export interface CartTab {
   sellerId?: string;
   priceBookId?: string;
   discount: number;
+  /** giảm giá hóa đơn nhập theo % (discount = % × tổng tiền hàng, tính lại khi giỏ đổi) hoặc số tiền */
+  discountMode?: 'AMOUNT' | 'PCT';
+  discountPct?: number;
   note: string;
   lines: CartLine[];
   /** server-side held invoice (DRAFT) this tab was loaded from */

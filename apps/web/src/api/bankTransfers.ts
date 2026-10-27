@@ -88,12 +88,18 @@ export const useUnmatchedBankCount = (enabled = true) => useQuery({ queryKey: ['
  * May the selling screens offer "QR chuyển khoản"? `GET /bank-transfers/status` is readable by anyone who sells or collects money
  * (invoice.create / payment.create / cash.view); a 409 SEPAY_NOT_CONFIGURED later still hides the option (markSepayUnavailable).
  */
-export function useSepayReady(): boolean {
+/** Trạng thái nhận chuyển khoản: ready = SePay tự xác nhận; tài khoản nhận tiền có khi đã cài (kể cả SePay chưa bật → QR xác nhận tay). */
+export interface BankStatus { ready: boolean; bankCode: string | null; bankName: string | null; accountNumber: string | null; accountName: string | null; codePrefix: string; posTtlMinutes: number }
+export function useBankStatus(): BankStatus | undefined {
   const can = useCan();
   const allowed = can('invoice.create') || can('payment.create') || can('cash.view');
-  const { data } = useQuery({ queryKey: ['sepay-status'], queryFn: () => http.get<{ ready: boolean }>('/bank-transfers/status').then((r) => r.data), staleTime: 60_000, enabled: allowed });
+  const { data } = useQuery({ queryKey: ['sepay-status'], queryFn: () => http.get<BankStatus>('/bank-transfers/status').then((r) => r.data), staleTime: 60_000, enabled: allowed });
+  return allowed ? data : undefined;
+}
+export function useSepayReady(): boolean {
+  const status = useBankStatus();
   const { data: off } = useQuery({ queryKey: ['sepay-off'], queryFn: () => false, staleTime: Infinity, gcTime: Infinity });
-  return allowed && !!data?.ready && !off;
+  return !!status?.ready && !off;
 }
 export const markSepayUnavailable = (qc: QueryClient) => { qc.setQueryData(['sepay-off'], true); qc.invalidateQueries({ queryKey: ['sepay-config'] }); qc.invalidateQueries({ queryKey: ['sepay-status'] }); };
 

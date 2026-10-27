@@ -125,7 +125,7 @@ export function BankQrModal({ open, request, title, subtitle, onUpdate, cancelOn
   );
 
   return (
-    <Modal className="bq-modal" open={open} onCancel={close} maskClosable={false} width={760} footer={footer} destroyOnClose centered={!isMobile}
+    <Modal className="bq-modal" open={open} onCancel={close} maskClosable={false} width={760} footer={footer} destroyOnClose zIndex={1100} centered={!isMobile}
       title={<div className="bq-title"><QrcodeOutlined /> <span>{title ?? 'Thanh toán chuyển khoản (VietQR)'}</span>{subtitle && <div className="bq-subtitle">{subtitle}</div>}</div>}>
       {status}
       {isError && <div className="bq-neterr">Mất kết nối tạm thời – đang thử lại…</div>}

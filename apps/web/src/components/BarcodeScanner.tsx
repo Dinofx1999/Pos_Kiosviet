@@ -81,7 +81,7 @@ export function BarcodeScannerModal({ open, onClose, onScan, continuous, title =
   };
 
   return (
-    <Modal open={open} onCancel={onClose} footer={null} closable={false} destroyOnClose className="bc-modal" width="100%" style={{ top: 0, maxWidth: 'none', padding: 0, margin: 0 }} styles={{ body: { padding: 0 } }}>
+    <Modal open={open} onCancel={onClose} footer={null} closable={false} destroyOnHidden zIndex={1200} className="bc-modal" width="100%" style={{ top: 0, maxWidth: 'none', padding: 0, margin: 0 }} styles={{ body: { padding: 0 } }}>
       <div className="bc-wrap">
         <div className="bc-top">
           <span className="bc-title">{title}</span>

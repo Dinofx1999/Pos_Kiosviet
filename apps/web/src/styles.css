@@ -497,3 +497,13 @@ html.ios-short-frame, html.ios-short-frame body { background: #fff; }
   html.ios-short-frame .kv-filter-toggle { bottom: 68px; }
   html.ios-short-frame .ant-drawer-body { padding-bottom: 14px; }
 }
+
+/* POS: giảm giá hóa đơn VND / % */
+.pos-disc { display: inline-flex; align-items: center; gap: 6px; }
+.pos-disc .pos-disc-input { width: 120px; }
+.pos-disc .ant-segmented { flex: 0 0 auto; }
+@media (max-width: 767px) {
+  .pos-disc-row > span:first-child { white-space: nowrap; }
+  .pos-disc .pos-disc-input { width: 112px; }
+  .pos-disc .ant-segmented-item-label { min-height: 34px; line-height: 34px; padding: 0 10px; }
+}

@@ -1,10 +1,10 @@
-import { Alert, App, Badge, Button, Drawer, Dropdown, Input, InputNumber, Select, Space, Spin, Switch, Table, Tag, Tooltip } from 'antd';
+import { Alert, App, Badge, Button, Drawer, Dropdown, Input, InputNumber, Segmented, Select, Space, Spin, Switch, Table, Tag, Tooltip } from 'antd';
 import { CloseOutlined, ClockCircleOutlined, DeleteOutlined, FileTextOutlined, GiftOutlined, HomeOutlined, MinusOutlined, PlusOutlined, QrcodeOutlined, RollbackOutlined, SaveOutlined, TagOutlined, UserOutlined, WalletOutlined } from '@ant-design/icons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMeQuery } from '../../api/auth';
-import { bankApi, markSepayUnavailable, useSepayReady, type BankRequest } from '../../api/bankTransfers';
+import { bankApi, markSepayUnavailable, useBankStatus, useSepayReady, type BankRequest } from '../../api/bankTransfers';
 import { catalogApi, usePriceBooks } from '../../api/catalog';
 import { errMsg, normalizeError } from '../../api/client';
 import { orgApi } from '../../api/org';
@@ -13,6 +13,7 @@ import { ApplicablePriceBook, PosPreview, PosPreviewGift, VariantLite, promotion
 import { SALES_KEYS, salesApi, useCurrentShift, type InvoicePaymentInput } from '../../api/sales';
 import type { ApiError, Invoice, SearchHit } from '../../api/types';
 import { BankQrModal } from '../../components/BankQrModal';
+import { ManualTransferModal } from '../../components/ManualTransferModal';
 import { CustomerSelect } from '../../components/CustomerSelect';
 import { MoneyInput } from '../../components/Inputs';
 import { ProductSearch, ProductSearchHandle } from '../../components/ProductSearch';
@@ -70,6 +71,9 @@ export default function PosPage() {
   const canPriceBook = can('invoice.pricebook.select');
   // VietQR / SePay: the code on screen, and the state of the automatic completion once the money arrived
   const sepayReady = useSepayReady();
+  const bankStatus = useBankStatus();
+  /** chuyển khoản khi SePay chưa bật: QR của cửa hàng → thu ngân xác nhận đã nhận tiền mới hoàn tất */
+  const [manualQr, setManualQr] = useState<{ amount: number; content: string } | null>(null);
   const [qr, setQr] = useState<{ tabId: string; req: BankRequest } | null>(null);
   const [qrBusy, setQrBusy] = useState(false);
   const [qrDone, setQrDone] = useState<{ state: 'idle' | 'completing' | 'error'; error?: string }>({ state: 'idle' });
@@ -111,6 +115,16 @@ export default function PosPage() {
 
   // ---------------------------------------------------------------- cart
   const patch = (fn: (t: CartTab) => Partial<CartTab>) => tab && updateTab(tab.id, fn);
+  // giảm giá hóa đơn theo %: số tiền giảm tính lại mỗi khi tổng tiền hàng thay đổi
+  const pctBase = clientTotals.subtotal;
+  useEffect(() => {
+    if (!tab || tab.discountMode !== 'PCT') return;
+    const target = Math.min(Math.round((pctBase * (tab.discountPct ?? 0)) / 100), pctBase);
+    if (target !== tab.discount) updateTab(tab.id, { discount: target });
+  }, [tab?.id, tab?.discountMode, tab?.discountPct, pctBase]); // chỉ theo % / tổng tiền hàng, không theo cả giỏ
+  const setDiscountMode = (mode: 'AMOUNT' | 'PCT') => patch((t) => mode === 'PCT'
+    ? { discountMode: 'PCT', discountPct: pctBase > 0 ? Math.round((t.discount / pctBase) * 10000) / 100 : 0 }
+    : { discountMode: 'AMOUNT' });
   const setLine = (key: string, p: Partial<CartLine> | ((l: CartLine) => Partial<CartLine>)) => patch((t) => ({ lines: t.lines.map((l) => (l.key === key ? { ...l, ...(typeof p === 'function' ? p(l) : p), error: undefined } : l)) }));
   const removeLine = (key: string) => patch((t) => ({ lines: t.lines.filter((x) => x.key !== key) }));
 
@@ -306,7 +320,19 @@ export default function PosPage() {
     const v = validate(tab); if (v) { message.warning(v); return; }
     if (due > 0 && !tab.customerId) { message.warning('Thanh toán thiếu (bán nợ) phải chọn khách hàng'); setSheet(true); setTimeout(() => customerRef.current?.querySelector('input')?.focus(), 150); return; }
     if (paid > payable + 0.01) { message.warning('Tổng thanh toán vượt quá số tiền cần trả'); return; }
+    if (payMode === 'BANK_TRANSFER' && paid > 0) {
+      // chưa bật SePay: hiện QR của cửa hàng, chỉ hoàn tất khi thu ngân xác nhận đã nhận tiền
+      if (requireShift && shift === null) { message.warning('Bạn cần mở ca bán hàng trước khi thu tiền'); setShiftOpen(true); return; }
+      const d = new Date(); const p2 = (n: number) => String(n).padStart(2, '0');
+      setManualQr({ amount: paid, content: `TT ${p2(d.getDate())}${p2(d.getMonth() + 1)} ${p2(d.getHours())}${p2(d.getMinutes())}` });
+      return;
+    }
     await submitSale(tab, payments.map((p) => ({ method: p.method, amount: String(p.amount), reference: p.reference })), payMode === 'CASH' ? (cashGiven ?? payable) : undefined);
+  };
+  const confirmManualTransfer = async () => {
+    if (!tab || !manualQr || busy) return;
+    const res = await submitSale(tab, payments.map((p) => ({ method: p.method, amount: String(p.amount), reference: p.reference || manualQr.content })));
+    if (res.ok) setManualQr(null);
   };
 
   // ---------------------------------------------------------------- VietQR / SePay (BR-170..): code → customer transfers → sale completes by itself
@@ -601,7 +627,17 @@ export default function PosPage() {
 
       <div className="pos-totals">
         <div className="pos-row"><span>Tổng tiền hàng <span className="muted">({tab?.lines.reduce((s, l) => s + l.quantity, 0) ?? 0} SL)</span></span><b>{money(totals.subtotal)}</b></div>
-        {canDiscount && <div className="pos-row"><span>Giảm giá hóa đơn</span><MoneyInput ref={discountRef} size="small" style={{ width: 140 }} value={tab?.discount ?? 0} max={totals.subtotal} onChange={(v) => patch(() => ({ discount: Math.min(toNum(v), totals.subtotal) }))} /></div>}
+        {canDiscount && (
+          <div className="pos-row pos-disc-row"><span>Giảm giá hóa đơn</span>
+            <span className="pos-disc">
+              <Segmented size="small" value={tab?.discountMode ?? 'AMOUNT'} onChange={(v) => setDiscountMode(v as 'AMOUNT' | 'PCT')} options={[{ label: 'VND', value: 'AMOUNT' }, { label: '%', value: 'PCT' }]} />
+              {tab?.discountMode === 'PCT'
+                ? <InputNumber ref={discountRef} size="small" className="pos-disc-input" min={0} max={100} step={1} value={tab?.discountPct ?? 0} onChange={(v) => patch(() => ({ discountPct: Math.max(0, Math.min(toNum(v ?? 0), 100)) }))} onFocus={(e) => e.target.select()} suffix="%" />
+                : <MoneyInput ref={discountRef} size="small" className="pos-disc-input" value={tab?.discount ?? 0} max={totals.subtotal} onChange={(v) => patch(() => ({ discount: Math.min(toNum(v), totals.subtotal) }))} />}
+            </span>
+          </div>
+        )}
+        {canDiscount && tab?.discountMode === 'PCT' && (tab?.discount ?? 0) > 0 && <div className="kv-hint" style={{ textAlign: 'right', marginTop: -4 }}>Giảm {toNum(tab?.discountPct ?? 0)}% = −{money(tab?.discount ?? 0)}</div>}
         {totals.promo > 0 && <div className="pos-row"><span>Khuyến mãi{voucherApplied ? ' + voucher' : ''}</span><b className="pos">−{money(totals.promo)}</b></div>}
         {totals.tax > 0 && <div className="pos-row muted"><span>{priceIncludesTax ? 'Trong đó thuế' : 'Thuế'}</span><span>{money(totals.tax)}</span></div>}
         {pointsValue > 0 && <><div className="pos-row pos-lp-total"><span>Tổng hóa đơn</span><span>{money(totals.total)}</span></div><div className="pos-row"><span>Thanh toán bằng điểm</span><b className="pos">−{money(pointsValue)}</b></div></>}
@@ -614,8 +650,12 @@ export default function PosPage() {
 
       <div className="pos-pay">
         <div className="pos-chips">
-          {sepayReady && <span className={`pos-chip pos-chip-qr${payMode === 'QR' ? ' on' : ''}`} onClick={() => setPayMode('QR')} role="button"><QrcodeOutlined /> QR chuyển khoản</span>}
-          {METHODS.map((m) => <span key={m} className={`pos-chip${payMode === m ? ' on' : ''}`} onClick={() => setPayMode(m)}>{PAYMENT_METHOD_LABEL[m]}</span>)}
+          {METHODS.map((m) => {
+            // SePay đã bật: "Chuyển khoản" = mã QR tự xác nhận khi tiền về; chưa bật: QR của cửa hàng + xác nhận tay khi bấm Thanh toán
+            const qrMode = m === 'BANK_TRANSFER' && sepayReady;
+            const on = qrMode ? payMode === 'QR' : payMode === m;
+            return <span key={m} role="button" className={`pos-chip${qrMode ? ' pos-chip-qr' : ''}${on ? ' on' : ''}`} onClick={() => setPayMode(qrMode ? 'QR' : m)}>{m === 'BANK_TRANSFER' && <QrcodeOutlined />} {PAYMENT_METHOD_LABEL[m]}</span>;
+          })}
           <span className={`pos-chip${payMode === 'MIXED' ? ' on' : ''}`} onClick={() => setPayMode('MIXED')}>Kết hợp</span>
         </div>
         {payMode === 'QR' && (
@@ -662,7 +702,7 @@ export default function PosPage() {
         {can('invoice.create') && <Button size="large" icon={<SaveOutlined />} onClick={hold} loading={busy} disabled={!tab?.lines.length}>{isMobile ? 'Giữ đơn' : 'Giữ đơn (F7)'}</Button>}
         {payMode === 'QR'
           ? <Button size="large" type="primary" className="pos-pay-btn" icon={<QrcodeOutlined />} onClick={() => void startQr()} loading={busy || qrBusy} disabled={!tab?.lines.length || !can('invoice.complete')}>{isMobile ? 'TẠO MÃ QR' : 'TẠO MÃ QR (F9)'}</Button>
-          : <Button size="large" type="primary" className="pos-pay-btn" onClick={checkout} loading={busy} disabled={!tab?.lines.length || !can('invoice.complete')}>{isMobile ? 'THANH TOÁN' : 'THANH TOÁN (F9)'}</Button>}
+          : <Button size="large" type="primary" className="pos-pay-btn" icon={payMode === 'BANK_TRANSFER' ? <QrcodeOutlined /> : undefined} onClick={() => void checkout()} loading={busy} disabled={!tab?.lines.length || !can('invoice.complete')}>{isMobile ? 'THANH TOÁN' : 'THANH TOÁN (F9)'}</Button>}
       </div>
       {tab?.draftId && <div className="kv-hint" style={{ textAlign: 'center' }}>Đang mở đơn giữ {tab.draftCode}</div>}
     </aside>
@@ -758,6 +798,7 @@ export default function PosPage() {
       <ShiftOpenModal open={shiftOpen} branchId={branchId} onClose={() => setShiftOpen(false)} onOpened={() => refetchShift()} />
       <ShiftCloseModal open={shiftClose} shiftId={shift?.id} onClose={() => setShiftClose(false)} onClosed={() => refetchShift()} />
       <HeldOrdersDrawer open={held} branchId={branchId} onClose={() => setHeld(false)} onReopen={(inv) => void loadDraft(inv)} />
+      <ManualTransferModal open={!!manualQr} amount={manualQr?.amount ?? 0} content={manualQr?.content ?? ''} status={bankStatus} confirming={busy} onConfirm={() => void confirmManualTransfer()} onCancel={() => setManualQr(null)} />
       <BankQrModal open={!!qr} request={qr?.req ?? null} cancelOnClose onUpdate={onQrUpdate} onClose={closeQr} onRenew={() => void renewQr()} renewing={qrBusy}
         title={`Thanh toán chuyển khoản · ${money(qr ? toNum(qr.req.amount) : payable)}`}
         subtitle={tab ? `${tab.draftCode ?? tab.name}${tab.customerLabel ? ` · ${tab.customerLabel}` : ' · Khách lẻ'} · ${tab.lines.reduce((x, l) => x + l.quantity, 0)} SL` : undefined}
