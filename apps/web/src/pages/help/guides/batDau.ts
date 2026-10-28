@@ -140,7 +140,7 @@ export const BAT_DAU: Guide[] = [
     perms: ['Quản lý người dùng (user.manage)'],
     keywords: ['user', 'nhân viên', 'tài khoản', 'khóa', 'đặt lại mật khẩu', 'thu ngân'],
     steps: [
-      { text: 'Vào Thiết lập cửa hàng → Người dùng (hoặc menu Nhân viên → Người dùng) và bấm Thêm người dùng.', shot: 'settings-users' },
+      { text: 'Vào Thiết lập cửa hàng → Người dùng (hoặc menu Nhân viên → Tài khoản đăng nhập) và bấm Thêm người dùng.', shot: 'settings-users' },
       { text: 'Nhập Tên đăng nhập, Họ tên, Mật khẩu (≥ 6 ký tự), Email, Số điện thoại và chọn Vai trò (một hoặc nhiều).' },
       { text: 'Chọn Chi nhánh được phép, hoặc bật "Được thao tác trên tất cả chi nhánh". Nếu cần, giới hạn thêm theo kho ở "Giới hạn kho (trống = tất cả kho trong chi nhánh)". Bấm Lưu.' },
       { text: 'Để khóa tài khoản: mở người dùng, đổi Trạng thái sang Ngừng. Để đặt lại mật khẩu: bấm Đặt lại mật khẩu, nhập mật khẩu mới và báo cho nhân viên.' },

@@ -149,6 +149,12 @@ export default function DocumentEditorPage() {
         {!id && <Select value={type} onChange={(t) => { setType(t); setReason(REASONS[t][0].value); setLines((ls) => ls.map((l) => ({ ...l, actualQuantity: t === 'ADJUSTMENT' ? l.onHand : undefined }))); }} options={(['RECEIPT', 'ISSUE', 'ADJUSTMENT'] as DocType[]).map((t) => ({ value: t, label: DOC_TYPE_LABEL[t] }))} style={{ width: 160 }} />}
         <span className="kv-hint"><span className="kv-kbd">F3</span>Tìm hàng <span className="kv-kbd">F9</span>Lưu tạm <span className="kv-kbd">F10</span>Hoàn thành</span>
       </div>
+      {type === 'RECEIPT' && can('purchase.receipt.create') && (
+        <Alert style={{ marginBottom: 10 }} type="info" showIcon
+          message="Nhập hàng từ nhà cung cấp? Dùng phiếu Nhập hàng (Mua hàng → Nhập hàng): có nhà cung cấp, giá nhập, công nợ và tiền trả NCC như KiotViet."
+          description="Phiếu này chỉ dùng cho hàng nhập không qua nhà cung cấp (hàng tặng, trả lại kho, tồn đầu kỳ…)."
+          action={<Button type="primary" size="small" onClick={() => nav('/purchase-receipts/new')}>Mở Nhập hàng</Button>} />
+      )}
       <div className="kv-doc-editor">
         <div className="kv-doc-lines">
           <Card size="small" style={{ marginBottom: 10 }}><ProductSearch scanContinuous ref={searchRef} autoFocus goodsOnly warehouseId={warehouseId} onPick={addHit} /></Card>

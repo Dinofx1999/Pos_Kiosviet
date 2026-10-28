@@ -111,7 +111,7 @@ export const BAN_HANG: Guide[] = [
     steps: [
       { text: 'Khi giỏ đã có hàng, bấm Giữ đơn (F7). Đơn được lưu trên máy chủ dưới dạng hóa đơn nháp với mã HD…; giỏ hiện tại được giải phóng.', shot: 'pos-cart' },
       { text: 'Để mở lại: bấm nút "Đơn giữ" trên thanh POS (điện thoại: biểu tượng tờ giấy ở góc phải); danh sách "Đơn đang giữ" hiện Mã, Thời gian, Khách, Tổng – bấm Mở lại.', shot: 'pos-held' },
-      { text: 'Đơn giữ cũng xem được ở Giao dịch → Hóa đơn (trạng thái Giữ đơn) với nút Mở ở POS; đơn nháp không cần nữa thì Xóa.' },
+      { text: 'Đơn giữ cũng xem được ở Đơn hàng → Hóa đơn (trạng thái Giữ đơn) với nút Mở ở POS; đơn nháp không cần nữa thì Xóa.' },
     ],
     notes: [
       'Giữ đơn không trừ tồn và không ghi công nợ; tồn chỉ trừ khi thanh toán. Muốn giữ hàng cho khách → dùng Đặt hàng.',
@@ -127,7 +127,7 @@ export const BAN_HANG: Guide[] = [
     perms: ['Xem hóa đơn (invoice.view)', 'Hủy hóa đơn (invoice.cancel)', 'Lập phiếu thu / chi (payment.create) để thu nợ'],
     keywords: ['invoice', 'HD', 'in lại', 'hủy giao dịch', 'thu nợ', 'lợi nhuận', 'chi tiết hóa đơn'],
     steps: [
-      { text: 'Vào Giao dịch → Hóa đơn (điện thoại: tab Hóa đơn). Lọc theo Trạng thái (Hoàn thành, Giữ đơn, Đã hủy), Chi nhánh, Thời gian, Khách hàng, Công nợ; tìm theo mã hóa đơn, khách, SĐT, hàng hóa.', shot: 'invoices' },
+      { text: 'Vào Đơn hàng → Hóa đơn (điện thoại: tab Hóa đơn). Lọc theo Trạng thái (Hoàn thành, Giữ đơn, Đã hủy), Chi nhánh, Thời gian, Khách hàng, Công nợ; tìm theo mã hóa đơn, khách, SĐT, hàng hóa.', shot: 'invoices' },
       { text: 'Bấm vào một hóa đơn để xem tab Thông tin (khách, nhân viên bán, ca, tổng tiền hàng, giảm giá, khuyến mãi, thuế, đã thanh toán, còn nợ, giá vốn / lợi nhuận), Thanh toán, Trả hàng, Bút toán kho.', shot: 'invoice-detail' },
       { text: 'Các nút ở cuối chi tiết: In, Trả hàng, Tạo vận đơn, Thu qua QR (khi còn nợ và đã cài SePay – khách quét mã, phiếu thu tự ghi), Thu nợ (khi còn nợ – mở phiếu thu phân bổ vào hóa đơn), Hủy hóa đơn.' },
       { text: 'Hủy hóa đơn: bấm Hủy hóa đơn, nhập Lý do hủy và xác nhận. Hàng được hoàn tồn, phiếu thu của hóa đơn bị hủy theo, công nợ và điểm được đảo.' },
@@ -147,7 +147,7 @@ export const BAN_HANG: Guide[] = [
     perms: ['Tạo / sửa đơn đặt hàng, nhận cọc (order.create)', 'Xác nhận đơn (giữ tồn) (order.confirm)', 'Hoàn tất đơn → hóa đơn (order.complete)'],
     keywords: ['order', 'DH', 'đặt trước', 'cọc', 'giữ hàng', 'reservation', 'hoàn tất', 'nguồn đơn'],
     steps: [
-      { text: 'Vào Giao dịch → Đặt hàng và bấm nút "+ Đặt hàng". Chọn Khách hàng (hoặc để Khách lẻ), Nguồn đơn, Kho xuất, Hẹn giao / lấy hàng, Ghi chú.', shot: 'order-new' },
+      { text: 'Vào Đơn hàng → Đặt hàng và bấm nút "+ Đặt hàng". Chọn Khách hàng (hoặc để Khách lẻ), Nguồn đơn, Kho xuất, Hẹn giao / lấy hàng, Ghi chú.', shot: 'order-new' },
       { text: 'Thêm hàng bằng ô "Tìm hàng hóa hoặc quét mã vạch"; nhập Số lượng, Đơn giá (giá niêm yết; sửa cần quyền), Giảm giá dòng và Giảm giá đơn.' },
       { text: 'Nếu khách cọc ngay: nhập số tiền ở "Khách cọc ngay", chọn Phương thức và Tham chiếu. Bấm Lưu phiếu tạm (F9) hoặc Xác nhận đặt hàng (F10) – đơn xác nhận sẽ giữ tồn cho khách.' },
       { text: 'Theo dõi đơn ở danh sách Đặt hàng: Phiếu tạm, Đang xử lý (đã giữ hàng), Đã lập hóa đơn, Đã hủy; cột Đã cọc / Còn phải thu.', shot: 'orders' },
@@ -168,7 +168,7 @@ export const BAN_HANG: Guide[] = [
     perms: ['Tạo / cập nhật vận đơn, thu COD (delivery.manage)'],
     keywords: ['delivery', 'vận đơn', 'GH', 'COD', 'shipper', 'GHTK', 'GHN', 'chuyển hoàn', 'phí giao hàng'],
     steps: [
-      { text: 'Tạo vận đơn từ chi tiết Đơn đặt hàng hoặc Hóa đơn (nút Tạo vận đơn), hoặc vào Giao dịch → Giao hàng → Vận đơn rồi chọn hóa đơn.', shot: 'deliveries' },
+      { text: 'Tạo vận đơn từ chi tiết Đơn đặt hàng hoặc Hóa đơn (nút Tạo vận đơn), hoặc vào Đơn hàng → Vận đơn rồi chọn hóa đơn.', shot: 'deliveries' },
       { text: 'Điền Người nhận, Điện thoại, Địa chỉ giao (Tỉnh / thành, Quận / huyện, Phường / xã), Đơn vị vận chuyển (GHTK, GHN, tự giao…), Mã vận đơn ĐVVC, Khối lượng, Phí giao hàng thu khách, Chi phí trả ĐVVC, Tiền thu hộ (COD – mặc định = còn phải thu + phí giao), Hẹn giao, Ghi chú; bấm Tạo vận đơn.' },
       { text: 'Mở vận đơn để cập nhật trạng thái theo thực tế: Chờ lấy hàng → Bắt đầu giao → Đã giao hàng; nếu giao không thành: Chuyển hoàn → Đã nhận hàng hoàn. Có thể Hủy vận đơn khi chưa giao.', shot: 'delivery-detail' },
       { text: 'Khi Đã giao hàng, bật "Thu tiền COD ngay" (hoặc bấm Ghi nhận thu hộ sau khi ĐVVC đối soát): chọn Phương thức, Quỹ / tài khoản nhận – tiền được phân bổ vào hóa đơn, phần phí giao hàng ghi là thu khác.' },
@@ -188,7 +188,7 @@ export const BAN_HANG: Guide[] = [
     perms: ['Tạo phiếu trả hàng / đổi hàng (return.create)', 'Hoàn thành phiếu trả hàng (return.complete)', 'Sửa giá hoàn trả (return.price.edit) nếu đổi giá hoàn'],
     keywords: ['return', 'exchange', 'TH', 'hoàn tiền', 'đổi hàng', 'hàng hỏng', 'nhập lại kho', 'phí trả hàng'],
     steps: [
-      { text: 'Vào Giao dịch → Trả hàng và bấm nút "+ Trả hàng" (hoặc mở hóa đơn → Trả hàng, hoặc nút Trả hàng trên thanh POS). Bước 1: tìm hóa đơn theo mã, tên hoặc SĐT khách và chọn.', shot: 'sales-returns' },
+      { text: 'Vào Đơn hàng → Trả hàng và bấm nút "+ Trả hàng" (hoặc mở hóa đơn → Trả hàng, hoặc nút Trả hàng trên thanh POS). Bước 1: tìm hóa đơn theo mã, tên hoặc SĐT khách và chọn.', shot: 'sales-returns' },
       { text: 'Bước 2 – Chọn hàng trả: nhập SL trả cho từng dòng (không vượt "Còn trả được"), chọn Tình trạng: Nhập lại kho hoặc Hàng hỏng (không nhập kho, ghi lỗ). Giá hoàn mặc định = số tiền khách đã trả cho mỗi đơn vị.', shot: 'sales-return-new' },
       { text: 'Nhập Lý do trả, Phí trả hàng (trừ vào tiền hoàn) nếu có. Bước 3 – Hoàn tiền: chọn Phương thức và Số tiền hoàn ngay, hoặc "Ghi có công nợ, không hoàn tiền" với khách có hồ sơ.' },
       { text: 'Đổi hàng: bấm Đổi hàng, thêm hàng mới vào "Hàng đổi – hóa đơn mới"; phần Chênh lệch cho biết Khách cần trả thêm hay Hoàn lại khách; chọn phương thức rồi bấm Hoàn tất đổi hàng.' },

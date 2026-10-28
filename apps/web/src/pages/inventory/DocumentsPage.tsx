@@ -2,7 +2,7 @@ import { App, Button, DatePicker, Descriptions, Empty, Input, Radio, Select, Spa
 import Table from '../../components/ResponsiveTable';
 import { CheckOutlined, DeleteOutlined, EditOutlined, PlusOutlined, PrinterOutlined, ReloadOutlined, SearchOutlined, StopOutlined } from '@ant-design/icons';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { DocQuery, inventoryApi, useDocument, useDocuments } from '../../api/inventory';
@@ -19,6 +19,9 @@ export default function DocumentsPage() {
   const warehouses = useBranchWarehouses();
   const branchId = useAuthStore((s) => s.currentBranchId);
   const [q, setQ] = useState<DocQuery>({ page: 1, pageSize: 20, search: sp.get('search') ?? undefined, type: sp.get('type') ?? undefined });
+  // menu "Xuất hủy" ↔ "Phiếu kho": cùng trang, lọc theo ?type
+  const urlType = sp.get('type') ?? undefined;
+  useEffect(() => { setQ((x) => (x.type === urlType ? x : { ...x, type: urlType, page: 1 })); }, [urlType]);
   const [searchText, setSearchText] = useState(q.search ?? '');
   const { data, isLoading, isFetching, error, refetch } = useDocuments({ ...q, branchId: branchId ?? undefined });
   const set = (patch: Partial<DocQuery>) => setQ((s) => ({ ...s, ...patch, page: patch.page ?? 1 }));
@@ -32,14 +35,16 @@ export default function DocumentsPage() {
         <FilterCard title="Thời gian"><DatePicker.RangePicker size="small" style={{ width: '100%' }} format="DD/MM/YYYY" onChange={(r) => set({ from: r?.[0]?.startOf('day').toISOString(), to: r?.[1]?.endOf('day').toISOString() })} /></FilterCard>
       </FilterPanel>
       <div className="kv-main">
-        <h1 className="kv-page-title">Phiếu kho (Nhập / Xuất / Điều chỉnh)</h1>
+        <h1 className="kv-page-title">{q.type === 'ISSUE' ? 'Xuất hủy / Xuất dùng nội bộ' : 'Phiếu kho (xuất hủy, điều chỉnh, nhập khác)'}</h1>
         <div className="kv-toolbar">
           <Input.Search className="kv-search" allowClear placeholder="Theo mã phiếu, mã/tên hàng, ghi chú" value={searchText} onChange={(e) => setSearchText(e.target.value)} onSearch={(v) => set({ search: v || undefined })} enterButton={<SearchOutlined />} />
           <span className="spacer" />
+          {/* như KiotViet: nhập hàng từ nhà cung cấp là phiếu Nhập hàng (Mua hàng); phiếu kho chỉ còn xuất hủy / điều chỉnh / nhập khác */}
+          {can('purchase.receipt.create') && <Button type="primary" icon={<PlusOutlined />} onClick={() => nav('/purchase-receipts/new')}>Nhập hàng (NCC)</Button>}
           {can('inventory.document.create') && <Space.Compact>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => nav('/inventory/documents/new?type=RECEIPT')}>Nhập kho</Button>
-            <Button icon={<PlusOutlined />} onClick={() => nav('/inventory/documents/new?type=ISSUE')}>Xuất kho</Button>
+            <Button icon={<PlusOutlined />} onClick={() => nav('/inventory/documents/new?type=ISSUE')}>Xuất hủy</Button>
             <Button icon={<PlusOutlined />} onClick={() => nav('/inventory/documents/new?type=ADJUSTMENT')}>Điều chỉnh</Button>
+            <Button icon={<PlusOutlined />} onClick={() => nav('/inventory/documents/new?type=RECEIPT')}>Nhập khác</Button>
           </Space.Compact>}
           <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isFetching} />
         </div>

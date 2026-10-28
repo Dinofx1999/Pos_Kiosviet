@@ -27,7 +27,7 @@ export const NHAN_VIEN: Guide[] = [
     perms: ['Mọi nhân viên tự chấm công của mình', 'Hồ sơ nhân viên, quy tắc hoa hồng, sửa chấm công (employee.manage) để sửa giờ / thêm lượt'],
     keywords: ['attendance', 'timesheet', 'giờ công', 'GPS', 'check in', 'check out'],
     steps: [
-      { text: 'Vào Nhân viên → Chấm công (điện thoại: Thêm → Chấm công). Chọn Chi nhánh, bật "Gửi kèm vị trí (GPS) khi chấm công" nếu cửa hàng yêu cầu.', shot: 'attendance' },
+      { text: 'Vào Nhân viên → Bảng chấm công (điện thoại: Thêm → Chấm công). Chọn Chi nhánh, bật "Gửi kèm vị trí (GPS) khi chấm công" nếu cửa hàng yêu cầu.', shot: 'attendance' },
       { text: 'Bấm CHẤM CÔNG VÀO khi bắt đầu; màn hình hiện "Đang trong ca · vào lúc …". Cuối ca bấm CHẤM CÔNG RA (có thể ghi chú).' },
       { text: 'Tab Của tôi hiện Giờ công tháng này, Lượt tháng này, Trung bình / lượt và Lịch sử chấm công. Quản lý xem tab Toàn bộ nhân viên, biểu đồ Giờ công theo nhân viên.' },
       { text: 'Quản lý bấm Sửa giờ trên một lượt hoặc Thêm lượt (Nhân viên, Chi nhánh, Giờ vào, Giờ ra, Ghi chú) để bổ sung lượt quên chấm.' },
@@ -46,7 +46,7 @@ export const NHAN_VIEN: Guide[] = [
     perms: ['Hồ sơ nhân viên, quy tắc hoa hồng, sửa chấm công (employee.manage) để tạo quy tắc', 'Xem hoa hồng (commission.view)'],
     keywords: ['commission', 'hoa hồng', 'doanh số', 'thưởng', 'ngưỡng doanh thu'],
     steps: [
-      { text: 'Vào Nhân viên → Hoa hồng → tab Quy tắc hoa hồng và bấm Thêm quy tắc.', shot: 'commissions' },
+      { text: 'Vào Nhân viên → Bảng hoa hồng → tab Quy tắc hoa hồng và bấm Thêm quy tắc.', shot: 'commissions' },
       { text: 'Nhập Tên quy tắc, Cơ sở tính (Doanh thu thuần %, Lợi nhuận gộp %, Số lượng bán – tiền / đơn vị), Mức; Phạm vi áp dụng – bỏ trống = tất cả (Nhân viên, Nhóm hàng, Hàng hóa cụ thể); Doanh thu tối thiểu (chỉ hưởng khi đạt ngưỡng trong kỳ), Ưu tiên, Thời gian hiệu lực, Đang áp dụng. Bấm Lưu.', shot: 'commission-rule-new' },
       { text: 'Tab Theo nhân viên: chọn kỳ để xem Hoa hồng kỳ này, Tổng hoa hồng, chi tiết theo nhân viên / theo quy tắc. Nhân viên xem tab Hoa hồng của tôi.' },
       { text: 'Chi trả hoa hồng bằng phiếu chi khác (loại "Lương / hoa hồng") ở Sổ quỹ.' },

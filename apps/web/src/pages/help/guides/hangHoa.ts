@@ -9,7 +9,7 @@ export const HANG_HOA: Guide[] = [
     perms: ['Thêm hàng hóa (product.create)'],
     keywords: ['product', 'sản phẩm', 'mặt hàng', 'ảnh', 'hình ảnh', 'tồn đầu kỳ', 'dịch vụ', 'combo'],
     steps: [
-      { text: 'Vào Hàng hóa → Danh mục (điện thoại: tab Hàng hóa) và bấm Thêm mới.', shot: 'products' },
+      { text: 'Vào Hàng hóa → Danh sách hàng hóa (điện thoại: tab Hàng hóa) và bấm Thêm mới.', shot: 'products' },
       { text: 'Chọn Loại hàng: Hàng hóa (theo dõi tồn), Dịch vụ (không theo dõi tồn) hoặc Combo - đóng gói (gồm nhiều hàng thành phần).', shot: 'product-new', caption: 'Biểu mẫu thêm hàng hóa' },
       { text: 'Nhập Tên hàng, Nhóm hàng, Thương hiệu, Đơn vị tính (Cái, Hộp, Chai…), Giá bán, Giá vốn (khởi tạo), Thuế (%), Tồn tối thiểu / tối đa, Trọng lượng (g). Mã hàng để trống sẽ tự sinh dạng SP000001.' },
       { text: 'Trong Hình ảnh, bấm ô tải lên để thêm nhiều ảnh; di chuột / chạm vào một ảnh và bấm "Đặt đại diện" để chọn ảnh chính.' },
@@ -32,7 +32,7 @@ export const HANG_HOA: Guide[] = [
     perms: ['Quản lý nhóm hàng (category.manage)', 'Quản lý thương hiệu (brand.manage)'],
     keywords: ['category', 'brand', 'danh mục', 'nhóm cha', 'nhóm con'],
     steps: [
-      { text: 'Ở Hàng hóa → Danh mục, cột trái (điện thoại: nút Bộ lọc) có cây Nhóm hàng. Bấm Thêm nhóm, nhập Tên nhóm hàng và Nhóm cha (tùy chọn) rồi Lưu.', shot: 'products' },
+      { text: 'Ở Hàng hóa → Danh sách hàng hóa, cột trái (điện thoại: nút Bộ lọc) có cây Nhóm hàng. Bấm Thêm nhóm, nhập Tên nhóm hàng và Nhóm cha (tùy chọn) rồi Lưu.', shot: 'products' },
       { text: 'Di chuột / chạm vào một nhóm để thấy nút Thêm nhóm con, Sửa, Xóa.' },
       { text: 'Thương hiệu được thêm ngay trong biểu mẫu hàng hóa: ở ô Thương hiệu, gõ tên mới và bấm Thêm thương hiệu.', shot: 'product-new' },
       { text: 'Chọn nhóm trong cây để lọc danh sách; nhóm hàng cũng dùng để lọc báo cáo và làm phạm vi khuyến mãi, hoa hồng.' },
@@ -137,7 +137,7 @@ export const HANG_HOA: Guide[] = [
     perms: ['Tạo / sửa khuyến mãi, phát hành voucher (promotion.manage)'],
     keywords: ['promotion', 'giảm giá', 'tặng', 'mua 2 tặng 1', 'quà tặng', 'cộng dồn'],
     steps: [
-      { text: 'Vào Hàng hóa → Khuyến mãi và bấm Thêm khuyến mãi.', shot: 'promotions' },
+      { text: 'Vào Khách hàng → Khuyến mại / Voucher và bấm Thêm khuyến mãi.', shot: 'promotions' },
       { text: 'Điền Thông tin chung: Tên chương trình, Loại khuyến mãi (Giảm giá hóa đơn theo mức, Tặng hàng theo hóa đơn, Giảm giá hàng hóa, Mua X tặng Y, Voucher), Mô tả, Trạng thái.', shot: 'promotion-new' },
       { text: 'Điền Điều kiện & phần thưởng theo loại: các mức "Hóa đơn từ … giảm … (tối đa …)", hàng được giảm / nhóm hàng, Số lượng mua – Số lượng tặng, Lặp tối đa…' },
       { text: 'Đặt Thời gian & phạm vi áp dụng: Thời gian hiệu lực, Ngày trong tuần, Khung giờ, Chi nhánh (trống = tất cả), Nhóm khách hàng (trống = mọi khách).' },
@@ -178,7 +178,7 @@ export const HANG_HOA: Guide[] = [
     perms: ['Nhập Excel (product.import)', 'Xuất Excel (product.export)'],
     keywords: ['import', 'export', 'xlsx', 'file mẫu', 'hàng loạt'],
     steps: [
-      { text: 'Ở Hàng hóa → Danh mục, bấm Import → Tải file mẫu và điền hàng hóa theo đúng cột (mã hàng, tên, nhóm, thương hiệu, đơn vị, giá bán, giá vốn, mã vạch…).', shot: 'products-import' },
+      { text: 'Ở Hàng hóa → Danh sách hàng hóa, bấm Import → Tải file mẫu và điền hàng hóa theo đúng cột (mã hàng, tên, nhóm, thương hiệu, đơn vị, giá bán, giá vốn, mã vạch…).', shot: 'products-import' },
       { text: 'Bấm Import → Chọn file Excel…, chọn file .xlsx. Hộp "Kết quả import" cho biết số dòng tạo thành công và các dòng lỗi (kèm lý do).' },
       { text: 'Sửa các dòng lỗi trong file rồi nhập lại; dòng trùng Mã hàng sẽ được cập nhật thay vì tạo mới.' },
       { text: 'Bấm Xuất file để tải danh sách hàng hóa hiện tại (theo bộ lọc đang chọn) ra Excel.' },

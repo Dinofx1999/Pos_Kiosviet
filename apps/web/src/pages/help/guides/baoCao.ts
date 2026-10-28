@@ -9,7 +9,7 @@ export const BAO_CAO: Guide[] = [
     perms: ['Xem báo cáo doanh thu (sales.report.view)'],
     keywords: ['sales report', 'doanh thu', 'lợi nhuận gộp', 'theo nhân viên', 'theo chi nhánh', 'phương thức'],
     steps: [
-      { text: 'Vào Báo cáo → Doanh thu. Chọn kỳ (Hôm nay, Tuần này, Tháng này, Tháng trước, Quý này, Năm nay hoặc tự chọn) và Chi nhánh.', shot: 'reports-sales' },
+      { text: 'Vào Phân tích → Doanh thu bán hàng. Chọn kỳ (Hôm nay, Tuần này, Tháng này, Tháng trước, Quý này, Năm nay hoặc tự chọn) và Chi nhánh.', shot: 'reports-sales' },
       { text: 'Các thẻ tổng: Doanh thu, Giảm giá, Giá vốn, Lợi nhuận gộp, Đã thu, Còn nợ, Hóa đơn.' },
       { text: 'Bấm Xuất Excel để tải doanh thu theo ngày, theo nhân viên và theo hàng hóa của kỳ đang chọn.' },
       { text: 'Chuyển Theo ngày / Theo tháng để xem biểu đồ Doanh thu theo kỳ; các bảng Theo chi nhánh, Theo nhân viên bán, Theo phương thức thanh toán, Hàng bán chạy.' },
@@ -26,7 +26,7 @@ export const BAO_CAO: Guide[] = [
     perms: ['Xem báo cáo lãi lỗ (report.profit.view)'],
     keywords: ['profit', 'P&L', 'lợi nhuận ròng', 'chi phí', 'thất thoát', 'hàng hỏng', 'doanh thu thuần'],
     steps: [
-      { text: 'Vào Báo cáo → Lãi lỗ, chọn kỳ và Chi nhánh.', shot: 'reports-profit' },
+      { text: 'Vào Phân tích → Lãi lỗ, chọn kỳ và Chi nhánh.', shot: 'reports-profit' },
       { text: 'Đọc "Báo cáo kết quả kinh doanh": Doanh thu bán hàng − Trả hàng = Doanh thu thuần; − Giá vốn hàng bán = Lợi nhuận gộp; + Thu nhập khác − Chi phí khác − Thất thoát / hàng hỏng (hàng hỏng khi khách trả, thiếu hụt khi chuyển kho, chênh lệch kiểm kho) − Chi phí giao hàng = Lợi nhuận ròng.' },
       { text: 'Bảng Theo kỳ (Theo ngày / Theo tháng) – chạm vào một cột để xem chi tiết; Chi phí theo loại và Thu khác theo loại lấy từ phiếu thu / chi khác.' },
       { text: 'Bấm Xuất Excel để lưu báo cáo.' },
@@ -45,7 +45,7 @@ export const BAO_CAO: Guide[] = [
     perms: ['Xem báo cáo doanh thu (sales.report.view)'],
     keywords: ['top products', 'best seller', 'bán chậm', 'tỷ suất'],
     steps: [
-      { text: 'Vào Báo cáo → Hàng bán chạy / chậm, chọn kỳ, Chi nhánh, Nhóm hàng.', shot: 'reports-products' },
+      { text: 'Vào Phân tích → Hàng bán chạy / chậm, chọn kỳ, Chi nhánh, Nhóm hàng.', shot: 'reports-products' },
       { text: 'Chọn Bán chạy nhất hoặc Bán chậm nhất và tiêu chí Doanh thu / Số lượng / Lợi nhuận.' },
       { text: 'Bảng gồm SL bán, SL trả, Doanh thu, Giá vốn, Lợi nhuận, Tỷ suất, HĐ; gõ mã / tên hàng để tìm. Bấm Xuất Excel nếu cần.' },
     ],
@@ -60,7 +60,7 @@ export const BAO_CAO: Guide[] = [
     perms: ['Xem tồn kho (inventory.view)', 'Xem giá trị tồn kho (inventory.cost.view) để thấy giá trị'],
     keywords: ['NXT', 'nhập xuất tồn', 'tồn đầu', 'tồn cuối', 'chốt kho'],
     steps: [
-      { text: 'Vào Báo cáo → Nhập xuất tồn; chọn kỳ, Chi nhánh, Kho hàng, Nhóm hàng.', shot: 'reports-nxt' },
+      { text: 'Vào Phân tích → Nhập xuất tồn; chọn kỳ, Chi nhánh, Kho hàng, Nhóm hàng.', shot: 'reports-nxt' },
       { text: 'Thẻ tổng: Tồn đầu kỳ, Nhập trong kỳ, Xuất trong kỳ, Tồn cuối kỳ. Bảng chi tiết từng hàng: Tồn đầu, Nhập, Xuất, Tồn cuối và giá trị tương ứng.' },
       { text: 'Tắt "Ẩn hàng không biến động" để xem cả hàng không phát sinh. Bấm Xuất Excel để lưu.' },
     ],
@@ -75,7 +75,7 @@ export const BAO_CAO: Guide[] = [
     perms: ['Xem tồn kho (inventory.view)'],
     keywords: ['slow movers', 'tồn lâu', 'ế', 'không bán', 'chết vốn'],
     steps: [
-      { text: 'Vào Báo cáo → Hàng tồn lâu; chọn số ngày "Không bán kể từ" (mặc định 30), Chi nhánh, Kho hàng, Nhóm hàng.', shot: 'reports-slow-movers' },
+      { text: 'Vào Phân tích → Hàng tồn lâu; chọn số ngày "Không bán kể từ" (mặc định 30), Chi nhánh, Kho hàng, Nhóm hàng.', shot: 'reports-slow-movers' },
       { text: 'Danh sách hiện Tồn kho, Giá vốn, Giá trị tồn, Bán lần cuối, Nhập lần cuối; hàng chưa bán lần nào được xếp trước, rồi theo giá trị tồn giảm dần.' },
       { text: 'Dùng danh sách này để tạo Khuyến mãi (giảm giá hàng / nhóm hàng) hoặc lập phiếu Trả hàng nhập.' },
     ],
@@ -90,7 +90,7 @@ export const BAO_CAO: Guide[] = [
     perms: ['Xem giá trị tồn kho (inventory.cost.view)'],
     keywords: ['valuation', 'giá trị vốn', 'vốn tồn', 'lãi tiềm năng', 'tỷ trọng'],
     steps: [
-      { text: 'Vào Báo cáo → Giá trị tồn kho; chọn Chi nhánh, Kho hàng và cách nhóm (nhóm hàng / kho / thương hiệu).', shot: 'reports-valuation' },
+      { text: 'Vào Phân tích → Giá trị tồn kho; chọn Chi nhánh, Kho hàng và cách nhóm (nhóm hàng / kho / thương hiệu).', shot: 'reports-valuation' },
       { text: 'Thẻ tổng: Số SKU có tồn, Số lượng tồn, Giá trị vốn, Giá trị bán, Lãi tiềm năng. Bảng chi tiết có Tỷ trọng và Tỷ suất.' },
       { text: 'Bấm Xuất Excel để lưu.' },
     ],
@@ -105,8 +105,8 @@ export const BAO_CAO: Guide[] = [
     perms: ['Xem công nợ khách hàng (customer.debt.view)', 'Xem công nợ nhà cung cấp (supplier.debt.view)'],
     keywords: ['debt report', 'phải thu', 'phải trả', 'công nợ'],
     steps: [
-      { text: 'Báo cáo → Công nợ khách hàng: Tổng khách đang nợ; từng khách với Đã mua, Đã trả, Nợ hiện tại, Hạn mức, Số HĐ; nút Thu nợ ngay trên dòng.', shot: 'reports-customer-debt' },
-      { text: 'Báo cáo → Công nợ NCC: Tổng nợ phải trả, NCC đang có công nợ và NCC đang nợ lại (trả trước / dư); nút Thanh toán trên dòng.', shot: 'reports-supplier-debt' },
+      { text: 'Phân tích → Công nợ khách hàng: Tổng khách đang nợ; từng khách với Đã mua, Đã trả, Nợ hiện tại, Hạn mức, Số HĐ; nút Thu nợ ngay trên dòng.', shot: 'reports-customer-debt' },
+      { text: 'Phân tích → Công nợ nhà cung cấp: Tổng nợ phải trả, NCC đang có công nợ và NCC đang nợ lại (trả trước / dư); nút Thanh toán trên dòng.', shot: 'reports-supplier-debt' },
       { text: 'Bấm vào tên đối tác để xem sổ công nợ chi tiết trong hồ sơ khách hàng / nhà cung cấp.' },
       { text: 'Nút Xuất Excel ở đầu mỗi báo cáo tải danh sách công nợ hiện tại.' },
     ],
@@ -121,7 +121,7 @@ export const BAO_CAO: Guide[] = [
     perms: ['Xem báo cáo mua hàng (purchase.report.view)'],
     keywords: ['purchasing report', 'mua hàng', 'nhập hàng', 'theo NCC'],
     steps: [
-      { text: 'Vào Báo cáo → Mua hàng; chọn kỳ (7 ngày, 30 ngày, Tháng này, Năm nay…), Chi nhánh, Nhà cung cấp.', shot: 'reports-purchasing' },
+      { text: 'Vào Phân tích → Mua hàng; chọn kỳ (7 ngày, 30 ngày, Tháng này, Năm nay…), Chi nhánh, Nhà cung cấp.', shot: 'reports-purchasing' },
       { text: 'Thẻ tổng: Tổng mua hàng, Số phiếu nhập, Trả lại NCC, Đã chi trả NCC, NCC hoàn tiền. Biểu đồ Mua / Trả lại theo ngày hoặc tháng.' },
       { text: 'Bảng Theo nhà cung cấp (Đã mua, Trả lại, Đã trả tiền, Còn nợ theo phiếu) và Hàng mua nhiều nhất.' },
     ],
@@ -135,7 +135,7 @@ export const BAO_CAO: Guide[] = [
     perms: ['Xem báo cáo lãi lỗ (report.profit.view)'],
     keywords: ['VAT', 'tax', 'thuế suất', 'đầu ra', 'đầu vào', 'kê khai'],
     steps: [
-      { text: 'Vào Báo cáo → Thuế GTGT, chọn kỳ và Chi nhánh.', shot: 'reports-tax' },
+      { text: 'Vào Phân tích → Thuế GTGT, chọn kỳ và Chi nhánh.', shot: 'reports-tax' },
       { text: 'Bảng "Thuế GTGT đầu ra (bán hàng)" tổng hợp theo từng Thuế suất: Giá trị chịu thuế và Tiền thuế từ dòng hóa đơn hoàn thành (đã trừ giảm giá / khuyến mãi cấp hóa đơn). Bảng "Thuế GTGT đầu vào (mua hàng)" lấy từ dòng phiếu nhập đã hoàn thành.' },
       { text: 'Khối "Xác định số thuế" = Thuế đầu ra − Thuế GTGT đầu vào được khấu trừ (số phải nộp tham khảo); khối "Trả hàng trong kỳ" cho Số phiếu trả hoàn thành và Tiền hoàn cho khách để kế toán điều chỉnh.' },
     ],
@@ -155,7 +155,7 @@ export const BAO_CAO: Guide[] = [
     steps: [
       { text: 'Mở báo cáo có nút Xuất Excel: Lãi lỗ, Nhập xuất tồn, Hàng tồn lâu, Giá trị tồn kho, Hàng bán chạy / chậm; chọn kỳ và bộ lọc như khi xem.', shot: 'reports-profit' },
       { text: 'Bấm Xuất Excel; file .xlsx được tải về máy với dòng tổng và định dạng số.' },
-      { text: 'Danh mục hàng hóa xuất ở Hàng hóa → Danh mục → Xuất file. Các báo cáo Doanh thu, Công nợ, Mua hàng, Thuế GTGT hiện xem trên màn hình (chưa có nút xuất).' },
+      { text: 'Danh mục hàng hóa xuất ở Hàng hóa → Danh sách hàng hóa → Xuất file. Các báo cáo Doanh thu, Công nợ, Mua hàng, Thuế GTGT hiện xem trên màn hình (chưa có nút xuất).' },
     ],
     notes: ['File xuất dùng đúng bộ tính với màn hình đang xem và theo quyền của người xuất.'],
     related: ['bao-cao-doanh-thu', 'bao-cao-lai-lo', 'nhap-excel-hang-hoa'],

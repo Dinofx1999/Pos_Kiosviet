@@ -9,7 +9,7 @@ export const KHO: Guide[] = [
     perms: ['Tạo / sửa phiếu kho (inventory.document.create)', 'Ghi sổ phiếu kho (inventory.document.post)'],
     keywords: ['receipt', 'nhập kho', 'tồn đầu', 'NK', 'phiếu nhập kho', 'ghi sổ'],
     steps: [
-      { text: 'Vào Hàng hóa → + Nhập kho khác (hoặc Hàng hóa → Nhập / Xuất / Điều chỉnh kho rồi bấm Nhập kho).', shot: 'inventory-receipt-new' },
+      { text: 'Vào Hàng hóa → Phiếu kho → Nhập khác (hoặc Hàng hóa → Phiếu kho (nhập khác, điều chỉnh) rồi bấm Nhập kho).', shot: 'inventory-receipt-new' },
       { text: 'Kiểm tra Chi nhánh và Kho ở "Thông tin phiếu"; chọn Lý do: Tồn đầu kỳ, Nhập lại kho, Nhập khác; thêm Ghi chú nếu cần.' },
       { text: 'Gõ vào ô Tìm hàng (F3) hoặc quét mã vạch để thêm dòng; nhập Số lượng và Đơn giá nhập (giá vốn) cho từng dòng. Hàng theo lô phải chọn Lô (có thể bấm "Thêm lô mới" với Số lô, Hạn sử dụng).' },
       { text: 'Bấm Lưu tạm (F9) để giữ phiếu nháp, hoặc Hoàn thành – ghi sổ (F10) để cộng tồn ngay.' },
@@ -30,7 +30,7 @@ export const KHO: Guide[] = [
     perms: ['Tạo / sửa phiếu kho (inventory.document.create)', 'Ghi sổ phiếu kho (inventory.document.post)'],
     keywords: ['issue', 'xuất hủy', 'hàng hỏng', 'hết hạn', 'thất thoát', 'XK'],
     steps: [
-      { text: 'Vào Hàng hóa → + Xuất kho / Xuất hủy.', shot: 'inventory-issue-new' },
+      { text: 'Vào Hàng hóa → Xuất hủy / Xuất dùng nội bộ.', shot: 'inventory-issue-new' },
       { text: 'Chọn Kho và Lý do: Xuất hủy (hàng hỏng, hết hạn), Sử dụng nội bộ, Thất thoát, Khác.' },
       { text: 'Thêm hàng bằng ô Tìm hàng / quét mã vạch, nhập Số lượng (và chọn Lô nếu hàng theo lô). Cột Tồn hiện tại giúp bạn không xuất quá tồn.' },
       { text: 'Bấm Hoàn thành – ghi sổ (F10). Giá trị xuất tính theo giá vốn bình quân hiện tại và được tính là thất thoát trong báo cáo Lãi lỗ.' },
@@ -49,7 +49,7 @@ export const KHO: Guide[] = [
     perms: ['Tạo / sửa phiếu kho (inventory.document.create)', 'Ghi sổ phiếu kho (inventory.document.post)'],
     keywords: ['adjustment', 'điều chỉnh', 'chênh lệch', 'lệch tồn', 'DC'],
     steps: [
-      { text: 'Vào Hàng hóa → + Điều chỉnh tồn.', shot: 'inventory-adjust-new' },
+      { text: 'Vào Hàng hóa → Phiếu kho → Điều chỉnh.', shot: 'inventory-adjust-new' },
       { text: 'Chọn Kho, Lý do (Kiểm đếm thực tế / Khác), thêm hàng cần điều chỉnh.' },
       { text: 'Nhập cột Thực tế cho từng dòng; cột Chênh lệch tự tính so với Tồn hiện tại (tăng xanh, giảm đỏ). Với dòng tăng có thể nhập Giá vốn cho phần tăng.' },
       { text: 'Bấm Hoàn thành – ghi sổ (F10). Chênh lệch được tính lại tại thời điểm ghi sổ so với tồn lúc đó.' },
@@ -68,10 +68,10 @@ export const KHO: Guide[] = [
     perms: ['Xem tồn kho (inventory.view)', 'Xem giá trị tồn kho (inventory.cost.view) để thấy giá vốn / giá trị'],
     keywords: ['balance', 'stock', 'tồn', 'khả dụng', 'đã giữ', 'định mức', 'tồn min'],
     steps: [
-      { text: 'Vào Báo cáo → Tồn kho. Chọn Kho hàng, Nhóm hàng; gõ mã / tên / mã vạch để tìm.', shot: 'inventory-balances' },
+      { text: 'Vào Phân tích → Tồn kho. Chọn Kho hàng, Nhóm hàng; gõ mã / tên / mã vạch để tìm.', shot: 'inventory-balances' },
       { text: 'Đọc các cột: Tồn kho (đang có), Đã giữ (đơn đặt hàng đã xác nhận), Khả dụng = Tồn − Đã giữ, Tồn min, Giá vốn, Giá trị tồn, Lô.' },
       { text: 'Bật "Chỉ hàng dưới định mức" để xem hàng cần đặt thêm; bật "Ẩn dòng tồn bằng 0" cho gọn.' },
-      { text: 'Ở Hàng hóa → Danh mục, bộ lọc Tồn kho có các mục Còn hàng, Hết hàng, Dưới định mức tồn, Vượt định mức tồn; bấm vào một mặt hàng → tab Tồn kho để xem theo từng kho.' },
+      { text: 'Ở Hàng hóa → Danh sách hàng hóa, bộ lọc Tồn kho có các mục Còn hàng, Hết hàng, Dưới định mức tồn, Vượt định mức tồn; bấm vào một mặt hàng → tab Tồn kho để xem theo từng kho.' },
     ],
     notes: [
       'Tồn kho do sổ kho (các bút toán) quyết định; mỗi thay đổi tồn đều đến từ một chứng từ – không có chỗ gõ sửa tồn trực tiếp.',
@@ -87,7 +87,7 @@ export const KHO: Guide[] = [
     perms: ['Xem thẻ kho / lịch sử (inventory.movement.view)'],
     keywords: ['movement', 'ledger', 'lịch sử', 'thẻ kho', 'bút toán', 'tồn sau'],
     steps: [
-      { text: 'Vào Báo cáo → Thẻ kho / Lịch sử. Lọc theo Kho hàng, Loại giao dịch, Thời gian; gõ mã chứng từ hoặc mã / tên hàng.', shot: 'inventory-movements' },
+      { text: 'Vào Phân tích → Thẻ kho. Lọc theo Kho hàng, Loại giao dịch, Thời gian; gõ mã chứng từ hoặc mã / tên hàng.', shot: 'inventory-movements' },
       { text: 'Mỗi dòng là một bút toán: Thời gian, Chứng từ, Loại (Nhập, Xuất, Bán hàng, Điều chỉnh, Chuyển kho, Trả hàng, Đảo…), Số lượng (+/−), Giá vốn, Giá trị và Tồn sau GD.' },
       { text: 'Bật "Theo chứng từ" để gom các dòng theo từng phiếu. Từ hồ sơ hàng hóa hay chi tiết phiếu kho, nút Xem thẻ kho mở sẵn bộ lọc tương ứng.' },
     ],
@@ -102,7 +102,7 @@ export const KHO: Guide[] = [
     perms: ['Tạo / sửa phiếu chuyển kho (transfer.create)', 'Xuất chuyển kho (transfer.dispatch)'],
     keywords: ['transfer', 'điều chuyển', 'chuyển hàng', 'CH', 'đang chuyển', 'kho gửi', 'kho nhận'],
     steps: [
-      { text: 'Vào Hàng hóa → Chuyển kho (hoặc Giao dịch → Chuyển hàng) và bấm nút "+ Chuyển kho".', shot: 'transfers' },
+      { text: 'Vào Hàng hóa → Chuyển hàng (hoặc Hàng hóa → Chuyển hàng) và bấm nút "+ Chuyển kho".', shot: 'transfers' },
       { text: 'Chọn Kho gửi (thuộc chi nhánh bạn được cấp) và Kho nhận (phải khác kho gửi, có thể ở chi nhánh khác); ghi chú phiếu nếu cần.', shot: 'transfer-new' },
       { text: 'Thêm hàng bằng ô "Tìm hàng để chuyển theo mã, tên hoặc quét mã vạch (F3)", nhập SL chuyển; cột Tồn kho gửi cảnh báo khi vượt tồn. Hàng theo lô phải chọn Lô.' },
       { text: 'Bấm Lưu tạm để chờ, hoặc Xuất chuyển ngay (F10): hàng rời kho gửi, phiếu sang trạng thái Đang chuyển và kho nhận thấy số lượng đang về.' },
@@ -123,7 +123,7 @@ export const KHO: Guide[] = [
     perms: ['Nhận hàng chuyển kho (transfer.receive)'],
     keywords: ['receive', 'nhận hàng', 'thiếu', 'thất thoát', 'trả về kho nguồn', 'đang chuyển'],
     steps: [
-      { text: 'Vào Hàng hóa → Chuyển kho, lọc Nhận về, mở phiếu Đang chuyển gửi tới kho của bạn.', shot: 'transfers' },
+      { text: 'Vào Hàng hóa → Chuyển hàng, lọc Nhận về, mở phiếu Đang chuyển gửi tới kho của bạn.', shot: 'transfers' },
       { text: 'Trong thẻ "Xác nhận nhận hàng", nhập SL nhận cho từng dòng (0 ≤ nhận ≤ gửi) hoặc bấm Nhận đủ tất cả.', shot: 'transfer-detail', caption: 'Chi tiết phiếu chuyển kho sau khi nhận' },
       { text: 'Nếu có Phần thiếu, chọn cách xử lý: Ghi nhận thất thoát (hàng thiếu coi như mất, giá trị ghi là thất thoát) hoặc Trả về kho nguồn (phần thiếu nhập lại kho gửi theo giá vốn lúc xuất). Ghi chú nhận (vd "vỡ 2 hộp").' },
       { text: 'Bấm Xác nhận nhận hàng. Kho nhận được cộng tồn theo giá vốn đã gửi; phiếu chuyển sang Đã nhận và hiện Kết quả nhận.' },
@@ -163,7 +163,7 @@ export const KHO: Guide[] = [
     perms: ['Hủy phiếu kho (inventory.document.cancel)'],
     keywords: ['cancel', 'reversal', 'ghi đảo', 'sai phiếu', 'sửa phiếu'],
     steps: [
-      { text: 'Vào Hàng hóa → Nhập / Xuất / Điều chỉnh kho, bấm vào phiếu cần hủy để mở chi tiết.', shot: 'inventory-document-detail' },
+      { text: 'Vào Hàng hóa → Phiếu kho (nhập khác, điều chỉnh), bấm vào phiếu cần hủy để mở chi tiết.', shot: 'inventory-document-detail' },
       { text: 'Bấm Hủy phiếu, nhập Lý do hủy (bắt buộc) và xác nhận. Hệ thống ghi bút toán đảo toàn bộ số lượng của phiếu.' },
       { text: 'Lập lại phiếu đúng (hoặc phiếu điều chỉnh) nếu cần.' },
     ],

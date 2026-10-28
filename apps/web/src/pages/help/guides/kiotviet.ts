@@ -30,10 +30,10 @@ export const KIOTVIET: Guide[] = [
     perms: ['Thao tác trên tài khoản KiotViet của cửa hàng'],
     keywords: ['export KiotViet', 'xuất file', 'xlsx', 'tồn kho theo chi nhánh', 'nợ cần thu'],
     steps: [
-      { text: 'Hàng hóa: trong KiotViet vào Hàng hóa → Danh mục, bấm Xuất file. Chọn "Xuất file theo chi nhánh" nếu muốn tồn kho từng chi nhánh (file có nhiều cột "Tồn kho (<chi nhánh>)").' },
+      { text: 'Hàng hóa: trong KiotViet vào Hàng hóa → Danh sách hàng hóa, bấm Xuất file. Chọn "Xuất file theo chi nhánh" nếu muốn tồn kho từng chi nhánh (file có nhiều cột "Tồn kho (<chi nhánh>)").' },
       { text: 'Khách hàng: vào Khách hàng, bấm Xuất file. Cột "Nợ cần thu hiện tại" sẽ thành công nợ đầu kỳ.' },
-      { text: 'Nhà cung cấp: vào Đối tác → Nhà cung cấp, bấm Xuất file. Cột "Nợ cần trả hiện tại" thành công nợ đầu kỳ.' },
-      { text: 'Hóa đơn: vào Giao dịch → Hóa đơn, chọn khoảng thời gian rồi bấm Xuất file (chọn "Xuất file chi tiết" để có dòng hàng hóa).' },
+      { text: 'Nhà cung cấp: vào Mua hàng → Nhà cung cấp, bấm Xuất file. Cột "Nợ cần trả hiện tại" thành công nợ đầu kỳ.' },
+      { text: 'Hóa đơn: vào Đơn hàng → Hóa đơn, chọn khoảng thời gian rồi bấm Xuất file (chọn "Xuất file chi tiết" để có dòng hàng hóa).' },
       { text: 'Giữ nguyên dòng tiêu đề của file (.xlsx, tối đa 50 MB) rồi sang bước Nhập từ Excel KiotViet.', shot: 'integrations-excel' },
     ],
     notes: ['Hệ thống nhận diện cột theo tiêu đề tiếng Việt (không phân biệt hoa thường / dấu); nếu KiotViet đổi tên cột, bạn vẫn ánh xạ tay được ở bước Kiểm tra cột.'],

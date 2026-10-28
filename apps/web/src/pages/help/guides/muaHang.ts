@@ -9,7 +9,7 @@ export const MUA_HANG: Guide[] = [
     perms: ['Thêm / sửa nhà cung cấp (supplier.manage)'],
     keywords: ['supplier', 'NCC', 'nhà cung cấp', 'đối tác', 'nợ đầu kỳ'],
     steps: [
-      { text: 'Vào Đối tác → Nhà cung cấp và bấm Thêm mới.', shot: 'suppliers' },
+      { text: 'Vào Mua hàng → Nhà cung cấp và bấm Thêm mới.', shot: 'suppliers' },
       { text: 'Nhập Tên, Điện thoại, Email, Địa chỉ, Mã số thuế, Người liên hệ, Nhóm, Ghi chú. Mã NCC để trống sẽ tự sinh (NCC000001).', shot: 'supplier-new' },
       { text: 'Nếu đang nợ nhà cung cấp này từ trước, nhập công nợ đầu kỳ (ghi thành bút toán đầu kỳ trong sổ công nợ). Bấm Lưu.' },
       { text: 'Bấm vào một nhà cung cấp để xem các tab Thông tin, Lịch sử mua hàng, Công nợ; các nút Cập nhật, Ngừng giao dịch, Thanh toán, + Nhập hàng từ NCC này.' },
@@ -25,7 +25,7 @@ export const MUA_HANG: Guide[] = [
     perms: ['Tạo / sửa đơn đặt hàng nhập (purchase.order.create)', 'Xác nhận đơn đặt hàng nhập (purchase.order.confirm)'],
     keywords: ['purchase order', 'PDN', 'đơn mua', 'nhập một phần', 'dự kiến nhận'],
     steps: [
-      { text: 'Vào Giao dịch → Đặt hàng nhập và bấm nút "+ Đặt hàng nhập".', shot: 'purchase-orders' },
+      { text: 'Vào Mua hàng → Đặt hàng nhập và bấm nút "+ Đặt hàng nhập".', shot: 'purchase-orders' },
       { text: 'Chọn Nhà cung cấp, Chi nhánh, Kho nhận, Ngày dự kiến nhận; thêm hàng bằng ô tìm / quét mã, nhập Số lượng, Đơn giá, CK dòng, Thuế %; có thể nhập Chiết khấu đơn.', shot: 'purchase-order-new' },
       { text: 'Bấm Lưu tạm (F9) hoặc Lưu & xác nhận (F10). Đơn đã xác nhận mới nhận hàng được.' },
       { text: 'Khi hàng về: mở đơn → Nhập hàng từ đơn. Phiếu nhập được điền sẵn số còn lại; sửa số lượng nếu về thiếu rồi Hoàn thành. Đơn chuyển sang Nhập một phần / Đã nhận đủ.' },
@@ -44,7 +44,7 @@ export const MUA_HANG: Guide[] = [
     perms: ['Tạo / sửa phiếu nhập hàng (purchase.receipt.create)', 'Hoàn thành (ghi sổ) phiếu nhập hàng (purchase.receipt.post)', 'Lập phiếu thu / chi (payment.create) nếu thanh toán ngay'],
     keywords: ['PN', 'phiếu nhập', 'nhập hàng', 'chi phí nhập', 'vận chuyển', 'thanh toán NCC', 'công nợ'],
     steps: [
-      { text: 'Vào Giao dịch → Nhập hàng và bấm nút "+ Nhập hàng" (hoặc từ hồ sơ NCC bấm "+ Nhập hàng từ NCC này").', shot: 'purchase-receipts' },
+      { text: 'Vào Mua hàng → Nhập hàng và bấm nút "+ Nhập hàng" (hoặc từ hồ sơ NCC bấm "+ Nhập hàng từ NCC này").', shot: 'purchase-receipts' },
       { text: 'Chọn Nhà cung cấp, Chi nhánh / Kho nhập, Ngày nhập, Số HĐ NCC (nếu có); nếu nhập theo đơn, chọn PDN.', shot: 'purchase-receipt-new' },
       { text: 'Thêm hàng bằng ô tìm / quét mã vạch; nhập Số lượng, Đơn giá, CK dòng, Thuế %; hàng theo lô chọn Lô / Thêm lô mới (Số lô, Hạn sử dụng).' },
       { text: 'Nhập Chiết khấu phiếu và Chi phí nhập hàng (bấm Thêm chi phí: Khoản chi phí, Số tiền, Trả cho NCC hay không, Phân bổ Theo giá trị / Theo số lượng). Chi phí được cộng vào giá vốn.' },
@@ -66,7 +66,7 @@ export const MUA_HANG: Guide[] = [
     perms: ['Tạo / sửa phiếu trả hàng nhập (purchase.return.create)', 'Hoàn thành phiếu trả hàng nhập (purchase.return.post)'],
     keywords: ['THN', 'trả hàng nhập', 'hoàn tiền NCC', 'hàng lỗi'],
     steps: [
-      { text: 'Vào Giao dịch → Trả hàng nhập và bấm "Chọn phiếu nhập để trả hàng" – danh sách phiếu nhập đã hoàn thành hiện ra; mở phiếu nhập cần trả và bấm Trả hàng nhập (hoặc mở thẳng phiếu nhập gốc ở Giao dịch → Nhập hàng).', shot: 'purchase-returns' },
+      { text: 'Vào Mua hàng → Trả hàng nhập và bấm "Chọn phiếu nhập để trả hàng" – danh sách phiếu nhập đã hoàn thành hiện ra; mở phiếu nhập cần trả và bấm Trả hàng nhập (hoặc mở thẳng phiếu nhập gốc ở Mua hàng → Nhập hàng).', shot: 'purchase-returns' },
       { text: 'Phiếu trả hiện các dòng của phiếu nhập: nhập SL trả cho từng dòng – không vượt cột "Còn có thể trả"; Đơn giá trả mặc định là số tiền thực trả NCC cho đơn vị đó.', shot: 'purchase-return-new' },
       { text: 'Ghi Lý do trả, Ngày trả. Nếu "Nhà cung cấp hoàn tiền ngay": chọn Phương thức, Số tiền, Tham chiếu (lập phiếu thu). Không hoàn tiền ngay thì giá trị trả được trừ vào công nợ NCC.' },
       { text: 'Bấm Hoàn thành (F10). Hàng xuất khỏi kho theo giá vốn bình quân; công nợ NCC giảm tương ứng.' },
@@ -85,7 +85,7 @@ export const MUA_HANG: Guide[] = [
     perms: ['Xem công nợ nhà cung cấp (supplier.debt.view)', 'Lập phiếu thu / chi (payment.create)'],
     keywords: ['debt', 'công nợ', 'phải trả', 'phiếu chi', 'trả trước', 'phân bổ'],
     steps: [
-      { text: 'Vào Báo cáo → Công nợ NCC để xem Tổng nợ phải trả, danh sách NCC đang có công nợ (Đã mua, Đã trả, Nợ hiện tại) và NCC đang nợ lại (trả trước / dư).', shot: 'reports-supplier-debt' },
+      { text: 'Vào Phân tích → Công nợ nhà cung cấp để xem Tổng nợ phải trả, danh sách NCC đang có công nợ (Đã mua, Đã trả, Nợ hiện tại) và NCC đang nợ lại (trả trước / dư).', shot: 'reports-supplier-debt' },
       { text: 'Bấm Thanh toán ở dòng NCC (hoặc mở hồ sơ NCC → Thanh toán). Trong phiếu chi: chọn Phương thức, Quỹ tiền (mặc định theo phương thức), Số tiền, Tham chiếu, Ghi chú.' },
       { text: 'Phân bổ số tiền vào các phiếu nhập còn nợ; phần chưa phân bổ là trả trước (vẫn giảm công nợ). Bấm Lưu phiếu.' },
       { text: 'Theo dõi lại ở Sổ quỹ → Phiếu chi hoặc tab Công nợ của nhà cung cấp (sổ công nợ: Phát sinh, Dư nợ sau).', shot: 'payments-out' },

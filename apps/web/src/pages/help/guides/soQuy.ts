@@ -49,7 +49,7 @@ export const SO_QUY: Guide[] = [
     perms: ['Xem sổ quỹ / quỹ tiền (cash.view)'],
     keywords: ['cashbook', 'sổ quỹ', 'tồn quỹ', 'dòng tiền', 'tổng thu', 'tổng chi'],
     steps: [
-      { text: 'Vào Sổ quỹ → Sổ quỹ tổng hợp. Chọn kỳ (Hôm nay, Tuần này, Tháng này, Tháng trước, Tất cả) và Quỹ tiền / tài khoản.', shot: 'cash' },
+      { text: 'Vào Sổ quỹ → Sổ quỹ. Chọn kỳ (Hôm nay, Tuần này, Tháng này, Tháng trước, Tất cả) và Quỹ tiền / tài khoản.', shot: 'cash' },
       { text: 'Bấm Xuất Excel để tải sổ quỹ của quỹ và kỳ đang chọn (có tồn quỹ chạy sau từng phiếu).' },
       { text: 'Đầu trang: Quỹ đầu kỳ, Tổng thu, Tổng chi, Thu − chi, Tồn quỹ cuối kỳ (không tính chuyển quỹ).' },
       { text: 'Tab Sổ quỹ liệt kê từng phiếu theo thời gian với cột Thu, Chi và Tồn quỹ sau phiếu (khi chọn một quỹ cụ thể). Tab Tổng hợp theo quỹ / Theo loại thu chi cho cái nhìn tổng.' },
@@ -84,7 +84,7 @@ export const SO_QUY: Guide[] = [
     perms: ['Cấn trừ công nợ khách hàng ↔ nhà cung cấp (debt.offset)'],
     keywords: ['offset', 'bù trừ', 'cấn trừ', 'đối trừ công nợ'],
     steps: [
-      { text: 'Vào Sổ quỹ → Sổ quỹ tổng hợp và bấm Cấn trừ công nợ.', shot: 'debt-offset' },
+      { text: 'Vào Sổ quỹ → Sổ quỹ và bấm Cấn trừ công nợ.', shot: 'debt-offset' },
       { text: 'Chọn Chi nhánh, Khách hàng (đang nợ cửa hàng) và Nhà cung cấp (cửa hàng đang nợ) – màn hình hiện Khách đang nợ / Đang nợ NCC.' },
       { text: 'Nhập số tiền cấn trừ (không vượt công nợ của một trong hai bên) và Ghi chú; bấm Cấn trừ. Hệ thống tạo cặp phiếu thu KH + phiếu chi NCC cùng số tiền, không qua quỹ.' },
       { text: 'Muốn hủy: mở một trong hai phiếu → Hủy cấn trừ (hủy theo cặp).' },
