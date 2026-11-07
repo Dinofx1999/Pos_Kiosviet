@@ -176,7 +176,21 @@ export class StorefrontService {
   }
 
   // ---------------------------------------------------------------- hàng hóa
+  /** Danh sách hàng tính trên toàn bộ danh mục (≈0,5 s với 4.000+ hàng trên máy 1 CPU) → đệm 30 giây theo cửa hàng + bộ lọc + cấu hình. */
+  private readonly listCache = new Map<string, { at: number; value: unknown }>();
+  private static readonly LIST_TTL_MS = 30_000;
+
   async products(s: Store, q: ShopProductsQueryDto) {
+    const key = JSON.stringify([s.tenantId, q.search ?? '', q.categoryId ?? '', q.sort ?? '', q.page ?? 1, q.pageSize ?? 24, s.cfg]);
+    const hit = this.listCache.get(key);
+    if (hit && Date.now() - hit.at < StorefrontService.LIST_TTL_MS && process.env.NODE_ENV !== 'test') return hit.value as Awaited<ReturnType<StorefrontService['productsUncached']>>;
+    const value = await this.productsUncached(s, q);
+    if (this.listCache.size > 300) for (const [k, v] of this.listCache) if (Date.now() - v.at >= StorefrontService.LIST_TTL_MS || this.listCache.size > 300) this.listCache.delete(k);
+    this.listCache.set(key, { at: Date.now(), value });
+    return value;
+  }
+
+  private async productsUncached(s: Store, q: ShopProductsQueryDto) {
     const { cfg } = s;
     const page = q.page ?? 1;
     const size = q.pageSize ?? 24;
