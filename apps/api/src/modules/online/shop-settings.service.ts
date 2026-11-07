@@ -63,6 +63,10 @@ export class ShopSettingsService {
     if (code) return (await this.prisma.raw.tenant.findUnique({ where: { code }, select: { id: true } }))?.id ?? null;
     const rows = await this.prisma.raw.tenantSetting.findMany({ where: { key: SHOP_SETTING_KEY }, select: { tenantId: true, value: true } });
     const on = rows.filter((r) => normalizeShopConfig(r.value).enabled);
-    return on.length === 1 ? on[0].tenantId : null;
+    if (on.length === 1) return on[0].tenantId;
+    if (on.length > 1) return null;
+    // chưa cửa hàng nào mở web: máy chủ chỉ có một cửa hàng → /shop vẫn nhận ra (hiện trang "tạm nghỉ")
+    const tenants = await this.prisma.raw.tenant.findMany({ where: { status: { in: ['TRIAL', 'ACTIVE'] } }, select: { id: true }, take: 2 });
+    return tenants.length === 1 ? tenants[0].id : null;
   }
 }
