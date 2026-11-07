@@ -5,6 +5,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { PlanBanner } from '../PlanBanner';
 import { useMeQuery, authApi } from '../../api/auth';
 import { useUnmatchedBankCount } from '../../api/bankTransfers';
+import { useOnlineSummary } from '../../api/online';
 import { useIsMobile } from '../../hooks/useMedia';
 import { useAuthStore } from '../../store/auth';
 import { ChangePasswordModal } from '../ChangePasswordModal';
@@ -40,6 +41,8 @@ export default function AppLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
   // SePay: transfers that matched no payment code wait in Sổ quỹ → Giao dịch chuyển khoản
   const { data: unmatchedBank = 0 } = useUnmatchedBankCount(!!me && can('cash.view'));
+  const { data: onlineSummary } = useOnlineSummary(!!me && can('order.view'));
+  const webPending = onlineSummary?.enabled || (onlineSummary?.pendingOrders ?? 0) > 0 ? onlineSummary?.pendingOrders ?? 0 : 0;
 
   // close the mobile menu after navigation
   useEffect(() => { setMenuOpen(false); }, [loc.pathname, loc.search]);
@@ -76,6 +79,13 @@ export default function AppLayout() {
       ]),
       grp('Giao hàng', [can('delivery.view') && L('/deliveries', 'Vận đơn')]),
     ]));
+    list.push(sub('online', webPending > 0 ? <Badge dot offset={[4, 0]} className="kv-menu-dotted">Bán online</Badge> : 'Bán online', [
+      grp('Website bán hàng', [
+        can('online.manage') && L('/online/settings', 'Thiết lập web bán hàng'),
+        can('online.manage') && L('/online/flash-sales', 'Flash Sale'),
+        can('order.view') && { key: '/orders?source=ONLINE', label: <Link to="/orders?source=ONLINE" className="kv-menu-badge">Đơn đặt trên web{webPending > 0 && <Badge count={webPending} size="small" overflowCount={99} />}</Link> },
+      ]),
+    ]));
     list.push(sub('partners', 'Khách hàng', [
       grp('Khách hàng', [can('customer.view') ? L('/customers', 'Khách hàng') : soon('Khách hàng')]),
       grp('Ưu đãi', [can('promotion.view') && L('/promotions', 'Khuyến mại / Voucher')]),
@@ -106,11 +116,13 @@ export default function AppLayout() {
       grp('Tài chính', [can('report.profit.view') && L('/reports/tax', 'Thuế GTGT')]),
     ]));
     return list.filter(Boolean);
-  }, [can, me, unmatchedBank]);
+  }, [can, me, unmatchedBank, webPending]);
 
   const selected = useMemo(() => {
     const p = loc.pathname;
     if (p === '/') return ['/'];
+    if (p === '/orders' && loc.search.includes('source=ONLINE')) return ['/orders?source=ONLINE'];
+    if (p.startsWith('/online/')) return [p];
     if (p.startsWith('/inventory/documents')) return [loc.search.includes('type=ISSUE') ? '/inventory/documents?type=ISSUE' : '/inventory/documents'];
     if (p.startsWith('/payments')) return [`/payments${loc.search.includes('direction=IN') ? '?direction=IN' : loc.search.includes('direction=OUT') ? '?direction=OUT' : ''}`];
     const hit = ['/products', '/price-books', '/inventory/balances', '/inventory/movements', '/settings/users', '/settings/roles', '/suppliers', '/purchase-orders', '/purchase-receipts', '/purchase-returns', '/reports/purchasing', '/reports/supplier-debt', '/reports/sales', '/reports/customer-debt', '/invoices', '/customers', '/shifts', '/sales-returns', '/cash/accounts', '/cash/transfers', '/cash/bank-transactions', '/cash', '/help', '/transfers', '/stocktakes', '/promotions', '/orders', '/deliveries', '/reports/inventory-nxt', '/reports/slow-movers', '/reports/products', '/reports/profit', '/reports/valuation', '/reports/tax', '/integrations', '/employees/attendance', '/employees/commissions', '/employees/performance', '/employees'].find((k) => p.startsWith(k));
@@ -156,7 +168,7 @@ export default function AppLayout() {
         <div style={{ padding: '10px 14px', borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', gap: 10 }}>
           <Avatar icon={<UserOutlined />} /><div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 600 }}>{me?.user.fullName}</div><div className="kv-hint">{me?.user.username}</div></div>
         </div>
-        <Menu mode="inline" items={items} selectedKeys={selected} defaultOpenKeys={['goods', 'buy', 'trans', 'partners']} onClick={() => setMenuOpen(false)} />
+        <Menu mode="inline" items={items} selectedKeys={selected} defaultOpenKeys={['goods', 'buy', 'trans', 'online', 'partners']} onClick={() => setMenuOpen(false)} />
         <div style={{ padding: 12, display: 'grid', gap: 8 }}>
           {(can('tenant.settings.manage') || can('branch.manage') || can('user.manage')) && <Button block icon={<SettingOutlined />} onClick={() => { setMenuOpen(false); nav('/settings'); }}>Thiết lập cửa hàng</Button>}
           <Button block icon={<LockOutlined />} onClick={() => { setMenuOpen(false); setPwdOpen(true); }}>Đổi mật khẩu</Button>

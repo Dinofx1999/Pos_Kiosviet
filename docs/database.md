@@ -97,3 +97,11 @@ inventory_documents 1─n inventory_document_lines ─▶ product_variants
 
 ### import_code_aliases (25/10/2026)
 Mã hàng phụ của hệ thống cũ (`source` = KIOTVIET, `code` viết thường, duy nhất theo gian hàng) → `variant_id` + `product_unit_id` / `unit_name` / `factor`. Ghi khi nhập dòng ĐVT quy đổi của file hàng hóa KiotViet; đọc khi nhập lịch sử hóa đơn. Xóa theo biến thể / gian hàng (cascade).
+
+### online_shop_flash_sale (07/11/2026)
+* `flash_sales` – chương trình Flash Sale của gian hàng: tên, `starts_at` / `ends_at`, `is_active`, ghi chú. Chỉ số (`tenant_id`, `is_active`, `ends_at`).
+* `flash_sale_items` – hàng trong chương trình: `variant_id`, `sale_price`, `quantity_limit` (null = không giới hạn), `per_order_limit`, `sold_quantity` (tăng nguyên tử khi đặt, giảm khi hủy / xóa đơn), `sort_order`; duy nhất (`flash_sale_id`, `variant_id`); xóa theo chương trình / biến thể (cascade).
+* `flash_sale_usages` – suất đã giữ theo đơn (`item_id`, `order_id`, `quantity`, `released_at`) để trả suất đúng một lần khi đơn bị hủy / xóa.
+* `sales_orders.client_ref` – mã chống gửi trùng do web bán hàng sinh mỗi lần đặt; duy nhất (`tenant_id`, `client_ref`).
+* Cấu hình web bán hàng nằm ở `tenant_settings` khóa `online.shop` (JSON, xem BR-180).
+

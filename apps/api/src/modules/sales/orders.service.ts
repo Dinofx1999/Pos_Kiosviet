@@ -137,6 +137,7 @@ export class OrdersService {
       const o = await this.lock(tx, user, id);
       if (o.status !== 'DRAFT') throw Errors.conflict('DOCUMENT_NOT_EDITABLE', 'Chỉ xóa được phiếu tạm (đơn chưa xác nhận); dùng hủy đơn', { status: o.status });
       if (D(o.depositAmount).greaterThan(0)) throw Errors.conflict('ORDER_HAS_DEPOSIT', 'Đơn đã nhận cọc: hãy hủy đơn để hoàn cọc');
+      await this.releaseFlashQuota(tx, id);
       await tx.salesOrder.delete({ where: { id } });
       await this.audit.log(tx, { action: 'order.delete', entityType: 'SalesOrder', entityId: id, entityCode: o.code });
     });
@@ -269,6 +270,7 @@ export class OrdersService {
         for (const pid of Array.from(new Set(posted.map((a) => a.paymentId))).sort()) await this.payments.cancelInTx(tx, user, pid, `Hủy đơn ${o.code}: ${dto.reason}`, { onlyDocument: { type: 'SALES_ORDER', id } });
       }
       if (delivery && delivery.status === 'PENDING') await this.deliveries.setStatusInTx(tx, user, delivery.id, { status: 'CANCELLED', note: `Hủy đơn ${o.code}` });
+      await this.releaseFlashQuota(tx, id);
       await tx.salesOrder.update({ where: { id }, data: { status: 'CANCELLED', cancelledAt: new Date(), cancelledById: user.id, cancelReason: dto.reason, version: { increment: 1 } } });
       await this.audit.log(tx, { action: 'order.cancel', entityType: 'SalesOrder', entityId: id, entityCode: o.code, before: { status: o.status }, after: { status: 'CANCELLED', reason: dto.reason, depositAction: action } });
       await this.outbox.enqueue(tx, { eventType: 'order.cancelled', aggregateType: 'SalesOrder', aggregateId: id, payload: { code: o.code, reason: dto.reason } });
@@ -277,6 +279,13 @@ export class OrdersService {
   }
 
   // ---------------------------------------------------------------- helpers
+  /** BR-184: đơn web bị hủy / xóa → trả lại suất Flash Sale đã giữ cho đơn. */
+  private async releaseFlashQuota(tx: TxClient, orderId: string) {
+    const uses = await tx.flashSaleUsage.findMany({ where: { orderId, releasedAt: null } });
+    for (const u of uses) await tx.$executeRaw`UPDATE flash_sale_items SET sold_quantity = GREATEST(sold_quantity - ${u.quantity}, 0) WHERE id = ${u.itemId}::uuid`;
+    if (uses.length) await tx.flashSaleUsage.updateMany({ where: { id: { in: uses.map((u) => u.id) } }, data: { releasedAt: new Date() } });
+  }
+
   private async lock(tx: TxClient, user: RequestUser, id: string) {
     const rows = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM sales_orders WHERE id = ${id}::uuid AND tenant_id = ${user.tenantId}::uuid FOR UPDATE`;
     if (!rows[0]) throw Errors.notFound('Đơn đặt hàng', id);

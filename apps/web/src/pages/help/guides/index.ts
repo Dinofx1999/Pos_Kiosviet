@@ -4,6 +4,7 @@ import { HANG_HOA } from './hangHoa';
 import { KHO } from './kho';
 import { MUA_HANG } from './muaHang';
 import { BAN_HANG } from './banHang';
+import { BAN_ONLINE } from './banOnline';
 import { KHACH_HANG } from './khachHang';
 import { SO_QUY } from './soQuy';
 import { CHUYEN_KHOAN } from './chuyenKhoan';
@@ -20,6 +21,7 @@ export const SECTIONS: Section[] = [
   { key: 'kho', title: 'Kho', blurb: 'Nhập / xuất / điều chỉnh, tồn kho, thẻ kho, chuyển kho, kiểm kho' },
   { key: 'mua-hang', title: 'Mua hàng', blurb: 'Nhà cung cấp, đặt hàng nhập, nhập hàng, trả hàng nhập, công nợ NCC' },
   { key: 'ban-hang', title: 'Bán hàng', blurb: 'Mở ca, bán tại POS, hóa đơn, đặt hàng & cọc, giao hàng, trả / đổi hàng, đóng ca' },
+  { key: 'ban-online', title: 'Bán online', blurb: 'Web bán hàng cho khách, bật / tắt hiển thị giá, Flash Sale, xử lý đơn đặt trên web' },
   { key: 'khach-hang', title: 'Khách hàng', blurb: 'Hồ sơ khách, nhóm khách, công nợ & thu nợ, điểm tích lũy, sinh nhật' },
   { key: 'so-quy', title: 'Sổ quỹ', blurb: 'Quỹ tiền, phiếu thu / chi, loại thu chi, chuyển quỹ, cấn trừ, kiểm quỹ' },
   { key: 'chuyen-khoan', title: 'Thanh toán chuyển khoản (QR)', blurb: 'Cài SePay, mã VietQR tại quầy, thu nợ & cọc qua QR, giao dịch chưa khớp' },
@@ -29,7 +31,7 @@ export const SECTIONS: Section[] = [
   { key: 'goi-dich-vu', title: 'Gói dịch vụ', blurb: 'Hạn mức, dùng thử, chế độ chỉ đọc khi hết hạn' },
 ];
 
-export const GUIDES: Guide[] = [...BAT_DAU, ...HANG_HOA, ...KHO, ...MUA_HANG, ...BAN_HANG, ...KHACH_HANG, ...SO_QUY, ...CHUYEN_KHOAN, ...NHAN_VIEN, ...BAO_CAO, ...KIOTVIET, ...GOI_DICH_VU];
+export const GUIDES: Guide[] = [...BAT_DAU, ...HANG_HOA, ...KHO, ...MUA_HANG, ...BAN_HANG, ...BAN_ONLINE, ...KHACH_HANG, ...SO_QUY, ...CHUYEN_KHOAN, ...NHAN_VIEN, ...BAO_CAO, ...KIOTVIET, ...GOI_DICH_VU];
 
 const bySlug = new Map(GUIDES.map((g) => [g.slug, g]));
 export const getGuide = (slug: string | undefined) => (slug ? bySlug.get(slug) : undefined);

@@ -6,6 +6,7 @@ export type SectionKey =
   | 'kho'
   | 'mua-hang'
   | 'ban-hang'
+  | 'ban-online'
   | 'khach-hang'
   | 'so-quy'
   | 'chuyen-khoan'

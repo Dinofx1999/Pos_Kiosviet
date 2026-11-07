@@ -29,6 +29,7 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { EmployeesModule } from './modules/employees/employees.module';
 import { PlatformModule } from './modules/platform/platform.module';
+import { OnlineModule } from './modules/online/online.module';
 
 @Module({
   imports: [
@@ -37,7 +38,7 @@ import { PlatformModule } from './modules/platform/platform.module';
     EventEmitterModule.forRoot({ wildcard: true }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 600, skipIf: () => process.env.NODE_ENV === 'test' }]),
     PrismaModule, RedisModule, AuditModule, NumberingModule, OutboxModule, AccessModule,
-    AuthModule, OrgModule, InventoryModule, CatalogModule, DashboardModule, UploadsModule, FinanceModule, PurchasingModule, SalesModule, ReportsModule, IntegrationsModule, EmployeesModule, PlatformModule,
+    AuthModule, OrgModule, InventoryModule, CatalogModule, DashboardModule, UploadsModule, FinanceModule, PurchasingModule, SalesModule, ReportsModule, IntegrationsModule, EmployeesModule, PlatformModule, OnlineModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },

@@ -1,0 +1,46 @@
+/* Bán online: thiết lập web + Flash Sale (quản trị) */
+.ol-page { max-width: 880px; }
+.ol-page.wide { max-width: none; }
+.ol-page .ant-card { margin-bottom: 12px; }
+.ol-alert { margin-bottom: 10px; }
+.ol-status.on { border-color: #b7eb8f; }
+.ol-status-row { display: flex; align-items: center; gap: 12px; }
+.ol-status-icon { font-size: 26px; color: #9ca3af; }
+.ol-status.on .ol-status-icon { color: #52c41a; }
+.ol-status-text { flex: 1; min-width: 0; }
+.ol-status-title { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ol-link { display: flex; gap: 12px; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px dashed #e5e7eb; }
+.ol-link-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.ol-link-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.ol-pending { font-weight: 500; color: #d4380d; }
+.ol-qr { flex-shrink: 0; padding: 0 !important; }
+.ol-toggle { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+.ol-toggle:last-child { border-bottom: 0; }
+.ol-toggle-text { flex: 1; min-width: 0; }
+.ol-toggle-title { font-weight: 500; }
+.ol-sub-link { font-size: 12px; }
+.ol-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.ol-form .ant-form-item { margin-bottom: 12px; }
+.ol-seg { max-width: 100%; overflow-x: auto; }
+/* trình sửa Flash Sale */
+.ol-items-head { display: flex; gap: 8px; align-items: center; margin: 4px 0 10px; flex-wrap: wrap; }
+.ol-items-search { flex: 1; min-width: 240px; }
+.ol-bulk { display: flex; gap: 6px; }
+.ol-items { display: flex; flex-direction: column; gap: 8px; max-height: 52vh; overflow-y: auto; }
+.ol-item { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 10px; background: #fff; }
+.ol-item.bad { border-color: #ffa39e; background: #fff8f7; }
+.ol-item-top { display: flex; gap: 8px; align-items: center; }
+.ol-item-img { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; flex-shrink: 0; background: #f3f4f6; }
+.ol-item-name { flex: 1; min-width: 0; }
+.ol-item-name .nm { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ol-item-fields { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 6px; }
+.ol-item-fields label { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: #6b7280; }
+@media (max-width: 767px) {
+  .ol-grid { grid-template-columns: 1fr; }
+  .ol-item-fields { grid-template-columns: 1fr 1fr; }
+  .ol-link { flex-direction: column-reverse; align-items: stretch; }
+  .ol-qr { align-self: center; }
+  .ol-editor .ant-modal-content { border-radius: 0; min-height: 100dvh; }
+  .ol-items { max-height: none; }
+  .ol-bulk { width: 100%; }
+}

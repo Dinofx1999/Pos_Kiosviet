@@ -370,3 +370,15 @@ Xuất file trong Chrome của chủ cửa hàng (KiotViet "MỸ PHẨM BẢO Â
 
 ### Danh sách dạng thẻ trên điện thoại
 `components/ResponsiveTable` thay `Table` của antd ở 60 màn (trừ giỏ hàng POS đã có giao diện riêng): máy tính giữ nguyên bảng; điện thoại (≤ 767px) mỗi dòng là một thẻ dựng từ chính các cột — tiêu đề (cặp "Mã …"/"Tên …" thì tên làm tiêu đề, mã làm dòng phụ), số tiền bên phải, nhãn trạng thái, ảnh, lưới nhãn/giá trị 3 cột (ẩn ô rỗng), nút thao tác cuối thẻ; chạm thẻ mở chi tiết ngay trong thẻ; phân trang gọn. Cột chỉnh được bằng `mobile` ('title' | 'subtitle' | 'right' | 'badge' | 'image' | 'full' | 'actions' | 'hide') và `mobileRender`. Đã tinh chỉnh Hàng hóa, Hóa đơn, Phiếu kho; kiểm tra trên trình duyệt 375×812 các màn khách hàng, nhập hàng, tồn kho, phiếu thu/chi, người dùng, bảng giá, ca, khuyến mãi, NCC, báo cáo.
+
+## Phiên 8 — 07/11/2026 — Bán online: web bán hàng + Flash Sale
+
+### Web bán hàng cho khách (`/shop`)
+Gói riêng `apps/web/src/shop/*` (React + react-router, **không** antd): `main.tsx` chọn gói theo đường dẫn, `/shop…` chỉ tải khoảng 86 KB (đã nén), phần quản lý giữ nguyên. Trang chủ (ảnh bìa, dải FLASH SALE có đồng hồ đếm ngược theo giờ máy chủ, nhóm hàng, sắp xếp, tìm kiếm, xem thêm), chi tiết hàng (ảnh vuốt, biến thể, còn hàng, Flash Sale), giỏ hàng (ước tính giá Flash Sale theo suất / tối đa mỗi đơn), đặt hàng (họ tên, SĐT, địa chỉ, ghi chú, ô chống bot, chống gửi trùng), trang đặt thành công / tra cứu đơn, nút gọi / Zalo nổi. Thiết kế cho điện thoại trước, 3–5 cột trên máy tính.
+
+### Quản trị (menu Bán online)
+`/online/settings` – mở / đóng web, đường dẫn + QR, công tắc hiển thị giá / Flash Sale / nhận đơn / số lượng còn / ẩn hàng hết / chỉ hàng có ảnh (lưu ngay), thông tin cửa hàng, logo, ảnh bìa, màu, chi nhánh + kho nhận đơn, nhóm hàng ẩn. `/online/flash-sales` – danh sách (lọc trạng thái, công tắc bật / tắt từng chương trình), trình sửa (thêm hàng bằng tìm kiếm / quét mã, giá hoặc %, số suất, tối đa / đơn, giảm đồng loạt). "Đơn đặt trên web" = `/orders?source=ONLINE`, có số đơn chờ trên menu. Quyền mới `online.manage`.
+
+### Backend
+Module `online` (`ShopSettingsService`, `FlashSalesService`, `StorefrontService`, `OnlineController`, `StorefrontController` công khai). Migration `online_shop_flash_sale`. `OrdersService` trả suất Flash Sale khi hủy / xóa đơn. BR-180..BR-186, test T-270..T-276. Sửa test T-242 (ngày chấm công ghi cứng 23–24/10 rơi khỏi khoảng 7 ngày).
+

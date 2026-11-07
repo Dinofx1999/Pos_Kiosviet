@@ -53,6 +53,8 @@ import TransfersPage from './pages/inventory/TransfersPage';
 import TransferEditorPage from './pages/inventory/TransferEditorPage';
 import StocktakesPage from './pages/inventory/StocktakesPage';
 import StocktakeEditorPage from './pages/inventory/StocktakeEditorPage';
+import OnlineSettingsPage from './pages/online/OnlineSettingsPage';
+import FlashSalesPage from './pages/online/FlashSalesPage';
 
 function Protected() {
   const token = useAuthStore((s) => s.accessToken);
@@ -134,6 +136,9 @@ export const router = createBrowserRouter([
           { path: '/employees/commissions', element: <CommissionsPage /> },
           { path: '/employees/performance', element: <RequirePerm perm="attendance.view"><PerformancePage /></RequirePerm> },
           { path: '/reports/tax', element: <RequirePerm perm="report.profit.view"><TaxReportPage /></RequirePerm> },
+          { path: '/online', element: <Navigate to="/online/settings" replace /> },
+          { path: '/online/settings', element: <RequirePerm perm="online.manage"><OnlineSettingsPage /></RequirePerm> },
+          { path: '/online/flash-sales', element: <RequirePerm perm="online.manage"><FlashSalesPage /></RequirePerm> },
           { path: '/help', element: <HelpPage /> },
           { path: '/help/:slug', element: <HelpPage /> },
           { path: '/settings', element: <SettingsPage /> },

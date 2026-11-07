@@ -21,10 +21,12 @@ export default function OrdersPage() {
   const isMobile = useIsMobile();
   const branchId = useAuthStore((s) => s.currentBranchId);
   const me = useAuthStore((s) => s.me);
-  const [q, setQ] = useState<OrderQuery>({ page: 1, pageSize: 20, search: sp.get('search') ?? undefined, status: sp.get('status') ?? undefined });
+  const [q, setQ] = useState<OrderQuery>({ page: 1, pageSize: 20, search: sp.get('search') ?? undefined, status: sp.get('status') ?? undefined, source: sp.get('source') ?? undefined });
   const [searchText, setSearchText] = useState(q.search ?? '');
   const [expanded, setExpanded] = useState<string[]>([]);
   useEffect(() => { const s = sp.get('search'); if (s) { setSearchText(s); setQ((x) => ({ ...x, search: s, page: 1 })); } }, [sp]);
+  // menu "Đơn đặt trên web" (?source=ONLINE) và trang Thiết lập web (?status=DRAFT)
+  useEffect(() => { setQ((x) => ({ ...x, source: sp.get('source') ?? undefined, status: sp.get('status') ?? x.status, page: 1 })); }, [sp.get('source')]);
   const { data, isLoading, isFetching, error, refetch } = useOrders({ ...q, branchId: q.branchId ?? branchId ?? undefined });
   const set = (patch: Partial<OrderQuery>) => setQ((s) => ({ ...s, ...patch, page: patch.page ?? 1 }));
   const rows = data?.data ?? [];

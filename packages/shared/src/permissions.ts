@@ -29,6 +29,7 @@ export const PERMISSIONS = {
   'pricebook.manage': { group: 'Hàng hóa', label: 'Quản lý bảng giá' },
   'promotion.view': { group: 'Khuyến mãi', label: 'Xem chương trình khuyến mãi' },
   'promotion.manage': { group: 'Khuyến mãi', label: 'Tạo / sửa khuyến mãi, phát hành voucher' },
+  'online.manage': { group: 'Bán online', label: 'Thiết lập web bán hàng, bật / tắt hiển thị giá và Flash Sale' },
   // Module 03 – Inventory
   'inventory.view': { group: 'Kho hàng', label: 'Xem tồn kho' },
   'inventory.movement.view': { group: 'Kho hàng', label: 'Xem thẻ kho / lịch sử' },

@@ -116,7 +116,8 @@ describe('Employees (commission, attendance, performance), SaaS plans and tax re
     await checkoutAs(cashierAuth, { lines: [{ variantId, quantity: '1' }], payments: [{ method: 'CASH', amount: '110000' }] });
     const close = await t.http().post(`${api}/shifts/${open.body.id}/close`).set(cashierAuth).send({ countedCash: '205000' }); // 5 000 short
     expect(close.status).toBe(200);
-    const perf = await t.http().get(`${api}/employees/performance`).set(s.auth).query({ from: new Date(Date.now() - 7 * 86400_000).toISOString() });
+    // từ trước các buổi chấm công ghi cứng 23–24/10 ở T-241 (không phụ thuộc ngày chạy test)
+    const perf = await t.http().get(`${api}/employees/performance`).set(s.auth).query({ from: '2026-10-01T00:00:00.000Z' });
     expect(perf.status).toBe(200);
     const row = perf.body.data.find((r: { sellerId: string }) => r.sellerId === cashierId);
     expect(row.invoices).toBe(3);
