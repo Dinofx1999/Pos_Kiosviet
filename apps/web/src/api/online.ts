@@ -5,7 +5,7 @@ import { http } from './client';
 export interface ShopConfig {
   enabled: boolean; showPrice: boolean; flashSaleEnabled: boolean; allowOrder: boolean; showStock: boolean; hideOutOfStock: boolean; onlyWithImage: boolean;
   shopName: string | null; hotline: string | null; zalo: string | null; facebook: string | null; address: string | null; intro: string | null;
-  bannerUrl: string | null; logoUrl: string | null; themeColor: string; branchId: string | null; warehouseId: string | null; hiddenCategoryIds: string[];
+  bannerUrl: string | null; logoUrl: string | null; themeColor: string; branchId: string | null; warehouseId: string | null; stockWarehouseIds: string[]; hiddenCategoryIds: string[];
 }
 export interface ShopSettingsView { config: ShopConfig; tenantCode: string; tenantName: string; isDefaultShop: boolean; pendingOrders: number }
 

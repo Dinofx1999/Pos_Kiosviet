@@ -43,6 +43,11 @@ export class ShopSettingsService {
       if (next.branchId && w.branchId !== next.branchId) throw Errors.validation('Kho xuất hàng không thuộc chi nhánh nhận đơn');
       if (!next.branchId) next.branchId = w.branchId;
     }
+    if (next.stockWarehouseIds.length) {
+      next.stockWarehouseIds = Array.from(new Set(next.stockWarehouseIds));
+      const n = await this.prisma.db.warehouse.count({ where: { id: { in: next.stockWarehouseIds }, isActive: true } });
+      if (n !== next.stockWarehouseIds.length) throw Errors.validation('Kho tính còn hàng không tồn tại hoặc đã ngừng hoạt động');
+    }
     await this.prisma.tx(async (tx) => {
       await tx.tenantSetting.upsert({
         where: { tenantId_key: { tenantId: user.tenantId, key: SHOP_SETTING_KEY } },

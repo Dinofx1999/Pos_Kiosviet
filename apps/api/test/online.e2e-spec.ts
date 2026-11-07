@@ -236,4 +236,31 @@ describe('Bán online: web bán hàng & Flash Sale – T-270..T-276', () => {
     expect((await t.http().put(`${api}/online/settings`).set(auth).send({ showPrice: false })).status).toBe(403);
     expect((await t.http().get(`${api}/online/summary`).set(auth)).status).toBe(200);
   });
+
+  it('T-277 còn hàng trên web cộng tồn các kho; đơn gắn vào kho đủ hàng cùng chi nhánh; chọn riêng kho tính tồn', async () => {
+    const wh2 = (await t.http().post(`${api}/warehouses`).set(s.auth).send({ branchId: s.branchId, code: 'KHO-TONG', name: 'Kho tổng' })).body;
+    expect(wh2.id).toBeDefined();
+    const a = await stocked('1', '40000', { name: 'Toner hai kho' });
+    await postReceipt(t, s, [{ variantId: a.variantId, quantity: '4', unitCost: '20000' }], { warehouseId: wh2.id });
+    const b = await createProduct(t, s, { name: 'Chỉ có ở kho tổng', variants: [{ sellPrice: '30000' }] });
+    await postReceipt(t, s, [{ variantId: b.variantId, quantity: '3', unitCost: '10000' }], { warehouseId: wh2.id });
+    await settings({ showStock: true, stockWarehouseIds: [] });
+    expect((await t.http().get(shop(`/products/${a.productId}`))).body.variants[0]).toMatchObject({ inStock: true, available: 5 });
+    expect((await t.http().get(shop(`/products/${b.productId}`))).body.variants[0]).toMatchObject({ inStock: true, available: 3 });
+    expect((await t.http().get(shop(`/products?search=${encodeURIComponent('Chỉ có ở kho tổng')}`))).body.items[0]).toMatchObject({ inStock: true, available: 3 });
+    // 1 + 4 = 5 → đặt được 5, đặt 6 thì "chỉ còn 5"
+    expect((await order([{ variantId: a.variantId, quantity: 6 }])).body.message).toContain('chỉ còn 5');
+    expect((await order([{ variantId: a.variantId, quantity: 5 }])).status).toBe(201);
+    // hàng chỉ có ở kho tổng → đơn gắn kho tổng, xác nhận (giữ tồn) được ngay
+    const ob = await order([{ variantId: b.variantId, quantity: 2 }]);
+    const dbb = await t.prisma.raw.salesOrder.findFirstOrThrow({ where: { tenantId: s.tenantId, code: ob.body.code } });
+    expect(dbb.warehouseId).toBe(wh2.id);
+    expect((await t.http().post(`${api}/orders/${dbb.id}/confirm`).set(s.auth).send({})).status).toBe(200);
+    // chỉ tính kho chính → hàng b hết trên web
+    await settings({ stockWarehouseIds: [s.warehouseId] });
+    expect((await t.http().get(shop(`/products/${b.productId}`))).body.variants[0].inStock).toBe(false);
+    expect((await order([{ variantId: b.variantId, quantity: 1 }])).body.code).toBe('OUT_OF_STOCK');
+    expect((await settings({ stockWarehouseIds: [randomUUID()] })).status).toBe(400);
+    await settings({ stockWarehouseIds: [] });
+  });
 });

@@ -25,7 +25,7 @@ const COLORS = ['#d6336c', '#e64980', '#f76707', '#0ca678', '#1c7ed6', '#7048e8'
 
 interface InfoForm {
   shopName?: string; hotline?: string; zalo?: string; facebook?: string; address?: string; intro?: string; themeColor: string;
-  logo: Array<{ url: string }>; banner: Array<{ url: string }>; branchId?: string; warehouseId?: string; hiddenCategoryIds: string[];
+  logo: Array<{ url: string }>; banner: Array<{ url: string }>; branchId?: string; warehouseId?: string; stockWarehouseIds: string[]; hiddenCategoryIds: string[];
 }
 
 const toTree = (cats: Category[]): any[] => {
@@ -45,6 +45,7 @@ export default function OnlineSettingsPage() {
   const { data: branches } = useBranches();
   const branchId = Form.useWatch('branchId', form);
   const { data: warehouses } = useWarehouses(branchId || undefined);
+  const { data: allWarehouses } = useWarehouses();
   const { data: cats } = useCategories();
   const catTree = useMemo(() => toTree(Array.isArray(cats) ? flatten(cats) : []), [cats]);
 
@@ -53,7 +54,7 @@ export default function OnlineSettingsPage() {
     const c = view.config;
     form.setFieldsValue({
       shopName: c.shopName ?? undefined, hotline: c.hotline ?? undefined, zalo: c.zalo ?? undefined, facebook: c.facebook ?? undefined, address: c.address ?? undefined, intro: c.intro ?? undefined,
-      themeColor: c.themeColor, logo: c.logoUrl ? [{ url: c.logoUrl }] : [], banner: c.bannerUrl ? [{ url: c.bannerUrl }] : [], branchId: c.branchId ?? undefined, warehouseId: c.warehouseId ?? undefined, hiddenCategoryIds: c.hiddenCategoryIds,
+      themeColor: c.themeColor, logo: c.logoUrl ? [{ url: c.logoUrl }] : [], banner: c.bannerUrl ? [{ url: c.bannerUrl }] : [], branchId: c.branchId ?? undefined, warehouseId: c.warehouseId ?? undefined, stockWarehouseIds: c.stockWarehouseIds ?? [], hiddenCategoryIds: c.hiddenCategoryIds,
     });
   }, [view]);
 
@@ -75,7 +76,7 @@ export default function OnlineSettingsPage() {
       apply(await onlineApi.saveSettings({
         shopName: v.shopName?.trim() || null, hotline: v.hotline?.trim() || null, zalo: v.zalo?.trim() || null, facebook: v.facebook?.trim() || null,
         address: v.address?.trim() || null, intro: v.intro?.trim() || null, themeColor: v.themeColor, logoUrl: v.logo?.[0]?.url ?? null, bannerUrl: v.banner?.[0]?.url ?? null,
-        branchId: v.branchId ?? null, warehouseId: v.warehouseId ?? null, hiddenCategoryIds: v.hiddenCategoryIds ?? [],
+        branchId: v.branchId ?? null, warehouseId: v.warehouseId ?? null, stockWarehouseIds: v.stockWarehouseIds ?? [], hiddenCategoryIds: v.hiddenCategoryIds ?? [],
       }));
       message.success('Đã lưu thông tin web bán hàng');
     } catch (e) { message.error(errMsg(e)); } finally { setBusy(null); }
@@ -147,10 +148,13 @@ export default function OnlineSettingsPage() {
             <Form.Item name="branchId" label="Chi nhánh nhận đơn web" extra="Để trống: chi nhánh mặc định">
               <Select allowClear options={(branches ?? []).filter((b: any) => b.isActive !== false).map((b: any) => ({ value: b.id, label: b.name }))} onChange={() => form.setFieldValue('warehouseId', undefined)} />
             </Form.Item>
-            <Form.Item name="warehouseId" label="Kho xuất hàng (tính còn / hết hàng)" extra="Để trống: kho mặc định của chi nhánh">
+            <Form.Item name="warehouseId" label="Kho nhận đơn web" extra="Để trống: kho mặc định. Đơn tự chuyển sang kho khác cùng chi nhánh nếu kho này không đủ hàng.">
               <Select allowClear options={(warehouses ?? []).filter((w: any) => w.isActive !== false && (!branchId || w.branchId === branchId)).map((w: any) => ({ value: w.id, label: w.name }))} />
             </Form.Item>
           </div>
+          <Form.Item name="stockWarehouseIds" label="Kho tính còn hàng trên web" extra="Cộng tồn các kho đã chọn. Để trống: cộng tất cả kho đang hoạt động.">
+            <Select mode="multiple" allowClear placeholder="Tất cả kho" options={(allWarehouses ?? []).filter((w: any) => w.isActive !== false).map((w: any) => ({ value: w.id, label: w.branch?.name ? `${w.name} (${w.branch.name})` : w.name }))} />
+          </Form.Item>
           <Form.Item name="hiddenCategoryIds" label="Nhóm hàng ẩn khỏi web" extra="Ẩn cả nhóm con. Hàng ngừng kinh doanh, hàng quản lý theo lô và dịch vụ luôn không hiện trên web.">
             <TreeSelect multiple treeCheckable showCheckedStrategy={TreeSelect.SHOW_PARENT} treeData={catTree} placeholder="Chọn nhóm hàng" allowClear treeNodeFilterProp="title" maxTagCount="responsive" />
           </Form.Item>

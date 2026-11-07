@@ -126,12 +126,18 @@ export class StorefrontService {
     return { branchId: b.id, warehouseId: w.id };
   }
 
-  /** Số lượng có thể bán tại kho web theo biến thể (hàng thường: tồn − đang giữ; combo: theo thành phần). */
-  private async availability(db: DbClient, warehouseId: string, variants: Array<{ id: string; productId: string; type: string }>) {
+  /** BR-181: kho tính còn hàng trên web — các kho đã chọn, mặc định mọi kho đang hoạt động (cộng tồn). */
+  private async stockWarehouses(db: DbClient, cfg: ShopConfig): Promise<string[]> {
+    const rows = await db.warehouse.findMany({ where: { isActive: true, branch: { isActive: true }, ...(cfg.stockWarehouseIds.length ? { id: { in: cfg.stockWarehouseIds } } : {}) }, select: { id: true } });
+    return rows.length ? rows.map((r) => r.id) : [(await this.destination(db, cfg)).warehouseId];
+  }
+
+  /** Số lượng có thể bán trên web theo biến thể, cộng các kho tính tồn (hàng thường: tồn − đang giữ; combo: theo thành phần). */
+  private async availability(db: DbClient, warehouseIds: string[], variants: Array<{ id: string; productId: string; type: string }>) {
     const combos = variants.filter((v) => v.type === 'COMBO');
     const comboItems = combos.length ? await db.comboItem.findMany({ where: { comboProductId: { in: combos.map((c) => c.productId) } } }) : [];
     const ids = Array.from(new Set([...variants.filter((v) => v.type === 'GOODS').map((v) => v.id), ...comboItems.map((c) => c.componentVariantId)]));
-    const rows = ids.length ? await db.stockBalance.groupBy({ by: ['variantId'], where: { warehouseId, variantId: { in: ids } }, _sum: { onHand: true, reserved: true } }) : [];
+    const rows = ids.length ? await db.stockBalance.groupBy({ by: ['variantId'], where: { warehouseId: { in: warehouseIds }, variantId: { in: ids } }, _sum: { onHand: true, reserved: true } }) : [];
     const base = new Map(rows.map((r) => [r.variantId, Math.max(0, Math.floor(Number(D(r._sum.onHand).minus(D(r._sum.reserved)))))]));
     const out = new Map<string, number>();
     for (const v of variants) {
@@ -196,7 +202,7 @@ export class StorefrontService {
     const size = q.pageSize ?? 24;
     const tree = await this.categoryTree();
     const hidden = await this.hiddenCategories(cfg, tree);
-    const { warehouseId } = await this.destination(this.prisma.db, cfg);
+    const warehouseIds = await this.stockWarehouses(this.prisma.db, cfg);
     const conds: Prisma.Sql[] = [this.visibleSql(s, hidden)];
     if (q.categoryId) conds.push(Prisma.sql`p.category_id = ANY(${tree.subtree(q.categoryId)}::uuid[])`);
     if (q.search) {
@@ -215,7 +221,7 @@ export class StorefrontService {
       WITH vis AS (SELECT p.id, p.code, p.name, p.type, p.image_url, p.created_at FROM products p WHERE ${Prisma.join(conds, ' AND ')}),
       v AS (SELECT pv.product_id, MIN(pv.sell_price) AS min_price, MAX(pv.sell_price) AS max_price, COUNT(*)::int AS n FROM product_variants pv JOIN vis ON vis.id = pv.product_id WHERE pv.deleted_at IS NULL AND pv.is_active GROUP BY pv.product_id),
       s AS (SELECT pv.product_id, SUM(GREATEST(sb.on_hand - sb.reserved, 0)) AS avail FROM stock_balances sb JOIN product_variants pv ON pv.id = sb.variant_id JOIN vis ON vis.id = pv.product_id
-            WHERE sb.tenant_id = ${s.tenantId}::uuid AND sb.warehouse_id = ${warehouseId}::uuid AND pv.deleted_at IS NULL AND pv.is_active GROUP BY pv.product_id),
+            WHERE sb.tenant_id = ${s.tenantId}::uuid AND sb.warehouse_id = ANY(${warehouseIds}::uuid[]) AND pv.deleted_at IS NULL AND pv.is_active GROUP BY pv.product_id),
       x AS (SELECT vis.*, v.min_price, v.max_price, v.n, COALESCE(s.avail, 0) AS avail, (vis.type = 'COMBO' OR COALESCE(s.avail, 0) > 0) AS sellable FROM vis JOIN v ON v.product_id = vis.id LEFT JOIN s ON s.product_id = vis.id)
       SELECT x.id, x.code, x.name, x.type::text AS type, x.min_price, x.max_price, x.n, x.avail, x.sellable, COUNT(*) OVER()::int AS total,
         COALESCE(NULLIF(x.image_url, ''), (SELECT pi.url FROM product_images pi WHERE pi.product_id = x.id ORDER BY pi.sort_order LIMIT 1)) AS image
@@ -229,7 +235,7 @@ export class StorefrontService {
     const flash = cfg.flashSaleEnabled ? this.pickFlash(await this.activeFlashItems(this.prisma.db, variants.map((v) => v.id)), regular) : new Map<string, FlashItem>();
     const comboRows = rows.filter((r) => r.type === 'COMBO');
     const comboAvail = comboRows.length
-      ? await this.availability(this.prisma.db, warehouseId, variants.filter((v) => comboRows.some((r) => r.id === v.productId)).map((v) => ({ id: v.id, productId: v.productId, type: 'COMBO' })))
+      ? await this.availability(this.prisma.db, warehouseIds, variants.filter((v) => comboRows.some((r) => r.id === v.productId)).map((v) => ({ id: v.id, productId: v.productId, type: 'COMBO' })))
       : new Map<string, number>();
     const items = rows.map((r) => {
       const own = variants.filter((v) => v.productId === r.id);
@@ -259,8 +265,7 @@ export class StorefrontService {
     if (!p || !p.variants.length || (p.categoryId && hidden.includes(p.categoryId))) throw Errors.notFound('Hàng hóa', id);
     const images = Array.from(new Set([p.imageUrl, ...p.images.map((i) => i.url), ...p.variants.flatMap((v) => [v.imageUrl, ...v.images.map((i) => i.url)])].filter((u): u is string => !!u)));
     if (cfg.onlyWithImage && !images.length) throw Errors.notFound('Hàng hóa', id);
-    const { warehouseId } = await this.destination(this.prisma.db, cfg);
-    const avail = await this.availability(this.prisma.db, warehouseId, p.variants.map((v) => ({ id: v.id, productId: p.id, type: p.type })));
+    const avail = await this.availability(this.prisma.db, await this.stockWarehouses(this.prisma.db, cfg), p.variants.map((v) => ({ id: v.id, productId: p.id, type: p.type })));
     const regular = new Map(p.variants.map((v) => [v.id, D(v.sellPrice)]));
     const flash = cfg.flashSaleEnabled ? this.pickFlash(await this.activeFlashItems(this.prisma.db, p.variants.map((v) => v.id)), regular) : new Map<string, FlashItem>();
     return {
@@ -288,7 +293,7 @@ export class StorefrontService {
       where: { isActive: true, startsAt: { lte: now }, endsAt: { gt: now } }, orderBy: { endsAt: 'asc' }, take: 5,
       include: { items: { orderBy: { sortOrder: 'asc' }, include: { variant: { select: { id: true, name: true, sellPrice: true, imageUrl: true, isActive: true, deletedAt: true, product: { select: { id: true, name: true, type: true, imageUrl: true, isActive: true, allowSale: true, deletedAt: true, trackBatch: true, categoryId: true, images: { take: 1, orderBy: { sortOrder: 'asc' }, select: { url: true } } } } } } } } },
     });
-    const { warehouseId } = await this.destination(this.prisma.db, cfg);
+    const warehouseIds = await this.stockWarehouses(this.prisma.db, cfg);
     const visible = (it: (typeof campaigns)[number]['items'][number]) => {
       const v = it.variant; const p = v.product;
       return v.isActive && !v.deletedAt && p.isActive && p.allowSale && !p.deletedAt && !p.trackBatch && (p.type === 'GOODS' || p.type === 'COMBO')
@@ -296,7 +301,7 @@ export class StorefrontService {
         && (!cfg.onlyWithImage || !!(v.imageUrl || p.imageUrl || p.images[0]));
     };
     const all = campaigns.flatMap((c) => c.items.filter(visible));
-    const avail = await this.availability(this.prisma.db, warehouseId, all.map((it) => ({ id: it.variant.id, productId: it.variant.product.id, type: it.variant.product.type })));
+    const avail = await this.availability(this.prisma.db, warehouseIds, all.map((it) => ({ id: it.variant.id, productId: it.variant.product.id, type: it.variant.product.type })));
     const upcoming = await this.prisma.db.flashSale.findFirst({ where: { isActive: true, startsAt: { gt: now } }, orderBy: { startsAt: 'asc' }, include: { _count: { select: { items: true } } } });
     return {
       enabled: true, serverTime: now.toISOString(),
@@ -344,12 +349,20 @@ export class StorefrontService {
           throw new AppError('PRODUCT_NOT_SELLABLE', `${v?.name ?? 'Một sản phẩm'} không còn bán online, vui lòng xóa khỏi giỏ`, 409, { variantId: vid });
       }
       const dest = await this.destination(tx, cfg);
-      // BR-185: chỉ nhận đơn trong số lượng còn bán được tại kho web
-      const avail = await this.availability(tx, dest.warehouseId, variants.map((v) => ({ id: v.id, productId: v.productId, type: v.product.type })));
+      // BR-185: chỉ nhận đơn trong số lượng còn bán được (cộng các kho tính tồn web)
+      const stockWh = await this.stockWarehouses(tx, cfg);
+      const lineVariants = variants.map((v) => ({ id: v.id, productId: v.productId, type: v.product.type }));
+      const avail = await this.availability(tx, stockWh, lineVariants);
       const short = variants.filter((v) => (merged.get(v.id) ?? 0) > (avail.get(v.id) ?? 0)).map((v) => ({ variantId: v.id, name: v.name, available: avail.get(v.id) ?? 0 }));
       if (short.length) {
         const msg = short.map((x) => (x.available > 0 ? `${x.name}: chỉ còn ${x.available}` : `${x.name}: đã hết hàng`)).join('; ');
         throw new AppError('OUT_OF_STOCK', msg, 409, { items: short });
+      }
+      // đơn gắn vào kho trong chi nhánh nhận đơn có đủ cả đơn (ưu tiên kho nhận đơn) để xác nhận / giữ tồn không bị thiếu
+      const sameBranch = await tx.warehouse.findMany({ where: { id: { in: stockWh }, branchId: dest.branchId }, select: { id: true } });
+      for (const w of [dest.warehouseId, ...sameBranch.map((x) => x.id).filter((id) => id !== dest.warehouseId)]) {
+        const a = await this.availability(tx, [w], lineVariants);
+        if (variants.every((v) => (merged.get(v.id) ?? 0) <= (a.get(v.id) ?? 0))) { dest.warehouseId = w; break; }
       }
 
       // BR-183/184: giữ suất Flash Sale (nguyên tử), phần vượt suất / vượt giới hạn mỗi đơn tính giá thường

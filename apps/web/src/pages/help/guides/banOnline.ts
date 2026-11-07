@@ -14,7 +14,7 @@ export const BAN_ONLINE: Guide[] = [
       { text: 'Bật công tắc "Website bán hàng". Đường dẫn web và mã QR hiện ngay bên dưới: bấm Sao chép để gửi cho khách, bấm Mở web để xem thử.', note: 'Trên tên miền của cửa hàng, đường dẫn là https://<tên miền>/shop.' },
       { text: 'Ở thẻ "Bật / tắt trên web": bật hoặc tắt "Hiển thị giá trên web". Thay đổi có hiệu lực ngay, không cần bấm Lưu.', note: 'Tắt giá: khách thấy "Liên hệ" thay cho giá; Flash Sale chỉ hiện mức giảm %. Khách vẫn đặt hàng được, đơn vẫn lưu đúng giá để cửa hàng gọi báo giá.' },
       { text: 'Bật / tắt các mục còn lại theo nhu cầu: Flash Sale, Nhận đặt hàng online (tắt = khách chỉ xem và gọi / nhắn Zalo), Hiện số lượng còn lại, Ẩn hàng đã hết, Chỉ hiện hàng có ảnh.' },
-      { text: 'Ở thẻ "Thông tin hiển thị & nhận đơn": nhập tên cửa hàng, hotline, Zalo, địa chỉ, dòng thông báo, logo, ảnh bìa, màu chủ đạo; chọn Chi nhánh nhận đơn web và Kho xuất hàng (kho dùng để tính còn / hết hàng); chọn Nhóm hàng ẩn khỏi web nếu có. Bấm Lưu.' },
+      { text: 'Ở thẻ "Thông tin hiển thị & nhận đơn": nhập tên cửa hàng, hotline, Zalo, địa chỉ, dòng thông báo, logo, ảnh bìa, màu chủ đạo; chọn Chi nhánh nhận đơn web, Kho nhận đơn web và Kho tính còn hàng trên web (để trống = cộng tồn tất cả kho); chọn Nhóm hàng ẩn khỏi web nếu có. Bấm Lưu.' },
     ],
     notes: [
       'Web chỉ hiện hàng đang kinh doanh, cho phép bán, không quản lý theo lô và không phải dịch vụ. Hàng ngừng kinh doanh nhập từ KiotViet nên ẩn bằng "Nhóm hàng ẩn khỏi web".',

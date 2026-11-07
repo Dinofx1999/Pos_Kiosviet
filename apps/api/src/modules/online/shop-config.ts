@@ -28,6 +28,8 @@ export interface ShopConfig {
   /** Chi nhánh / kho nhận đơn web (null = chi nhánh mặc định và kho mặc định của nó) */
   branchId: string | null;
   warehouseId: string | null;
+  /** Kho tính còn / hết hàng trên web, cộng tồn các kho ([] = mọi kho đang hoạt động) */
+  stockWarehouseIds: string[];
   /** Danh mục ẩn khỏi web (kể cả danh mục con) */
   hiddenCategoryIds: string[];
 }
@@ -51,6 +53,7 @@ export const SHOP_DEFAULTS: ShopConfig = {
   themeColor: '#d6336c',
   branchId: null,
   warehouseId: null,
+  stockWarehouseIds: [],
   hiddenCategoryIds: [],
 };
 
@@ -62,9 +65,9 @@ export function normalizeShopConfig(raw: unknown): ShopConfig {
     if (v[k] === undefined) continue;
     const def = SHOP_DEFAULTS[k];
     if (typeof def === 'boolean' && typeof v[k] === 'boolean') (out as any)[k] = v[k];
-    else if (k === 'hiddenCategoryIds' && Array.isArray(v[k])) out.hiddenCategoryIds = (v[k] as unknown[]).filter((x): x is string => typeof x === 'string');
+    else if ((k === 'hiddenCategoryIds' || k === 'stockWarehouseIds') && Array.isArray(v[k])) out[k] = (v[k] as unknown[]).filter((x): x is string => typeof x === 'string');
     else if (k === 'themeColor' && typeof v[k] === 'string') out.themeColor = v[k] as string;
-    else if (typeof def !== 'boolean' && k !== 'hiddenCategoryIds' && (typeof v[k] === 'string' || v[k] === null)) (out as any)[k] = v[k];
+    else if (typeof def !== 'boolean' && !Array.isArray(def) && (typeof v[k] === 'string' || v[k] === null)) (out as any)[k] = v[k];
   }
   return out;
 }

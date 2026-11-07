@@ -382,3 +382,5 @@ Gói riêng `apps/web/src/shop/*` (React + react-router, **không** antd): `main
 ### Backend
 Module `online` (`ShopSettingsService`, `FlashSalesService`, `StorefrontService`, `OnlineController`, `StorefrontController` công khai). Migration `online_shop_flash_sale`. `OrdersService` trả suất Flash Sale khi hủy / xóa đơn. BR-180..BR-186, test T-270..T-276. Sửa test T-242 (ngày chấm công ghi cứng 23–24/10 rơi khỏi khoảng 7 ngày).
 
+### Còn hàng trên web cộng tồn nhiều kho (07/11/2026)
+Theo yêu cầu chủ cửa hàng: web tính còn / hết hàng bằng tổng tồn các kho (`stockWarehouseIds`, mặc định mọi kho đang hoạt động) thay vì một kho; đơn web tự gắn vào kho cùng chi nhánh đủ hàng. Trên máy chủ: hàng còn bán trên web tăng từ 1.540 (chỉ Kho bán hàng) lên số cộng cả Kho tổng Bảo Ân. Test T-277.

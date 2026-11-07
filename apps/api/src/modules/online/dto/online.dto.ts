@@ -25,6 +25,7 @@ export class UpdateShopConfigDto {
   @ApiPropertyOptional({ example: '#d6336c' }) @IsOptional() @Matches(/^#[0-9a-fA-F]{6}$/, { message: 'Màu chủ đạo dạng #RRGGBB' }) themeColor?: string;
   @ApiPropertyOptional() @IsOptional() @ValidateIf((_, v) => v !== null) @IsUUID() branchId?: string | null;
   @ApiPropertyOptional() @IsOptional() @ValidateIf((_, v) => v !== null) @IsUUID() warehouseId?: string | null;
+  @ApiPropertyOptional({ type: [String], description: 'Kho tính còn hàng trên web (cộng tồn); rỗng = mọi kho' }) @IsOptional() @IsArray() @ArrayMaxSize(100) @IsUUID('all', { each: true }) stockWarehouseIds?: string[];
   @ApiPropertyOptional({ type: [String] }) @IsOptional() @IsArray() @ArrayMaxSize(500) @IsUUID('all', { each: true }) hiddenCategoryIds?: string[];
 }
 
