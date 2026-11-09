@@ -13,7 +13,7 @@ export const BAT_DAU: Guide[] = [
       { text: 'Nhập Mã gian hàng (do chủ cửa hàng đặt khi đăng ký, ví dụ "demo"), Tên đăng nhập và Mật khẩu, rồi bấm Đăng nhập.', shot: 'login', caption: 'Màn hình đăng nhập' },
       { text: 'Sau khi đăng nhập bạn vào trang Tổng quan: doanh thu hôm nay so với hôm qua, việc cần xử lý, biểu đồ doanh thu, hàng bán chạy và hoạt động gần đây.', shot: 'dashboard' },
       { text: 'Chưa có gian hàng? Bấm "Đăng ký gian hàng mới" ở dưới nút Đăng nhập, điền Mã gian hàng (chữ thường, số, dấu -), Tên cửa hàng, Họ tên chủ cửa hàng, Tên đăng nhập, Mật khẩu rồi bấm Đăng ký.', note: 'Tài khoản tạo ra là chủ gian hàng (owner) – có toàn quyền. Gian hàng mới được dùng thử 30 ngày.' },
-      { text: 'Để đăng xuất: bấm tên người dùng ở góc phải (trên điện thoại: biểu tượng ☰ rồi kéo xuống cuối) và chọn Đăng xuất.' },
+      { text: 'Để đăng xuất: bấm tên người dùng ở góc phải (trên điện thoại: tab Khác ở góc dưới phải rồi kéo xuống cuối) và chọn Đăng xuất.' },
     ],
     notes: [
       'Quên mật khẩu: nhờ chủ cửa hàng hoặc người có quyền "Quản lý người dùng" vào Thiết lập cửa hàng → Người dùng → Đặt lại mật khẩu cho tài khoản của bạn.',
@@ -64,15 +64,15 @@ export const BAT_DAU: Guide[] = [
     perms: ['Không cần quyền riêng'],
     keywords: ['mobile', 'di động', 'menu', 'thanh tab', 'hamburger', 'thêm vào màn hình chính'],
     steps: [
-      { text: 'Thanh tab dưới cùng có 5 mục: Tổng quan, Hàng hóa, Bán hàng (nút tròn xanh ở giữa), Hóa đơn và Thêm.', shot: 'dashboard', caption: 'Trang Tổng quan trên điện thoại với thanh tab dưới cùng' },
-      { text: 'Bấm Thêm (hoặc biểu tượng ☰ góc trái) để mở menu đầy đủ theo nhóm: Hàng hóa, Giao dịch, Đối tác, Nhân viên, Sổ quỹ, Báo cáo; cuối menu có Thiết lập cửa hàng, Đổi mật khẩu, Hướng dẫn sử dụng, Đăng xuất.', shot: 'menu-drawer' },
-      { text: 'Trong các danh sách, bấm nút nổi "Bộ lọc" ở góc dưới phải để mở bộ lọc (trạng thái, kho, thời gian…).' },
+      { text: 'Thanh tab dưới cùng có 5 mục như app KiotViet: Tổng quan, Hàng hóa, Bán hàng, Hóa đơn và Khác.', shot: 'dashboard', caption: 'Trang Tổng quan trên điện thoại với thanh tab dưới cùng' },
+      { text: 'Bấm tab Khác (góc dưới bên phải) để mở menu đầy đủ theo nhóm: Hàng hóa, Mua hàng, Đơn hàng, Bán online, Khách hàng, Nhân viên, Sổ quỹ, Phân tích; cuối menu có Thiết lập cửa hàng, Đổi mật khẩu, Hướng dẫn sử dụng, Đăng xuất.', shot: 'menu-drawer' },
+      { text: 'Trong các danh sách, bấm nút nổi "Bộ lọc" ở góc dưới phải để mở bộ lọc (trạng thái, kho, thời gian…). Riêng Hàng hóa dùng hàng chip lọc phía trên (biểu tượng phễu, Loại hàng, Giá bán / Giá vốn, Tồn kho) và nút + để thêm hàng.' },
       { text: 'Bấm vào một dòng để mở chi tiết; các nút thao tác (Sửa, Hủy, In…) nằm ở cuối phần chi tiết.' },
       { text: 'Khi lập phiếu, các dòng hàng hiển thị dạng thẻ; nút Lưu tạm / Hoàn thành luôn dính ở cuối màn hình.' },
       { text: 'Hộp thoại mở toàn màn hình; nút Lưu / Bỏ qua ở dưới cùng. Vuốt xuống để xem hết biểu mẫu.' },
     ],
     notes: [
-      'Nút Bán hàng trên điện thoại mở POS ngay trong cùng tab; trên máy tính POS mở ở tab trình duyệt riêng.',
+      'Trang Tổng quan trên điện thoại giống app KiotViet: chọn kỳ (Hôm nay / 7 ngày / Tháng này) và chi nhánh ở hai nút tròn phía trên; lợi nhuận mặc định ẩn (***), bấm biểu tượng mắt để hiện. Nút Bán hàng trên điện thoại mở POS ngay trong cùng tab; trên máy tính POS mở ở tab trình duyệt riêng.',
       'Máy quét mã vạch Bluetooth hoạt động như bàn phím: chạm vào ô tìm hàng rồi quét.',
     ],
     related: ['ban-hang-pos', 'kiem-kho', 'cham-cong'],
@@ -85,7 +85,7 @@ export const BAT_DAU: Guide[] = [
     perms: ['Mọi tài khoản tự đổi được mật khẩu của mình'],
     keywords: ['password', 'bảo mật', 'reset', 'đặt lại mật khẩu'],
     steps: [
-      { text: 'Bấm tên người dùng ở góc phải trên (điện thoại: ☰ → kéo xuống cuối menu) và chọn Đổi mật khẩu.', shot: 'change-password' },
+      { text: 'Bấm tên người dùng ở góc phải trên (điện thoại: tab Khác → kéo xuống cuối menu) và chọn Đổi mật khẩu.', shot: 'change-password' },
       { text: 'Nhập Mật khẩu hiện tại, Mật khẩu mới (tối thiểu 6 ký tự) và Nhập lại mật khẩu mới, rồi bấm Lưu.' },
       { text: 'Đăng nhập lại trên các thiết bị khác bằng mật khẩu mới.' },
     ],
@@ -100,7 +100,7 @@ export const BAT_DAU: Guide[] = [
     perms: ['Cấu hình doanh nghiệp (tenant.settings.manage)'],
     keywords: ['settings', 'cấu hình', 'âm kho', 'bán nợ', 'mở ca', 'giảm giá tối đa', 'thuế', 'giá vốn bình quân'],
     steps: [
-      { text: 'Bấm tên người dùng → Thiết lập cửa hàng (điện thoại: ☰ → Thiết lập cửa hàng), chọn mục Cấu hình & mã chứng từ.', shot: 'settings-config' },
+      { text: 'Bấm tên người dùng → Thiết lập cửa hàng (điện thoại: tab Khác → Thiết lập cửa hàng), chọn mục Cấu hình & mã chứng từ.', shot: 'settings-config' },
       { text: 'Trong "Chính sách tồn kho & giá", bật/tắt từng chính sách: Cho phép bán / xuất âm kho (khuyến nghị tắt), Giá bán đã bao gồm thuế, Thuế mua hàng tính vào giá vốn (tắt nếu doanh nghiệp khấu trừ VAT), Bắt buộc mở ca trước khi bán, Trần giảm giá tại quầy (%), Cho phép bán nợ (khách trả sau).' },
       { text: 'Phương pháp tính giá vốn là Bình quân gia quyền di động (AVG) cho toàn gian hàng – không đổi được.' },
       { text: 'Bấm Lưu. Thiết lập có hiệu lực ngay cho mọi chi nhánh.' },

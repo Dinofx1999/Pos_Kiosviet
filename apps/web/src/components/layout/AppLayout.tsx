@@ -1,5 +1,5 @@
 import { App, Avatar, Badge, Button, Drawer, Dropdown, Menu, Select, Spin, Tooltip } from 'antd';
-import { AppstoreOutlined, BellOutlined, DownOutlined, FileTextOutlined, HomeOutlined, LockOutlined, LogoutOutlined, MenuOutlined, QuestionCircleOutlined, SettingOutlined, ShopOutlined, ShoppingCartOutlined, TagsOutlined, UserOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, BellOutlined, DownOutlined, FileTextOutlined, HomeOutlined, LockOutlined, LogoutOutlined, MenuOutlined, QuestionCircleOutlined, SettingOutlined, ShopOutlined, ShoppingOutlined, TagsOutlined, UserOutlined } from '@ant-design/icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { PlanBanner } from '../PlanBanner';
@@ -142,19 +142,25 @@ export default function AppLayout() {
     { type: 'divider' },
     { key: 'logout', icon: <LogoutOutlined />, label: 'Đăng xuất', onClick: doLogout },
   ].filter(Boolean) as any };
+  // chuông thông báo: việc cần xử lý ngay (đơn web mới, tiền về chưa khớp)
+  const notifyCount = webPending + (can('cash.view') ? unmatchedBank : 0);
+  const notifyItems = ([
+    webPending > 0 ? { key: 'web', label: <Link to="/orders?source=ONLINE&status=DRAFT">{webPending} đơn đặt trên web chờ xử lý</Link> } : null,
+    can('cash.view') && unmatchedBank > 0 ? { key: 'bank', label: <Link to="/cash/bank-transactions">{unmatchedBank} giao dịch chuyển khoản chưa khớp</Link> } : null,
+  ].filter(Boolean) as any[]);
+  if (!notifyItems.length) notifyItems.push({ key: 'none', label: 'Không có thông báo mới', disabled: true });
   const tab = (path: string) => (loc.pathname === path || (path !== '/' && loc.pathname.startsWith(path)) ? 'on' : '');
 
   return (
     <div className="kv-shell">
       <header className="kv-header">
-        <span className="kv-burger" role="button" aria-label="Menu" onClick={() => setMenuOpen(true)}><MenuOutlined /></span>
         <Link to="/" className="kv-logo"><span className="dot"><ShopOutlined /></span><span className="kv-logo-name" title={me?.tenant.name}>{me?.tenant.name ?? 'Retail ERP'}</span></Link>
         <div className="kv-menu"><Menu mode="horizontal" items={items} selectedKeys={selected} disabledOverflow={false} /></div>
         <div className="kv-header-right">
-          {(!isMobile || (me?.branches.length ?? 0) > 1) && <Select size="small" className="kv-branch-select" style={{ minWidth: 170 }} value={branchId ?? undefined} onChange={setBranch} options={(me?.branches ?? []).map((b) => ({ value: b.id, label: b.name }))} placeholder="Chi nhánh" suffixIcon={<DownOutlined style={{ color: '#fff' }} />} />}
+          {(!isMobile || (me?.branches.length ?? 0) > 1) && <Select size="small" className="kv-branch-select" style={{ minWidth: 170 }} value={branchId ?? undefined} onChange={setBranch} options={(me?.branches ?? []).map((b) => ({ value: b.id, label: b.name }))} placeholder="Chi nhánh" suffixIcon={<DownOutlined className="kv-branch-arrow" />} />}
           {!isMobile && (can('invoice.create') ? <Button className="kv-pos-btn" size="small" onClick={openPos}>Bán hàng</Button> : <Tooltip title="Bạn không có quyền bán hàng"><Button className="kv-pos-btn" size="small" disabled>Bán hàng</Button></Tooltip>)}
-          <Tooltip title="Hướng dẫn sử dụng"><Link to="/help" aria-label="Hướng dẫn sử dụng" style={{ color: '#fff', fontSize: 16, display: 'inline-flex' }}><QuestionCircleOutlined /></Link></Tooltip>
-          <Badge count={0} size="small"><BellOutlined style={{ color: '#fff', fontSize: 16 }} /></Badge>
+          <Tooltip title="Hướng dẫn sử dụng"><Link to="/help" aria-label="Hướng dẫn sử dụng" className="kv-help"><QuestionCircleOutlined /></Link></Tooltip>
+          <Dropdown menu={{ items: notifyItems }} trigger={['click']}><span className="kv-bell" role="button" aria-label="Thông báo"><Badge count={notifyCount} size="small" overflowCount={99}><BellOutlined /></Badge></span></Dropdown>
           <Dropdown menu={userMenu} trigger={['click']}>
             <span className="kv-user"><Avatar size={26} icon={<UserOutlined />} style={{ background: 'rgba(255,255,255,.25)' }} /><span style={{ maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{me?.user.fullName}</span><DownOutlined style={{ fontSize: 10 }} /></span>
           </Dropdown>
@@ -180,9 +186,9 @@ export default function AppLayout() {
         <nav className="kv-tabbar">
           {can('dashboard.view') && <Link to="/" className={tab('/')}><HomeOutlined /><span>Tổng quan</span></Link>}
           {can('product.view') && <Link to="/products" className={tab('/products')}><TagsOutlined /><span>Hàng hóa</span></Link>}
-          {can('invoice.create') && <a className="kv-tab-pos" onClick={openPos}><ShoppingCartOutlined /><span>Bán hàng</span></a>}
+          {can('invoice.create') && <a className="kv-tab kv-tab-pos" onClick={openPos}><ShoppingOutlined /><span>Bán hàng</span></a>}
           {can('invoice.view') && <Link to="/invoices" className={tab('/invoices')}><FileTextOutlined /><span>Hóa đơn</span></Link>}
-          <a className="kv-tab" onClick={() => setMenuOpen(true)}><AppstoreOutlined /><span>Thêm</span></a>
+          <a className={`kv-tab ${menuOpen ? 'on' : ''}`} onClick={() => setMenuOpen(true)}><MenuOutlined /><span>Khác</span></a>
         </nav>
       )}
       <ChangePasswordModal open={pwdOpen} onClose={() => setPwdOpen(false)} />

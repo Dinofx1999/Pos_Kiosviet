@@ -156,7 +156,10 @@ html { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
    MOBILE FIRST (phones are the primary device) — shell, lists, editors, modals
    ===================================================================== */
 .kv-filter-toggle { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 50; box-shadow: 0 2px 8px rgba(0,0,0,.2); height: 40px; }
-.kv-burger { display: none; color: #fff; font-size: 20px; width: 40px; height: 40px; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; }
+/* chuông thông báo + hướng dẫn trên thanh tiêu đề */
+.kv-help { color: #fff; font-size: 16px; display: inline-flex; }
+.kv-bell { color: #fff; font-size: 16px; display: inline-flex; cursor: pointer; }
+.kv-bell .ant-badge-count { box-shadow: none; }
 .kv-tabbar { display: none; }
 .kv-menu-drawer .ant-menu-inline { border-inline-end: none !important; }
 .kv-menu-badge { display: inline-flex; align-items: center; gap: 6px; }
@@ -172,19 +175,23 @@ html { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   .kv-settings-body { width: 100%; }
   .kv-kv.kv-kv-wide { grid-template-columns: 1fr; }
   .kv-kv.kv-kv-wide > .k { font-weight: 600; margin-top: 6px; }
-  .kv-header { height: 52px; padding: 0 10px; padding-top: env(safe-area-inset-top); height: calc(52px + env(safe-area-inset-top)); gap: 6px; }
-  .kv-logo { font-size: 15px; margin-right: 4px; max-width: 34vw; overflow: hidden; }
+  /* thanh tiêu đề trắng như app KiotViet: tên cửa hàng màu xanh, chuông thông báo, tài khoản; menu nằm ở tab "Khác" */
+  .kv-header { height: 52px; padding: 0 12px; padding-top: env(safe-area-inset-top); height: calc(52px + env(safe-area-inset-top)); gap: 8px; background: #fff; color: #1f2937; box-shadow: none; border-bottom: 1px solid #eef0f4; }
+  .kv-logo { font-size: 18px; margin-right: 4px; max-width: 50vw; overflow: hidden; color: var(--kv-blue); }
+  .kv-logo .dot { background: var(--kv-blue); color: #fff; width: 30px; height: 30px; font-size: 16px; border-radius: 8px; }
   .kv-logo > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .kv-menu { display: none; }
-  .kv-burger { display: inline-flex; }
-  .kv-header-right { margin-left: auto; gap: 6px; }
+  .kv-header-right { margin-left: auto; gap: 10px; }
   .kv-header-right .ant-select { min-width: 0 !important; width: 128px; height: 30px; }
   /* ô chọn chi nhánh trên header không theo quy tắc ô nhập 40px/16px của điện thoại (sẽ tràn khỏi thanh tiêu đề) */
-  .kv-header-right .ant-select .ant-select-selector { min-height: 30px !important; height: 30px !important; font-size: 13px !important; padding: 0 24px 0 8px !important; }
-  .kv-header-right .ant-select .ant-select-selection-item, .kv-header-right .ant-select .ant-select-selection-placeholder { line-height: 28px !important; }
-  .kv-header-right .ant-badge { display: none; }
+  .kv-header-right .ant-select .ant-select-selector { min-height: 30px !important; height: 30px !important; font-size: 13px !important; padding: 0 24px 0 10px !important; background: #f1f3f6 !important; border-color: transparent !important; color: #1f2937 !important; border-radius: 999px !important; }
+  .kv-header-right .ant-select .ant-select-selection-item, .kv-header-right .ant-select .ant-select-selection-placeholder { line-height: 28px !important; color: #1f2937 !important; }
+  .kv-header-right .ant-select-arrow .kv-branch-arrow { color: #6b7280; }
+  .kv-help { display: none; }
+  .kv-bell { color: #374151; font-size: 22px; }
   .kv-user > span:not(.ant-avatar) { display: none; }
   .kv-user { padding: 0 2px; }
+  .kv-user .ant-avatar { background: #e6f0ff !important; color: var(--kv-blue) !important; width: 30px; height: 30px; line-height: 30px; }
   /* khung ứng dụng: tiêu đề và thanh tab cố định, chỉ phần nội dung ở giữa cuộn – không còn phần tử "ghim" nào
      phụ thuộc vào chiều cao cửa sổ (iPhone web app hay để khung bị lệch sau khi đóng bàn phím) */
   .kv-shell { min-height: 0; height: var(--app-h, 100dvh); display: flex; flex-direction: column; overflow: hidden; }
@@ -295,10 +302,9 @@ html { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   /* bottom tab bar */
   /* nút nằm giữa khoảng trắng của thanh (chia đều phần đệm vạch home lên trên và xuống dưới) */
   .kv-tabbar { display: flex; position: static; height: calc(56px + env(safe-area-inset-bottom)); padding-top: calc(env(safe-area-inset-bottom) / 2); padding-bottom: calc(env(safe-area-inset-bottom) / 2); background: #fff; border-top: 1px solid #e5e7eb; z-index: 90; }
-  .kv-tabbar a, .kv-tabbar .kv-tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 11px; color: #6b7280; text-decoration: none; }
-  .kv-tabbar .anticon { font-size: 20px; }
+  .kv-tabbar a, .kv-tabbar .kv-tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 11px; color: #4b5563; text-decoration: none; }
+  .kv-tabbar .anticon { font-size: 22px; }
   .kv-tabbar .on { color: var(--kv-blue); font-weight: 600; }
-  .kv-tabbar .kv-tab-pos .anticon { background: var(--kv-green); color: #fff; width: 36px; height: 36px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; margin-top: -4px; }
   .kv-images .ant-upload-list-picture-card .ant-upload-list-item-container, .kv-images .ant-upload.ant-upload-select { width: 80px !important; height: 80px !important; }
   .kv-gallery img { max-width: 100%; }
 }

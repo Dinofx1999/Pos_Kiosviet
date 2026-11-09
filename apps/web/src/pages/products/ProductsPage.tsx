@@ -13,24 +13,59 @@ import { useAuthStore, useBranchWarehouses, useCan } from '../../store/auth';
 import { MOVEMENT_LABEL, PRODUCT_TYPE_LABEL, downloadBlob, dt, money, pct, qty, signedQty } from '../../utils/format';
 import { CategoryFilter } from './CategoryFilter';
 import { ProductFormModal } from './ProductFormModal';
+import { ProductsMobile } from './ProductsMobile';
+import { useIsMobile } from '../../hooks/useMedia';
 
+/** Điện thoại: danh sách dòng kiểu app KiotViet; máy tính: bảng + cột lọc bên trái. */
 export default function ProductsPage() {
+  return useIsMobile() ? <ProductsMobile /> : <ProductsDesktop />;
+}
+
+/** Cột lọc dùng chung cho máy tính (bên trái) và điện thoại (ngăn kéo Bộ lọc). */
+export function ProductFilters({ q, set }: { q: ProductQuery; set: (patch: Partial<ProductQuery>) => void }) {
   const { message, modal } = App.useApp();
   const can = useCan();
   const invalidate = useInvalidate();
-  const [sp, setSp] = useSearchParams();
   const warehouses = useBranchWarehouses();
+  const { data: brands } = useBrands();
+  const act = async (fn: () => Promise<unknown>, ok: string) => { try { await fn(); message.success(ok); invalidate('products', 'product', 'dashboard'); } catch (e) { message.error(errMsg(e)); } };
+  return (
+    <>
+      <FilterCard title="Nhóm hàng"><CategoryFilter value={q.categoryId} onChange={(id) => set({ categoryId: id })} /></FilterCard>
+      <FilterCard title="Tồn kho">
+        <Select size="small" allowClear placeholder="Tất cả kho (toàn hệ thống)" style={{ width: '100%', marginBottom: 6 }} value={q.warehouseId} onChange={(v) => set({ warehouseId: v })} options={warehouses.map((w) => ({ value: w.id, label: w.name }))} />
+        <Radio.Group value={q.stockStatus ?? ''} onChange={(e) => set({ stockStatus: e.target.value || undefined })}>
+          <Radio value="">Tất cả</Radio><Radio value="in">Còn hàng</Radio><Radio value="low">Dưới định mức tồn</Radio><Radio value="over">Vượt định mức tồn</Radio><Radio value="out">Hết hàng</Radio>
+        </Radio.Group>
+      </FilterCard>
+      <FilterCard title="Trạng thái">
+        <Radio.Group value={q.isActive ?? ''} onChange={(e) => set({ isActive: e.target.value || undefined })}><Radio value="">Tất cả</Radio><Radio value="true">Đang kinh doanh</Radio><Radio value="false">Ngừng kinh doanh</Radio></Radio.Group>
+      </FilterCard>
+      <FilterCard title="Loại hàng">
+        <Radio.Group value={q.type ?? ''} onChange={(e) => set({ type: e.target.value || undefined })}><Radio value="">Tất cả</Radio><Radio value="GOODS">Hàng hóa</Radio><Radio value="SERVICE">Dịch vụ</Radio><Radio value="COMBO">Combo</Radio></Radio.Group>
+      </FilterCard>
+      <FilterCard title="Thương hiệu" extra={can('brand.manage') && <Button type="link" size="small" icon={<PlusOutlined />} onClick={() => { let name = ''; modal.confirm({ title: 'Thêm thương hiệu', autoFocusButton: null, content: <Input autoFocus placeholder="Tên thương hiệu" onChange={(e) => (name = e.target.value)} />, okText: 'Thêm', cancelText: 'Hủy', onOk: async () => { if (!name.trim()) { message.warning('Nhập tên thương hiệu'); throw new Error('empty'); } await catalogApi.createBrand(name.trim()).catch((e) => { message.error(errMsg(e)); throw e; }); message.success('Đã thêm thương hiệu'); invalidate('brands'); } }); }} />}>
+        <Select size="small" allowClear showSearch optionFilterProp="label" placeholder="Chọn thương hiệu" style={{ width: '100%' }} value={q.brandId} onChange={(v) => set({ brandId: v })}
+          options={(brands ?? []).map((b) => ({ value: b.id, label: `${b.name}${b._count ? ` (${b._count.products})` : ''}` }))}
+          optionRender={(o) => <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>{o.label}</span>{can('brand.manage') && <DeleteOutlined onClick={(e) => { e.stopPropagation(); modal.confirm({ title: 'Xóa thương hiệu?', okText: 'Xóa', okButtonProps: { danger: true }, onOk: () => act(() => catalogApi.deleteBrand(o.value as string), 'Đã xóa').then(() => invalidate('brands')) }); }} />}</div>} />
+      </FilterCard>
+    </>
+  );
+}
+
+function ProductsDesktop() {
+  const { message } = App.useApp();
+  const can = useCan();
+  const invalidate = useInvalidate();
+  const [sp, setSp] = useSearchParams();
   const [q, setQ] = useState<ProductQuery>({ page: 1, pageSize: 20, search: sp.get('search') ?? undefined, isActive: 'true', stockStatus: (sp.get('stock') as ProductQuery['stockStatus']) ?? undefined });
   const [searchText, setSearchText] = useState(q.search ?? '');
   const [form, setForm] = useState<{ open: boolean; product?: Product | null }>({ open: false });
   const [importRes, setImportRes] = useState<{ created: number; failed: { row: number; error: string }[]; totalRows: number } | null>(null);
   const { data, isLoading, isFetching, error, refetch } = useProducts(q);
-  const { data: brands } = useBrands();
   const canSeeCost = can('product.cost.view');
 
   const set = (patch: Partial<ProductQuery>) => setQ((s) => ({ ...s, ...patch, page: patch.page ?? 1 }));
-
-  const act = async (fn: () => Promise<unknown>, ok: string) => { try { await fn(); message.success(ok); invalidate('products', 'product', 'dashboard'); } catch (e) { message.error(errMsg(e)); } };
 
   const columns = useMemo(() => [
     { title: '', dataIndex: 'imageUrl', width: 44, mobile: 'image' as const, render: (v: string | null) => v ? <Image src={v} width={32} height={32} style={{ objectFit: 'cover', borderRadius: 4 }} preview={false} /> : <div style={{ width: 32, height: 32, background: '#eef2f7', borderRadius: 4 }} /> },
@@ -46,26 +81,7 @@ export default function ProductsPage() {
 
   return (
     <div className="kv-list">
-      <FilterPanel>
-        <FilterCard title="Nhóm hàng"><CategoryFilter value={q.categoryId} onChange={(id) => set({ categoryId: id })} /></FilterCard>
-        <FilterCard title="Tồn kho">
-          <Select size="small" allowClear placeholder="Tất cả kho (toàn hệ thống)" style={{ width: '100%', marginBottom: 6 }} value={q.warehouseId} onChange={(v) => set({ warehouseId: v })} options={warehouses.map((w) => ({ value: w.id, label: w.name }))} />
-          <Radio.Group value={q.stockStatus ?? ''} onChange={(e) => set({ stockStatus: e.target.value || undefined })}>
-            <Radio value="">Tất cả</Radio><Radio value="in">Còn hàng</Radio><Radio value="low">Dưới định mức tồn</Radio><Radio value="over">Vượt định mức tồn</Radio><Radio value="out">Hết hàng</Radio>
-          </Radio.Group>
-        </FilterCard>
-        <FilterCard title="Trạng thái">
-          <Radio.Group value={q.isActive ?? ''} onChange={(e) => set({ isActive: e.target.value || undefined })}><Radio value="">Tất cả</Radio><Radio value="true">Đang kinh doanh</Radio><Radio value="false">Ngừng kinh doanh</Radio></Radio.Group>
-        </FilterCard>
-        <FilterCard title="Loại hàng">
-          <Radio.Group value={q.type ?? ''} onChange={(e) => set({ type: e.target.value || undefined })}><Radio value="">Tất cả</Radio><Radio value="GOODS">Hàng hóa</Radio><Radio value="SERVICE">Dịch vụ</Radio><Radio value="COMBO">Combo</Radio></Radio.Group>
-        </FilterCard>
-        <FilterCard title="Thương hiệu" extra={can('brand.manage') && <Button type="link" size="small" icon={<PlusOutlined />} onClick={() => { let name = ''; modal.confirm({ title: 'Thêm thương hiệu', autoFocusButton: null, content: <Input autoFocus placeholder="Tên thương hiệu" onChange={(e) => (name = e.target.value)} />, okText: 'Thêm', cancelText: 'Hủy', onOk: async () => { if (!name.trim()) { message.warning('Nhập tên thương hiệu'); throw new Error('empty'); } await catalogApi.createBrand(name.trim()).catch((e) => { message.error(errMsg(e)); throw e; }); message.success('Đã thêm thương hiệu'); invalidate('brands'); } }); }} />}>
-          <Select size="small" allowClear showSearch optionFilterProp="label" placeholder="Chọn thương hiệu" style={{ width: '100%' }} value={q.brandId} onChange={(v) => set({ brandId: v })}
-            options={(brands ?? []).map((b) => ({ value: b.id, label: `${b.name}${b._count ? ` (${b._count.products})` : ''}` }))}
-            optionRender={(o) => <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>{o.label}</span>{can('brand.manage') && <DeleteOutlined onClick={(e) => { e.stopPropagation(); modal.confirm({ title: 'Xóa thương hiệu?', okText: 'Xóa', okButtonProps: { danger: true }, onOk: () => act(() => catalogApi.deleteBrand(o.value as string), 'Đã xóa').then(() => invalidate('brands')) }); }} />}</div>} />
-        </FilterCard>
-      </FilterPanel>
+      <FilterPanel><ProductFilters q={q} set={set} /></FilterPanel>
       <div className="kv-main">
         <h1 className="kv-page-title">Hàng hóa</h1>
         <div className="kv-toolbar">
@@ -103,7 +119,7 @@ export default function ProductsPage() {
   );
 }
 
-function ProductDetail({ product, onEdit }: { product: Product; onEdit: () => void }) {
+export function ProductDetail({ product, onEdit }: { product: Product; onEdit: () => void }) {
   const { message, modal } = App.useApp();
   const can = useCan();
   const invalidate = useInvalidate();

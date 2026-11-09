@@ -384,3 +384,7 @@ Module `online` (`ShopSettingsService`, `FlashSalesService`, `StorefrontService`
 
 ### Còn hàng trên web cộng tồn nhiều kho (07/11/2026)
 Theo yêu cầu chủ cửa hàng: web tính còn / hết hàng bằng tổng tồn các kho (`stockWarehouseIds`, mặc định mọi kho đang hoạt động) thay vì một kho; đơn web tự gắn vào kho cùng chi nhánh đủ hàng. Trên máy chủ: hàng còn bán trên web tăng từ 1.540 (chỉ Kho bán hàng) lên số cộng cả Kho tổng Bảo Ân. Test T-277.
+
+### Giao diện điện thoại theo app KiotViet (09/11/2026)
+Nhân viên chuyển từ KiotViet sang nên bố cục điện thoại làm giống app KiotViet: thanh tiêu đề trắng (tên cửa hàng xanh, chuông thông báo gom đơn web chờ + tiền về chưa khớp, tài khoản), thanh tab Tổng quan · Hàng hóa · Bán hàng · Hóa đơn · Khác (menu đầy đủ, bỏ nút ☰). Tổng quan (`.dk-*`): hai nút chọn kỳ / chi nhánh, thẻ "N hóa đơn – doanh thu to" + "Lợi nhuận" ẩn bằng *** (nút mắt, nhớ trong máy), dòng trả hàng / chưa thu đủ, hàng icon lối tắt, khối Doanh thu có trục tiền (3Tr/2Tr/1Tr) và nút đổi cột ↔ tròn (tỷ trọng hàng bán chạy). Hàng hóa (`ProductsMobile`, `.pm-*`): tiêu đề + tìm / sắp xếp / …, chip lọc (phễu mở ngăn Bộ lọc dùng chung `ProductFilters`, Loại hàng, Giá bán / Giá vốn, Tồn kho), dòng "Tổng tồn / N hàng hóa", dòng hàng ảnh – tên – mã | giá – "Tồn: x ĐVT", cuộn vô hạn, nút + nổi, chi tiết mở dạng tấm trượt từ dưới. Máy tính giữ nguyên (chỉ thêm nút cột / tròn ở biểu đồ). `FilterPanel` nhận `open` / `hideToggle`.
+

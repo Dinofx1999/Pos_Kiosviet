@@ -1,12 +1,14 @@
-import { Alert, Avatar, Empty, Segmented, Skeleton, Tag } from 'antd';
+import { Alert, Avatar, Dropdown, Empty, Segmented, Skeleton, Tag } from 'antd';
 import {
-  ArrowDownOutlined, ArrowUpOutlined, CarOutlined, ClockCircleOutlined, DollarOutlined, FileDoneOutlined, GiftOutlined, PauseCircleOutlined, RightOutlined, RollbackOutlined, SwapOutlined, WarningOutlined,
+  ArrowDownOutlined, ArrowUpOutlined, AuditOutlined, BarChartOutlined, CarOutlined, CaretDownOutlined, ClockCircleOutlined, DollarOutlined, ExpandAltOutlined, EyeInvisibleOutlined, EyeOutlined,
+  FileDoneOutlined, GiftOutlined, GlobalOutlined, ImportOutlined, LineChartOutlined, PauseCircleOutlined, PieChartOutlined, RightOutlined, RollbackOutlined, ShoppingOutlined, SwapOutlined, TeamOutlined, UserOutlined, WalletOutlined, WarningOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { ReactNode, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { HomeSales, useDashboardHome } from '../../api/dashboard';
 import { errMsg } from '../../api/client';
+import { useIsMobile } from '../../hooks/useMedia';
 import { useAuthStore } from '../../store/auth';
 import { DOC_STATUS_COLOR, DOC_STATUS_LABEL, DOC_TYPE_LABEL, money, qty, toNum } from '../../utils/format';
 import './dashboard.css';
@@ -23,6 +25,30 @@ export function compactMoney(v: unknown): string {
   if (abs >= 1e6) return `${(n / 1e6).toLocaleString('vi-VN', { maximumFractionDigits: 1 })} tr`;
   return money(Math.round(n));
 }
+/** Số to kiểu KiotViet: 8.810.000 → { num: "8,81", unit: "triệu" }; 550.000 → { num: "550", unit: "nghìn" }. */
+function bigMoney(v: unknown): { num: string; unit: string } {
+  const n = toNum(v);
+  const abs = Math.abs(n);
+  if (abs >= 1e9) return { num: (n / 1e9).toLocaleString('vi-VN', { maximumFractionDigits: 2 }), unit: 'tỷ' };
+  if (abs >= 1e6) return { num: (n / 1e6).toLocaleString('vi-VN', { maximumFractionDigits: 2 }), unit: 'triệu' };
+  if (abs >= 1e3) return { num: (n / 1e3).toLocaleString('vi-VN', { maximumFractionDigits: 0 }), unit: 'nghìn' };
+  return { num: money(Math.round(n)), unit: 'đ' };
+}
+/** Nhãn trục tiền: 3.000.000 → "3Tr", 500.000 → "500k", 1.500.000.000 → "1,5 tỷ". */
+const axisLabel = (n: number) => {
+  const f = (x: number) => x.toLocaleString('vi-VN', { maximumFractionDigits: 1 });
+  return n >= 1e9 ? `${f(n / 1e9)} tỷ` : n >= 1e6 ? `${f(n / 1e6)}Tr` : n >= 1e3 ? `${f(n / 1e3)}k` : String(n);
+};
+/** Mốc trục Y đẹp: bước 1/2/2,5/5 × 10^k sao cho ≤ 4 mốc. */
+function axisTicks(max: number): { top: number; ticks: number[] } {
+  if (max <= 0) return { top: 1, ticks: [] };
+  const p = 10 ** Math.floor(Math.log10(max));
+  for (const s of [1, 2, 2.5, 5, 10]) {
+    const step = s * p; const n = Math.ceil(max / step);
+    if (n <= 4) return { top: n * step, ticks: Array.from({ length: n }, (_, i) => (i + 1) * step) };
+  }
+  return { top: max, ticks: [max] };
+}
 const vnd = (v: unknown) => `${money(Math.round(toNum(v)))} ₫`;
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const initials = (name?: string | null) => {
@@ -31,6 +57,8 @@ const initials = (name?: string | null) => {
   return (parts.length === 1 ? parts[0].slice(0, 2) : parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 };
 const greeting = () => { const h = dayjs().hour(); return h < 11 ? 'Chào buổi sáng' : h < 14 ? 'Chào buổi trưa' : h < 18 ? 'Chào buổi chiều' : 'Chào buổi tối'; };
+const PROFIT_KEY = 'dh.showProfit';
+const readShowProfit = () => { try { return localStorage.getItem(PROFIT_KEY) === '1'; } catch { return false; } };
 
 /** % change between two amounts; null when there is nothing to compare with. */
 function change(cur: number, prev: number): { pct: number | null; dir: 'up' | 'down' | 'flat' } {
@@ -60,11 +88,12 @@ function buildBars(sales: HomeSales, period: Period): Bar[] {
   });
 }
 
+/** Cột doanh thu có trục tiền bên trái (3Tr / 2Tr / 1Tr) như KiotViet; chạm cột để xem số. */
 function RevenueBars({ bars }: { bars: Bar[] }) {
   const lastNonZero = [...bars].reverse().find((b) => b.value > 0)?.key;
   const [picked, setPicked] = useState<string | undefined>(undefined);
   const sel = bars.find((b) => b.key === (picked ?? lastNonZero));
-  const max = Math.max(1, ...bars.map((b) => b.value));
+  const { top, ticks } = axisTicks(Math.max(...bars.map((b) => b.value), 0));
   const every = bars.length > 20 ? 5 : bars.length > 12 ? 2 : 1;
   const total = bars.reduce((s, b) => s + b.value, 0);
   return (
@@ -72,15 +101,43 @@ function RevenueBars({ bars }: { bars: Bar[] }) {
       <div className="dh-chart-sel">
         {sel ? <><b>{sel.title}</b><span>{sel.invoices} đơn · {vnd(sel.value)}</span></> : <span className="muted">Chưa có doanh thu trong kỳ này</span>}
       </div>
-      <div className="dh-bars" style={{ ['--n' as string]: bars.length }}>
-        {bars.map((b, i) => (
-          <button type="button" key={b.key} className={`dh-bar ${b.key === sel?.key ? 'on' : ''} ${b.value === 0 ? 'zero' : ''}`} onClick={() => setPicked(b.key)} aria-label={`${b.title}: ${vnd(b.value)}`}>
-            <span className="dh-bar-fill" style={{ height: `${Math.max(b.value > 0 ? 6 : 2, (b.value / max) * 100)}%` }} />
-            <span className="dh-bar-lbl">{i % every === 0 || bars.length <= 12 ? b.label : ''}</span>
-          </button>
-        ))}
+      <div className="dh-plot">
+        <div className="dh-plot-area">
+          {ticks.map((t) => <div key={t} className="dh-gridline" style={{ bottom: `${(t / top) * 100}%` }}><span>{axisLabel(t)}</span></div>)}
+          <div className="dh-bars" style={{ ['--n' as string]: bars.length }}>
+            {bars.map((b) => (
+              <button type="button" key={b.key} className={`dh-bar ${b.key === sel?.key ? 'on' : ''} ${b.value === 0 ? 'zero' : ''}`} onClick={() => setPicked(b.key)} aria-label={`${b.title}: ${vnd(b.value)}`}>
+                <span className="dh-bar-fill" style={{ height: `${Math.max(b.value > 0 ? 3 : 1, (b.value / top) * 100)}%` }} />
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="dh-xlabels" style={{ ['--n' as string]: bars.length }}>
+          {bars.map((b, i) => <span key={b.key} className="dh-bar-lbl">{i % every === 0 || bars.length <= 12 ? b.label : ''}</span>)}
+        </div>
       </div>
       {total === 0 && <div className="dh-chart-empty">Bán đơn đầu tiên để thấy biểu đồ nhé</div>}
+    </div>
+  );
+}
+
+const PIE_COLORS = ['#0070f4', '#2fb344', '#f59e0b', '#d6336c', '#7c3aed', '#94a3b8'];
+/** Biểu đồ tròn: tỷ trọng doanh thu 5 hàng bán chạy nhất 7 ngày. */
+function RevenuePie({ products }: { products: HomeSales['topProducts'] }) {
+  const sorted = [...products].sort((a, b) => toNum(b.revenue) - toNum(a.revenue));
+  const top = sorted.slice(0, 5);
+  const other = sorted.slice(5).reduce((s, p) => s + toNum(p.revenue), 0);
+  const segs = [...top.map((p) => ({ name: p.name, value: toNum(p.revenue) })), ...(other > 0 ? [{ name: 'Hàng khác', value: other }] : [])];
+  const total = segs.reduce((s, x) => s + x.value, 0);
+  if (!total) return <div className="dh-chart-empty static">Chưa có hàng bán trong 7 ngày qua</div>;
+  let acc = 0;
+  const stops = segs.map((s, i) => { const from = (acc / total) * 100; acc += s.value; return `${PIE_COLORS[i]} ${from}% ${(acc / total) * 100}%`; });
+  return (
+    <div className="dh-pie">
+      <div className="dh-donut" style={{ background: `conic-gradient(${stops.join(', ')})` }}><div className="dh-donut-hole"><b>{compactMoney(total)}</b><span>7 ngày</span></div></div>
+      <ul className="dh-legend">
+        {segs.map((s, i) => <li key={s.name}><i style={{ background: PIE_COLORS[i] }} /><span className="nm">{s.name}</span><b>{Math.round((s.value / total) * 100)}%</b></li>)}
+      </ul>
     </div>
   );
 }
@@ -96,14 +153,19 @@ function Section({ title, extra, children, className = '' }: { title: ReactNode;
 
 export default function DashboardPage() {
   const me = useAuthStore((s) => s.me);
+  const can = useAuthStore((s) => s.can);
   const branchId = useAuthStore((s) => s.currentBranchId);
+  const setBranch = useAuthStore((s) => s.setBranch);
+  const isMobile = useIsMobile();
   const { data, isLoading, error } = useDashboardHome(branchId);
   const [period, setPeriod] = useState<Period>('today');
+  const [chart, setChart] = useState<'bar' | 'pie'>('bar');
+  const [showProfit, setShowProfit] = useState(readShowProfit);
   const branchName = me?.branches.find((b) => b.id === branchId)?.name ?? (me?.branches.length ? 'Tất cả chi nhánh' : '');
-
+  const toggleProfit = () => { const v = !showProfit; setShowProfit(v); try { localStorage.setItem(PROFIT_KEY, v ? '1' : '0'); } catch { /* riêng tư */ } };
 
   if (error) return <Alert type="error" message={errMsg(error)} showIcon />;
-  if (isLoading || !data) return <div className="dh"><div className="dh-hero"><Skeleton active paragraph={{ rows: 3 }} /></div><Skeleton active paragraph={{ rows: 8 }} /></div>;
+  if (isLoading || !data) return <div className="dh"><div className={isMobile ? 'dk-card' : 'dh-hero'}><Skeleton active paragraph={{ rows: 3 }} /></div><Skeleton active paragraph={{ rows: 8 }} /></div>;
 
   const sales = data.sales;
   const cur = sales ? sales[period] : null;
@@ -127,45 +189,126 @@ export default function DashboardPage() {
 
   const topMax = Math.max(1, ...(sales?.topProducts.map((p) => toNum(p.revenue)) ?? [0]));
 
-  return (
-    <div className="dh">
-      {/* ---------- hero ---------- */}
-      <div className="dh-hero">
-        <div className="dh-greet">
-          <div>
-            <div className="dh-hello">{greeting()}, {me?.user.fullName ?? ''} 👋</div>
-            <div className="dh-where">{branchName}{branchName ? ' · ' : ''}{cap(dayjs().format('dddd, DD/MM'))}</div>
-          </div>
-        </div>
-        {sales && cur ? (
-          <div className="dh-hero-card">
-            <Segmented className="dh-seg" block value={period} onChange={(v) => setPeriod(v as Period)} options={(Object.keys(PERIOD_LABEL) as Period[]).map((k) => ({ value: k, label: PERIOD_LABEL[k] }))} />
-            <div className="dh-rev">
-              <div className="dh-rev-lbl">Doanh thu {PERIOD_LABEL[period].toLowerCase()}</div>
-              <div className="dh-rev-val">{vnd(cur.revenue)}</div>
-              {diff && (
-                <div className={`dh-rev-cmp ${diff.dir}`}>
-                  {diff.dir === 'up' ? <ArrowUpOutlined /> : diff.dir === 'down' ? <ArrowDownOutlined /> : null}
-                  {diff.pct === null
-                    ? <span className="muted">{period === 'today' ? 'Hôm qua' : period === 'week' ? '7 ngày trước' : 'Tháng trước'} không có doanh thu</span>
-                    : <>{`${Math.abs(diff.pct).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}%`}<span className="muted"> {PREV_LABEL[period]} ({compactMoney(prev?.revenue)})</span></>}
-                </div>
-              )}
-            </div>
-            <div className="dh-kpis">
-              <Link to="/invoices" className="dh-kpi"><span className="k">Đơn hàng</span><span className="v">{cur.invoices}</span></Link>
-              <div className="dh-kpi"><span className="k">Khách mua</span><span className="v">{cur.customers}</span></div>
-              {cur.grossProfit !== undefined
-                ? <Link to="/reports/profit" className="dh-kpi"><span className="k">Lợi nhuận gộp</span><span className="v pos">{compactMoney(cur.grossProfit)}</span></Link>
-                : <div className="dh-kpi"><span className="k">TB / đơn</span><span className="v">{compactMoney(avgTicket)}</span></div>}
-            </div>
-          </div>
-        ) : (
-          <div className="dh-hero-card dh-hero-plain">Chúc một ngày bán hàng thuận lợi!</div>
-        )}
+  // lối tắt kiểu KiotViet (hàng icon dưới thẻ doanh thu)
+  const quick = [
+    { key: 'orders', to: '/orders', label: 'Đặt hàng', icon: <ShoppingOutlined />, tone: 'blue', ok: can('order.view') },
+    { key: 'deliveries', to: '/deliveries', label: 'Giao hàng', icon: <CarOutlined />, tone: 'blue', ok: can('delivery.view') },
+    { key: 'cash', to: '/cash', label: 'Sổ quỹ', icon: <WalletOutlined />, tone: 'green', ok: can('cash.view') },
+    { key: 'customers', to: '/customers', label: 'Khách hàng', icon: <UserOutlined />, tone: 'blue', ok: can('customer.view') },
+    { key: 'staff', to: '/employees', label: 'Nhân viên', icon: <TeamOutlined />, tone: 'blue', ok: can('attendance.view') },
+    { key: 'receipts', to: '/purchase-receipts', label: 'Nhập hàng', icon: <ImportOutlined />, tone: 'green', ok: can('purchase.receipt.view') },
+    { key: 'stocktake', to: '/stocktakes', label: 'Kiểm kho', icon: <AuditOutlined />, tone: 'blue', ok: can('stocktake.view') },
+    { key: 'reports', to: '/reports/sales', label: 'Báo cáo', icon: <LineChartOutlined />, tone: 'green', ok: can('sales.report.view') },
+    { key: 'online', to: '/online/settings', label: 'Bán online', icon: <GlobalOutlined />, tone: 'blue', ok: can('online.manage'), badge: 'Mới' },
+  ].filter((x) => x.ok);
+
+  const periodMenu = { items: (Object.keys(PERIOD_LABEL) as Period[]).map((k) => ({ key: k, label: PERIOD_LABEL[k] })), selectedKeys: [period], onClick: ({ key }: { key: string }) => setPeriod(key as Period) };
+  const branchMenu = { items: (me?.branches ?? []).map((b) => ({ key: b.id, label: b.name })), selectedKeys: branchId ? [branchId] : [], onClick: ({ key }: { key: string }) => setBranch(key) };
+  const rev = cur ? bigMoney(cur.revenue) : null;
+  const profit = cur?.grossProfit !== undefined ? bigMoney(cur.grossProfit) : null;
+
+  const chartSection = sales && (
+    <Section className="dh-a-chart" title="Doanh thu" extra={<Link to="/reports/sales" className="dh-more" aria-label="Báo cáo doanh thu">{isMobile ? <RightOutlined style={{ fontSize: 14, color: '#6b7280' }} /> : <>Báo cáo <RightOutlined /></>}</Link>}>
+      <div className="dh-chart-tools">
+        <button type="button" className={chart === 'bar' ? 'on' : ''} onClick={() => setChart('bar')} aria-label="Biểu đồ cột"><BarChartOutlined /></button>
+        <button type="button" className={chart === 'pie' ? 'on' : ''} onClick={() => setChart('pie')} aria-label="Biểu đồ tròn"><PieChartOutlined /></button>
+        <Link to="/reports/sales" aria-label="Xem báo cáo chi tiết"><ExpandAltOutlined /></Link>
+        <span className="dh-chart-cap">{chart === 'bar' ? (period === 'today' ? 'Theo giờ hôm nay' : period === 'week' ? '7 ngày qua' : 'Tháng này') : 'Hàng bán chạy 7 ngày'}</span>
       </div>
+      {chart === 'bar' ? <RevenueBars key={period} bars={bars} /> : <RevenuePie products={sales.topProducts} />}
+    </Section>
+  );
+
+  return (
+    <div className={`dh ${isMobile ? 'dh-mobile' : ''}`}>
+      {isMobile ? (
+        /* ---------- điện thoại: bố cục như app KiotViet ---------- */
+        <div className="dk">
+          <div className="dk-pills">
+            <Dropdown menu={periodMenu} trigger={['click']}><button type="button" className="dk-pill">{PERIOD_LABEL[period]} <CaretDownOutlined /></button></Dropdown>
+            {(me?.branches.length ?? 0) > 1
+              ? <Dropdown menu={branchMenu} trigger={['click']}><button type="button" className="dk-pill">{branchName} <CaretDownOutlined /></button></Dropdown>
+              : branchName && <span className="dk-pill static">{branchName}</span>}
+          </div>
+          {sales && cur && rev ? (
+            <div className="dk-card">
+              <div className="dk-row">
+                <Link to="/invoices" className="dk-rev">
+                  <div className="k">{cur.invoices} hóa đơn</div>
+                  <div className="v"><b>{rev.num}</b> <small>{rev.unit}</small></div>
+                  {diff && diff.pct !== null && <div className={`dk-cmp ${diff.dir}`}>{diff.dir === 'up' ? <ArrowUpOutlined /> : diff.dir === 'down' ? <ArrowDownOutlined /> : null}{Math.abs(diff.pct).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}% {PREV_LABEL[period]}</div>}
+                </Link>
+                {profit ? (
+                  <div className="dk-profit">
+                    <div className="k">Lợi nhuận <button type="button" className="dk-eye" onClick={toggleProfit} aria-label={showProfit ? 'Ẩn lợi nhuận' : 'Hiện lợi nhuận'}>{showProfit ? <EyeOutlined /> : <EyeInvisibleOutlined />}</button></div>
+                    <div className="v">{showProfit ? <><b>{profit.num}</b> <small>{profit.unit}</small></> : <span className="dk-masked">*** ***</span>}</div>
+                  </div>
+                ) : (
+                  <div className="dk-profit"><div className="k">Khách mua</div><div className="v"><b>{cur.customers}</b></div><div className="dk-sub">TB {compactMoney(avgTicket)}/đơn</div></div>
+                )}
+              </div>
+              <div className="dk-sep" />
+              <div className="dk-extra">
+                {period === 'today'
+                  ? <Link to="/sales-returns" className="dk-extra-item"><RollbackOutlined /> {sales.returnsToday.count} đơn trả hàng{sales.returnsToday.count ? <> - <b>{bigMoney(sales.returnsToday.amount).num} {bigMoney(sales.returnsToday.amount).unit}</b></> : null}</Link>
+                  : <span className="dk-extra-item"><UserOutlined /> {cur.customers} khách mua · TB <b>{compactMoney(avgTicket)}</b>/đơn</span>}
+                {sales.unpaid.count > 0 && <Link to="/invoices?unpaid=1" className="dk-extra-item warn"><DollarOutlined /> {sales.unpaid.count} hóa đơn chưa thu đủ - <b>{compactMoney(sales.unpaid.amount)}</b></Link>}
+              </div>
+            </div>
+          ) : (
+            <div className="dk-card dk-plain">Chúc một ngày bán hàng thuận lợi!</div>
+          )}
+          {quick.length > 0 && (
+            <div className="dk-quick">
+              {quick.map((q) => (
+                <Link key={q.key} to={q.to} className="dk-quick-item">
+                  <span className={`ic tone-${q.tone}`}>{q.icon}{q.badge && <i className="dk-new">{q.badge}</i>}</span>
+                  <span className="lbl">{q.label}</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* ---------- máy tính: thẻ hero ---------- */
+        <div className="dh-hero">
+          <div className="dh-greet">
+            <div>
+              <div className="dh-hello">{greeting()}, {me?.user.fullName ?? ''} 👋</div>
+              <div className="dh-where">{branchName}{branchName ? ' · ' : ''}{cap(dayjs().format('dddd, DD/MM'))}</div>
+            </div>
+          </div>
+          {sales && cur ? (
+            <div className="dh-hero-card">
+              <Segmented className="dh-seg" block value={period} onChange={(v) => setPeriod(v as Period)} options={(Object.keys(PERIOD_LABEL) as Period[]).map((k) => ({ value: k, label: PERIOD_LABEL[k] }))} />
+              <div className="dh-rev">
+                <div className="dh-rev-lbl">Doanh thu {PERIOD_LABEL[period].toLowerCase()}</div>
+                <div className="dh-rev-val">{vnd(cur.revenue)}</div>
+                {diff && (
+                  <div className={`dh-rev-cmp ${diff.dir}`}>
+                    {diff.dir === 'up' ? <ArrowUpOutlined /> : diff.dir === 'down' ? <ArrowDownOutlined /> : null}
+                    {diff.pct === null
+                      ? <span className="muted">{period === 'today' ? 'Hôm qua' : period === 'week' ? '7 ngày trước' : 'Tháng trước'} không có doanh thu</span>
+                      : <>{`${Math.abs(diff.pct).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}%`}<span className="muted"> {PREV_LABEL[period]} ({compactMoney(prev?.revenue)})</span></>}
+                  </div>
+                )}
+              </div>
+              <div className="dh-kpis">
+                <Link to="/invoices" className="dh-kpi"><span className="k">Đơn hàng</span><span className="v">{cur.invoices}</span></Link>
+                <div className="dh-kpi"><span className="k">Khách mua</span><span className="v">{cur.customers}</span></div>
+                {cur.grossProfit !== undefined
+                  ? <Link to="/reports/profit" className="dh-kpi"><span className="k">Lợi nhuận gộp</span><span className="v pos">{compactMoney(cur.grossProfit)}</span></Link>
+                  : <div className="dh-kpi"><span className="k">TB / đơn</span><span className="v">{compactMoney(avgTicket)}</span></div>}
+              </div>
+            </div>
+          ) : (
+            <div className="dh-hero-card dh-hero-plain">Chúc một ngày bán hàng thuận lợi!</div>
+          )}
+        </div>
+      )}
 
       <div className="dh-grid">
+          {isMobile && chartSection}
           {todo.length > 0 && (
             <Section title="Cần xử lý" className="dh-a-todo">
               <div className="dh-todo">
@@ -180,11 +323,7 @@ export default function DashboardPage() {
               </div>
             </Section>
           )}
-          {sales && (
-            <Section className="dh-a-chart" title={period === 'today' ? 'Doanh thu theo giờ' : 'Doanh thu theo ngày'} extra={<Link to="/reports/sales" className="dh-more">Báo cáo <RightOutlined /></Link>}>
-              <RevenueBars key={period} bars={bars} />
-            </Section>
-          )}
+          {!isMobile && chartSection}
 
           {sales && (
             <Section className="dh-a-top" title="Hàng bán chạy 7 ngày" extra={<Link to="/reports/products" className="dh-more">Xem thêm <RightOutlined /></Link>}>

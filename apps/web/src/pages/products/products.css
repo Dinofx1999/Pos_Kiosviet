@@ -1,0 +1,44 @@
+/* Hàng hóa trên điện thoại – kiểu app KiotViet (.pm-) */
+.pm { display: flex; flex-direction: column; gap: 10px; margin: -10px -12px 0; padding-bottom: 72px; }
+.pm-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px 0; background: #fff; }
+.pm-head h1 { margin: 0; font-size: 24px; font-weight: 700; color: #111827; }
+.pm-icons { display: flex; gap: 2px; }
+.pm-icons button { appearance: none; border: 0; background: none; width: 40px; height: 40px; border-radius: 10px; font-size: 20px; color: #374151; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.pm-icons button.on { color: var(--kv-blue); }
+.pm-search { padding: 0 14px; background: #fff; }
+.pm-chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 8px 14px 12px; background: #fff; }
+.pm-chips::-webkit-scrollbar { display: none; }
+.pm-chip { appearance: none; border: 0; background: #f1f3f6; color: #111827; border-radius: 999px; padding: 8px 14px; font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; cursor: pointer; flex-shrink: 0; }
+.pm-chip .anticon { font-size: 10px; color: #6b7280; }
+.pm-chip.on { background: #e6f0ff; color: var(--kv-blue); }
+.pm-chip.on .anticon { color: var(--kv-blue); }
+.pm-chip.icon { width: 40px; padding: 0; justify-content: center; position: relative; }
+.pm-chip.icon .anticon { font-size: 16px; color: #374151; }
+.pm-chip.icon.on .anticon { color: var(--kv-blue); }
+.pm-dot { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; border-radius: 9px; background: var(--kv-blue); color: #fff; font-style: normal; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; padding: 0 4px; }
+.pm-summary { display: flex; align-items: center; justify-content: space-between; padding: 0 14px; }
+.pm-summary .k { font-size: 17px; font-weight: 700; color: #111827; }
+.pm-summary .n { font-size: 13px; color: #6b7280; margin-top: 2px; }
+.pm-summary .v { font-size: 20px; font-weight: 700; color: #111827; font-variant-numeric: tabular-nums; }
+.pm-list { background: #fff; border-top: 1px solid #eef0f4; }
+.pm-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid #f1f3f6; cursor: pointer; }
+.pm-row:active { background: #f8fafc; }
+.pm-row.off { opacity: .6; }
+.pm-img { width: 48px; height: 48px; border-radius: 8px; object-fit: cover; flex: 0 0 48px; background: #f1f5f9; }
+.pm-img.ph { background: #f1f5f9 url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c7ced9' stroke-width='1.5'><rect x='3' y='5' width='18' height='14' rx='2'/><path d='m3 15 5-5 4 4 3-3 6 6'/><circle cx='15.5' cy='9.5' r='1.5'/></svg>") center / 22px no-repeat; }
+.pm-main { flex: 1; min-width: 0; }
+.pm-name { font-size: 15px; font-weight: 600; color: #111827; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pm-code { font-size: 13px; color: #6b7280; margin-top: 3px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.pm-code .ant-tag { margin-inline-end: 0; font-size: 11px; line-height: 16px; }
+.pm-right { text-align: right; flex: 0 0 auto; max-width: 42%; }
+.pm-price { font-size: 15px; font-weight: 700; color: #111827; font-variant-numeric: tabular-nums; }
+.pm-stock { font-size: 12.5px; color: #6b7280; margin-top: 3px; white-space: nowrap; }
+.pm-stock.zero { color: #d92d20; }
+.pm-empty, .pm-loading, .pm-end { text-align: center; color: #6b7280; padding: 18px; font-size: 13px; }
+.pm-loading { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.pm-fab { position: fixed; right: 16px; bottom: calc(72px + env(safe-area-inset-bottom)); width: 54px; height: 54px; border-radius: 50%; border: 0; background: var(--kv-blue); color: #fff; font-size: 24px; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(0, 112, 244, .35); z-index: 60; cursor: pointer; }
+.pm-detail .ant-drawer-content { border-radius: 16px 16px 0 0; }
+.pm-detail .ant-drawer-header { padding: 12px 16px; }
+.pm-detail-title div:first-child { font-size: 16px; font-weight: 700; white-space: normal; line-height: 1.3; }
+.pm-detail .ant-drawer-body { padding: 8px 12px 24px; background: var(--kv-bg); }
+.pm-detail .kv-detail-actions { position: sticky; bottom: -24px; background: var(--kv-bg); padding: 10px 0 4px; margin-top: 8px; }
