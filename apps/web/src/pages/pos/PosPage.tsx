@@ -10,8 +10,9 @@ import { errMsg, normalizeError } from '../../api/client';
 import { orgApi } from '../../api/org';
 import { pts } from '../../api/loyalty';
 import { ApplicablePriceBook, PosPreview, PosPreviewGift, VariantLite, promotionsApi } from '../../api/promotions';
+import { ordersApi } from '../../api/orders';
 import { SALES_KEYS, salesApi, useCurrentShift, type InvoicePaymentInput } from '../../api/sales';
-import type { ApiError, Invoice, SearchHit } from '../../api/types';
+import type { ApiError, CustomerHit, Invoice, SearchHit } from '../../api/types';
 import { BankQrModal } from '../../components/BankQrModal';
 import { ManualTransferModal } from '../../components/ManualTransferModal';
 import { CustomerSelect } from '../../components/CustomerSelect';
@@ -22,6 +23,8 @@ import { useAuthStore, useBranchWarehouses } from '../../store/auth';
 import { PAYMENT_METHOD_LABEL, dt, money, qty as fq, toNum, uuid } from '../../utils/format';
 import { rewardText } from '../promotions/promoText';
 import { HeldOrdersDrawer, ReceiptModal, ShiftCloseModal, ShiftOpenModal } from './PosModals';
+import { PosMobile } from './PosMobile';
+import { invalidateOrders } from '../sales/OrderShared';
 import { CartLine, CartTab, PaymentRow, cartTotals, lineTotal, usePosStore } from './posStore';
 
 const METHODS = ['CASH', 'BANK_TRANSFER', 'CARD', 'EWALLET'] as const;
@@ -127,6 +130,8 @@ export default function PosPage() {
     : { discountMode: 'AMOUNT' });
   const setLine = (key: string, p: Partial<CartLine> | ((l: CartLine) => Partial<CartLine>)) => patch((t) => ({ lines: t.lines.map((l) => (l.key === key ? { ...l, ...(typeof p === 'function' ? p(l) : p), error: undefined } : l)) }));
   const removeLine = (key: string) => patch((t) => ({ lines: t.lines.filter((x) => x.key !== key) }));
+  /** chọn khách (hoặc bỏ chọn → khách lẻ); điểm đang dùng chỉ giữ khi vẫn là khách đó */
+  const setCustomer = (id?: string, c?: CustomerHit) => patch((t) => ({ customerId: id, customerLabel: c ? `${c.name}${c.groupName ? ` · ${c.groupName}` : ''}${c.balance !== undefined && Number(c.balance) !== 0 ? ` · nợ ${money(c.balance)}` : ''}` : undefined, redeemPoints: id === t.customerId ? t.redeemPoints : undefined }));
 
   const addHit = useCallback(async (hit: SearchHit) => {
     if (!tab) return;
@@ -140,11 +145,12 @@ export default function PosPage() {
       const priced = await salesApi.price({ variantId: hit.id, priceBookId: tab.priceBookId, productUnitId: unit?.id, quantity: '1' });
       const batches = product.trackBatch ? await catalogApi.batches(hit.id) : undefined;
       const line: CartLine = {
-        key: uuid(), variantId: hit.id, productId: hit.product.id, sku: hit.sku, barcode: hit.barcode, name: hit.name, productType: hit.product.type, trackBatch: !!product.trackBatch, baseUnit: hit.product.baseUnit,
+        key: uuid(), variantId: hit.id, productId: hit.product.id, sku: hit.sku, barcode: hit.barcode, name: hit.name, imageUrl: hit.imageUrl ?? hit.product.imageUrl ?? product.imageUrl, productType: hit.product.type, trackBatch: !!product.trackBatch, baseUnit: hit.product.baseUnit,
         units, productUnitId: unit?.id, unitName: priced.unitName ?? hit.product.baseUnit, factor: toNum(priced.conversionFactor) || 1, quantity: 1,
         listPrice: toNum(priced.listPrice), unitPrice: toNum(priced.listPrice), discount: 0, taxRate: toNum(priced.taxRate), batches, onHand: toNum(hit.onHand ?? hit.onHandTotal),
       };
-      patch((t) => ({ lines: [...t.lines, line] }));
+      // bấm nhanh hai lần trên điện thoại khi dòng chưa kịp vào giỏ → kiểm tra lại trên giỏ mới nhất, cộng số lượng thay vì thêm dòng trùng
+      patch((t) => { const dup = t.lines.find((l) => l.variantId === hit.id && !l.productUnitId && !hit.unit && !l.isGift); return dup ? { lines: t.lines.map((l) => (l.key === dup.key ? { ...l, quantity: l.quantity + 1, error: undefined } : l)) } : { lines: [...t.lines, line] }; });
     } catch (e) { message.error(errMsg(e)); }
   }, [tab]);
 
@@ -438,6 +444,26 @@ export default function PosPage() {
     } catch (e) { handleApiError(e); } finally { setBusy(false); }
   };
 
+  /** Điện thoại – chế độ Đặt hàng: giỏ hiện tại thành đơn đặt hàng (confirm = giữ tồn; false = lưu tạm/nháp). Hàng tặng / voucher không đưa vào đơn (BR-100). */
+  const placeOrder = async (t: CartTab, confirm: boolean) => {
+    if (busy) return;
+    if (t.bankRequest) { message.warning(`Giỏ hàng đang gắn mã chuyển khoản ${t.bankRequest.code} – hoàn tất thanh toán hoặc hủy mã trước khi đặt hàng`); return; }
+    const lines = t.lines.filter((l) => !l.isGift);
+    const v = validate({ ...t, lines }); if (v) { message.warning(v); return; }
+    setBusy(true);
+    try {
+      const o = await ordersApi.create({
+        branchId: branchId!, warehouseId: warehouseId!, customerId: t.customerId, sellerId: t.sellerId && t.sellerId !== me?.user.id ? t.sellerId : undefined, priceBookId: t.priceBookId, source: 'POS', confirm,
+        discountAmount: t.discount > 0 ? String(t.discount) : undefined, note: t.note || undefined,
+        lines: lines.map((l) => ({ variantId: l.variantId, batchId: l.batchId, productUnitId: l.productUnitId, quantity: String(l.quantity), unitPrice: l.unitPrice !== l.listPrice ? String(l.unitPrice) : undefined, discountAmount: l.discount > 0 ? String(l.discount) : undefined, note: l.note })),
+      });
+      invalidateOrders(qc);
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+      if (t.draftId) closeTab(t.id); else resetTab(t.id);
+      message.success({ content: <span>{confirm ? 'Đã tạo đơn đặt hàng' : 'Đã lưu tạm đơn đặt hàng'} <b>{o.code}</b> · <a onClick={() => nav(`/orders/${o.id}`)}>Xem đơn</a></span>, duration: 4 });
+    } catch (e) { handleApiError(e); } finally { setBusy(false); }
+  };
+
   const loadDraft = async (inv: Invoice) => {
     const existing = tabs.find((t) => t.draftId === inv.id);
     if (existing) { setActive(existing.id); return; }
@@ -619,7 +645,7 @@ export default function PosPage() {
         <Select size="small" style={{ width: 200 }} value={warehouseId} onChange={(v) => setWarehouse(v)} options={warehouses.map((w) => ({ value: w.id, label: w.name }))} />
       </div>
       <div ref={customerRef} style={{ marginTop: 6 }}>
-        <CustomerSelect value={tab?.customerId} placeholder="Khách lẻ – tìm theo SĐT / tên (F4)" onChange={(id, c) => patch((t) => ({ customerId: id, customerLabel: c ? `${c.name}${c.groupName ? ` · ${c.groupName}` : ''}${c.balance !== undefined && Number(c.balance) !== 0 ? ` · nợ ${money(c.balance)}` : ''}` : undefined, redeemPoints: id === t.customerId ? t.redeemPoints : undefined }))} />
+        <CustomerSelect value={tab?.customerId} placeholder="Khách lẻ – tìm theo SĐT / tên (F4)" onChange={setCustomer} />
         {tab?.customerLabel && <div className="kv-hint" style={{ marginTop: 2 }}>{tab.customerLabel}</div>}
       </div>
       {canPriceBook && priceBookOptions.length > 0 && <div className="pos-row"><span className="muted">Bảng giá</span><Select size="small" allowClear style={{ width: 200 }} placeholder="Giá chung" value={tab?.priceBookId} onChange={(v) => void changePriceBook(v)} options={priceBookOptions} /></div>}
@@ -708,93 +734,8 @@ export default function PosPage() {
     </aside>
   );
 
-  return (
-    <div className="pos-app">
-      <header className="pos-header">
-        <Link to="/" className="pos-brand"><HomeOutlined /> Quản lý</Link>
-        <div className="pos-search"><ProductSearch scanContinuous ref={searchRef} onPick={addHit} warehouseId={warehouseId} autoFocus={!isMobile} size="middle" placeholder="Tìm hàng (F3) hoặc quét mã vạch rồi Enter" /></div>
-        <div className="pos-tabs">{tabChips}</div>
-        <div className="pos-header-right">
-          <Dropdown menu={shiftMenu} trigger={['click']}><span className="pos-shift"><ClockCircleOutlined /> {shift ? (isMobile ? `Ca ${shift.code}` : `Ca ${shift.code} · mở ${dt(shift.openedAt, 'HH:mm')}`) : 'Chưa mở ca'}</span></Dropdown>
-          <Button size="small" icon={<FileTextOutlined />} onClick={() => setHeld(true)}>{isMobile ? '' : 'Đơn giữ'}</Button>
-          {can('return.create') && <Button size="small" icon={<RollbackOutlined />} title="Trả hàng / Đổi hàng" onClick={() => nav('/sales-returns/new')}>{isMobile ? '' : 'Trả hàng'}</Button>}
-          <span className="pos-user"><UserOutlined /> {me.user.fullName}</span>
-        </div>
-      </header>
-      {isMobile && (
-        <>
-          <div className="pos-mtabs">{tabChips}</div>
-          <div className="pos-msearch"><ProductSearch scanContinuous ref={searchRef} onPick={addHit} warehouseId={warehouseId} size="large" placeholder="Tìm hàng hoặc quét mã vạch" /></div>
-        </>
-      )}
-
-      <div className="pos-body">
-        <div className="pos-cart">
-          {isMobile ? (
-            <div className="pos-mcart">
-              {giftPrompt}
-              {!tab?.lines.length && <div className="muted" style={{ textAlign: 'center', padding: '40px 12px', background: '#fff', borderRadius: 8 }}>Giỏ hàng trống – tìm hàng hoặc quét mã vạch để bắt đầu</div>}
-              {(tab?.lines ?? []).map((l, i) => (
-                <div key={l.key} className={`pos-mline${l.error ? ' error' : ''}${l.isGift ? ' gift' : ''}`}>
-                  <div>
-                    <div className="nm">{i + 1}. {l.name}{l.isGift && <Tag color="green" style={{ marginLeft: 6 }}>Hàng tặng</Tag>}{l.productType !== 'GOODS' && <Tag style={{ marginLeft: 6 }}>{l.productType === 'SERVICE' ? 'Dịch vụ' : 'Combo'}</Tag>}</div>
-                    <div className="meta"><span>{l.sku}</span>{unitSelect(l)}{l.trackBatch && batchSelect(l, 120)}</div>
-                  </div>
-                  <DeleteOutlined className="del" onClick={() => removeLine(l.key)} />
-                  <div className="row">
-                    {qtyBox(l)}
-                    <div style={{ textAlign: 'right' }}>{priceCell(l, 'middle', 130)}</div>
-                  </div>
-                  <div className="row">
-                    {canDiscount && !l.isGift ? <span className="meta">Giảm <MoneyInput size="small" style={{ width: 110 }} value={l.discount} max={l.quantity * l.unitPrice} onChange={(v) => setLine(l.key, { discount: Math.min(toNum(v), l.quantity * l.unitPrice) })} /></span> : <span />}
-                    {totalCell(l, i)}
-                  </div>
-                  {l.error && <div className="err">{l.error}</div>}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <>
-              {giftPrompt}
-              <Table size="small" rowKey="key" pagination={false} dataSource={tab?.lines ?? []} locale={{ emptyText: <div style={{ padding: 40 }} className="muted">Giỏ hàng trống – tìm hàng hoặc quét mã vạch để bắt đầu</div> }} rowClassName={(l) => `${l.error ? 'pos-line-error' : ''}${l.isGift ? ' pos-km-giftrow' : ''}`}
-                columns={[
-                  { title: '#', width: 36, render: (_, __, i) => i + 1 },
-                  { title: 'Mã hàng', dataIndex: 'sku', width: 110, render: (v, l) => <><div style={{ fontWeight: 500 }}>{v}</div>{l.error && <div className="neg" style={{ fontSize: 11 }}>{l.error}</div>}</> },
-                  { title: 'Tên hàng', dataIndex: 'name', render: (v, l) => <div>{v}{l.isGift && <Tag color="green" style={{ marginLeft: 6 }}><GiftOutlined /> Hàng tặng</Tag>}{l.productType !== 'GOODS' && <Tag style={{ marginLeft: 6 }}>{l.productType === 'SERVICE' ? 'Dịch vụ' : 'Combo'}</Tag>}{l.trackBatch && <span style={{ marginLeft: 6 }}>{batchSelect(l)}</span>}</div> },
-                  { title: 'ĐVT', width: 110, render: (_, l) => unitSelect(l) },
-                  { title: 'SL', width: 130, render: (_, l) => qtyBox(l) },
-                  { title: 'Đơn giá', width: 120, className: 'num', render: (_, l) => priceCell(l, 'small') },
-                  ...(canDiscount ? [{ title: 'Giảm giá', width: 110, className: 'num', render: (_: unknown, l: CartLine) => l.isGift ? '' : <MoneyInput size="small" value={l.discount} max={l.quantity * l.unitPrice} onChange={(v) => setLine(l.key, { discount: Math.min(toNum(v), l.quantity * l.unitPrice) })} /> }] : []),
-                  { title: 'Thành tiền', width: 150, className: 'num', render: (_, l, i) => <b>{totalCell(l, i)}</b> },
-                  { title: '', width: 36, render: (_, l) => <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => removeLine(l.key)} /> },
-                ]} />
-            </>
-          )}
-          <div className="pos-cart-foot">
-            <Input.TextArea rows={1} placeholder="Ghi chú đơn hàng" value={tab?.note ?? ''} onChange={(e) => patch(() => ({ note: e.target.value }))} style={{ flex: 1 }} autoSize />
-            <span className="kv-hint"><span className="kv-kbd">F2</span>Thêm HĐ <span className="kv-kbd">F3</span>Tìm hàng <span className="kv-kbd">F4</span>Khách <span className="kv-kbd">F6</span>Giảm giá <span className="kv-kbd">F7</span>Giữ đơn <span className="kv-kbd">F9</span>Thanh toán</span>
-          </div>
-        </div>
-
-        {!isMobile && sidePanel}
-      </div>
-
-      {isMobile && (
-        <>
-          <div className="pos-mbar">
-            <Button icon={<UserOutlined />} onClick={() => { setSheet(true); setTimeout(() => customerRef.current?.querySelector('input')?.focus(), 200); }} aria-label="Khách hàng" />
-            <div className="sum" onClick={() => setSheet(true)}>
-              <div className="lbl">{tab?.customerLabel ? tab.customerLabel : 'Khách lẻ'} · {tab?.lines.reduce((s, l) => s + l.quantity, 0) ?? 0} SL{totals.promo > 0 ? ` · KM −${money(totals.promo)}` : ''}{pointsValue > 0 ? ` · điểm −${money(pointsValue)}` : ''}</div>
-              <div className="amt">{previewing && <Spin size="small" style={{ marginRight: 6 }} />}{money(payable)}</div>
-            </div>
-            <Button type="primary" className="pos-pay-btn" icon={<WalletOutlined />} disabled={!tab?.lines.length || !can('invoice.complete')} onClick={() => setSheet(true)}>THANH TOÁN</Button>
-          </div>
-          <Drawer className="pos-sheet" placement="bottom" height="92%" open={sheet} onClose={() => setSheet(false)} title={`Thanh toán · ${money(payable)}`} destroyOnClose={false}>
-            {sidePanel}
-          </Drawer>
-        </>
-      )}
-
+  const modals = (
+    <>
       <ShiftOpenModal open={shiftOpen} branchId={branchId} onClose={() => setShiftOpen(false)} onOpened={() => refetchShift()} />
       <ShiftCloseModal open={shiftClose} shiftId={shift?.id} onClose={() => setShiftClose(false)} onClosed={() => refetchShift()} />
       <HeldOrdersDrawer open={held} branchId={branchId} onClose={() => setHeld(false)} onReopen={(inv) => void loadDraft(inv)} />
@@ -823,6 +764,57 @@ export default function PosPage() {
         }} />
       <ReceiptModal invoice={receipt?.inv ?? null} cashGiven={receipt?.cashGiven} pointsBalance={receipt?.pointsBalance} onClose={() => { setReceipt(null); if (!isMobile) searchRef.current?.focus(); }} />
       {!branchId && <div className="pos-blocker">Chưa có chi nhánh · <a onClick={() => nav('/')}>về trang quản lý</a></div>}
+    </>
+  );
+
+  if (isMobile && tab) {
+    return (
+      <PosMobile ctx={{ me, can, tab, tabs, setActive, addTab: () => addTab(), warehouses, warehouseId, setWarehouse, addHit, setLine, removeLine, patch, setCustomer, changeUnit, changePriceBook: (id) => changePriceBook(id), canPriceBook, priceBookOptions, canPrice, canDiscount, totals, payable, pointsValue, previewing, giftPrompt, batchSelect, giftMax, sellers, busy, hold, placeOrder: (confirm) => placeOrder(tab, confirm), openPay: () => setSheet(true), openHeld: () => setHeld(true), shift, openShift: () => setShiftOpen(true), closeShift: () => setShiftClose(true) }}>
+        <Drawer className="pos-sheet" placement="bottom" height="92%" open={sheet} onClose={() => setSheet(false)} title={`Thanh toán · ${money(payable)}`} destroyOnHidden={false}>
+          {sidePanel}
+        </Drawer>
+        {modals}
+      </PosMobile>
+    );
+  }
+
+  return (
+    <div className="pos-app">
+      <header className="pos-header">
+        <Link to="/" className="pos-brand"><HomeOutlined /> Quản lý</Link>
+        <div className="pos-search"><ProductSearch scanContinuous ref={searchRef} onPick={addHit} warehouseId={warehouseId} autoFocus={!isMobile} size="middle" placeholder="Tìm hàng (F3) hoặc quét mã vạch rồi Enter" /></div>
+        <div className="pos-tabs">{tabChips}</div>
+        <div className="pos-header-right">
+          <Dropdown menu={shiftMenu} trigger={['click']}><span className="pos-shift"><ClockCircleOutlined /> {shift ? (isMobile ? `Ca ${shift.code}` : `Ca ${shift.code} · mở ${dt(shift.openedAt, 'HH:mm')}`) : 'Chưa mở ca'}</span></Dropdown>
+          <Button size="small" icon={<FileTextOutlined />} onClick={() => setHeld(true)}>{isMobile ? '' : 'Đơn giữ'}</Button>
+          {can('return.create') && <Button size="small" icon={<RollbackOutlined />} title="Trả hàng / Đổi hàng" onClick={() => nav('/sales-returns/new')}>{isMobile ? '' : 'Trả hàng'}</Button>}
+          <span className="pos-user"><UserOutlined /> {me.user.fullName}</span>
+        </div>
+      </header>
+      <div className="pos-body">
+        <div className="pos-cart">
+          {giftPrompt}
+          <Table size="small" rowKey="key" pagination={false} dataSource={tab?.lines ?? []} locale={{ emptyText: <div style={{ padding: 40 }} className="muted">Giỏ hàng trống – tìm hàng hoặc quét mã vạch để bắt đầu</div> }} rowClassName={(l) => `${l.error ? 'pos-line-error' : ''}${l.isGift ? ' pos-km-giftrow' : ''}`}
+                columns={[
+                  { title: '#', width: 36, render: (_, __, i) => i + 1 },
+                  { title: 'Mã hàng', dataIndex: 'sku', width: 110, render: (v, l) => <><div style={{ fontWeight: 500 }}>{v}</div>{l.error && <div className="neg" style={{ fontSize: 11 }}>{l.error}</div>}</> },
+                  { title: 'Tên hàng', dataIndex: 'name', render: (v, l) => <div>{v}{l.isGift && <Tag color="green" style={{ marginLeft: 6 }}><GiftOutlined /> Hàng tặng</Tag>}{l.productType !== 'GOODS' && <Tag style={{ marginLeft: 6 }}>{l.productType === 'SERVICE' ? 'Dịch vụ' : 'Combo'}</Tag>}{l.trackBatch && <span style={{ marginLeft: 6 }}>{batchSelect(l)}</span>}</div> },
+                  { title: 'ĐVT', width: 110, render: (_, l) => unitSelect(l) },
+                  { title: 'SL', width: 130, render: (_, l) => qtyBox(l) },
+                  { title: 'Đơn giá', width: 120, className: 'num', render: (_, l) => priceCell(l, 'small') },
+                  ...(canDiscount ? [{ title: 'Giảm giá', width: 110, className: 'num', render: (_: unknown, l: CartLine) => l.isGift ? '' : <MoneyInput size="small" value={l.discount} max={l.quantity * l.unitPrice} onChange={(v) => setLine(l.key, { discount: Math.min(toNum(v), l.quantity * l.unitPrice) })} /> }] : []),
+                  { title: 'Thành tiền', width: 150, className: 'num', render: (_, l, i) => <b>{totalCell(l, i)}</b> },
+                  { title: '', width: 36, render: (_, l) => <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => removeLine(l.key)} /> },
+                ]} />
+          <div className="pos-cart-foot">
+            <Input.TextArea rows={1} placeholder="Ghi chú đơn hàng" value={tab?.note ?? ''} onChange={(e) => patch(() => ({ note: e.target.value }))} style={{ flex: 1 }} autoSize />
+            <span className="kv-hint"><span className="kv-kbd">F2</span>Thêm HĐ <span className="kv-kbd">F3</span>Tìm hàng <span className="kv-kbd">F4</span>Khách <span className="kv-kbd">F6</span>Giảm giá <span className="kv-kbd">F7</span>Giữ đơn <span className="kv-kbd">F9</span>Thanh toán</span>
+          </div>
+        </div>
+
+        {sidePanel}
+      </div>
+      {modals}
     </div>
   );
 }

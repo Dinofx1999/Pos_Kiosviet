@@ -8,6 +8,7 @@ import { errMsg } from '../../api/client';
 import type { Invoice, Shift } from '../../api/types';
 import { MoneyInput } from '../../components/Inputs';
 import { useAuthStore } from '../../store/auth';
+import { useIsMobile } from '../../hooks/useMedia';
 import { PAYMENT_METHOD_LABEL, dt, money, toNum } from '../../utils/format';
 import { printHtml, receiptHtml } from './receipt';
 
@@ -87,9 +88,10 @@ export function HeldOrdersDrawer({ open, branchId, onClose, onReopen }: { open: 
   const { message, modal } = App.useApp();
   const qc = useQueryClient();
   const { data, isLoading } = useInvoices({ status: 'DRAFT', branchId: branchId ?? undefined, pageSize: 50 }, open && !!branchId);
+  const isMobile = useIsMobile();
   const remove = (inv: Invoice) => modal.confirm({ title: `Xóa đơn ${inv.code}?`, okText: 'Xóa', okButtonProps: { danger: true }, cancelText: 'Bỏ qua', onOk: async () => { try { await salesApi.deleteInvoice(inv.id); message.success('Đã xóa đơn giữ'); qc.invalidateQueries({ queryKey: ['invoices'] }); } catch (e) { message.error(errMsg(e)); } } });
   return (
-    <Drawer title="Đơn đang giữ" open={open} onClose={onClose} width={560}>
+    <Drawer title="Đơn tạm (đang giữ)" open={open} onClose={onClose} width={isMobile ? '100%' : 560}>
       <Table size="small" rowKey="id" loading={isLoading} dataSource={data?.data ?? []} pagination={false} locale={{ emptyText: <Empty description="Không có đơn đang giữ" /> }}
         columns={[
           { title: 'Mã', dataIndex: 'code', width: 110, render: (v) => <b>{v}</b> },

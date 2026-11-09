@@ -1,0 +1,112 @@
+/* Bán hàng trên điện thoại – kiểu app KiotViet (.ps-) */
+.ps { position: relative; display: flex; flex-direction: column; height: var(--app-h, 100dvh); background: var(--kv-bg); overflow: hidden; }
+.ps-top { flex: 0 0 auto; background: #fff; padding: calc(6px + env(safe-area-inset-top)) 14px 10px; box-shadow: 0 1px 0 #eef0f4; z-index: 2; }
+.ps-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
+.ps-head h1 { margin: 0; font-size: 26px; font-weight: 700; color: #111827; line-height: 1.2; }
+.ps-head h1.dd { cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.ps-head h1.dd .anticon { font-size: 14px; color: #6b7280; }
+.ps-cart-head h1 { font-size: 22px; }
+.ps-ib { appearance: none; border: 0; background: none; width: 40px; height: 40px; border-radius: 10px; font-size: 20px; color: #374151; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex: 0 0 auto; padding: 0; }
+.ps-ib.on { color: var(--kv-blue); }
+.ps-ib.box, .ps-search .ant-btn.ps-scan { width: 50px; height: 46px; border-radius: 12px; background: #f1f3f6; border: 0; box-shadow: none; color: #374151; font-size: 20px; }
+.ps-search .ant-btn.ps-scan .anticon { font-size: 20px; }
+.ps-tabchip { appearance: none; border: 0; background: #f1f3f6; border-radius: 999px; padding: 4px 10px; font-size: 13px; font-weight: 600; color: #374151; display: inline-flex; align-items: center; gap: 4px; }
+.ps-search { display: flex; gap: 8px; margin-top: 8px; align-items: stretch; }
+.ps-search > .ant-input-affix-wrapper, .ps-search .ant-input-affix-wrapper { flex: 1 1 auto; min-width: 0; height: 46px; border-radius: 12px; background: #f1f3f6; border-color: transparent; box-shadow: none; }
+.ps-search .ant-input-affix-wrapper .ant-input { background: transparent; font-size: 16px; }
+.ps-search .ant-input-prefix { color: #6b7280; font-size: 18px; margin-right: 8px; }
+.ps-search-cart .input-with-scan { flex: 1; }
+.ps-search-cart .input-with-scan .ant-btn { height: 46px; width: 50px; border-radius: 12px; background: #f1f3f6; border: 0; box-shadow: none; }
+.ps-chips { display: flex; align-items: center; gap: 14px; margin-top: 10px; min-height: 36px; }
+.ps-chip { appearance: none; border: 0; background: none; padding: 4px 0; display: inline-flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 600; color: #111827; min-width: 0; max-width: 44%; cursor: pointer; }
+.ps-chip .anticon { color: #6b7280; font-size: 16px; flex: 0 0 auto; }
+.ps-chip .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ps-filter { margin-left: auto; }
+.ps-wh { appearance: none; border: 0; background: none; width: 100%; display: flex; align-items: center; gap: 8px; padding: 12px 14px; font-size: 15px; font-weight: 600; color: #111827; text-align: left; cursor: pointer; }
+.ps-wh .anticon:first-child { color: #374151; font-size: 17px; }
+.ps-wh .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ps-wh .chev { color: #6b7280; font-size: 13px; }
+.ps-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #fff; padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
+.ps-catbar { display: flex; align-items: center; gap: 6px; padding: 8px 14px; background: #eef5ff; font-size: 13px; color: #1e3a8a; }
+.ps-catbar button { margin-left: auto; border: 0; background: none; color: var(--kv-blue); font-size: 13px; font-weight: 600; }
+.ps-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-bottom: 1px solid #f1f3f6; cursor: pointer; }
+.ps-row:active { background: #f8fafc; }
+.ps-row.in { background: #f5f9ff; }
+.ps-imgw { position: relative; display: inline-block; flex: 0 0 auto; }
+.ps-img { display: block; width: 56px; height: 56px; border-radius: 10px; object-fit: cover; background: #e8f1ff; }
+.ps-img.ph { background: #e8f1ff url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230070f4'><path d='M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm0 11.2V17h14v-3.3l-4-3.9-4.5 4.4-2.5-2.4L5 16.2zM15.5 8a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z'/></svg>") center / 28px no-repeat; }
+.ps-qtybadge { position: absolute; top: -6px; right: -6px; min-width: 22px; height: 22px; border-radius: 11px; background: var(--kv-blue); color: #fff; font-style: normal; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; padding: 0 6px; box-shadow: 0 0 0 2px #fff; }
+.ps-main { flex: 1; min-width: 0; }
+.ps-row .nm { font-size: 16px; font-weight: 600; color: #111827; line-height: 1.3; }
+.ps-row .nm .muted { font-weight: 500; }
+.ps-row .meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; font-size: 14px; color: #6b7280; }
+.ps-row .meta .ant-tag { margin-inline-end: 0; }
+.ps-stock { background: #f1f3f6; color: #374151; border-radius: 6px; padding: 2px 8px; font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.ps-stock.zero { background: #fee2e2; color: #dc2626; font-weight: 700; }
+.ps-row .price { margin-top: 10px; color: var(--kv-blue); font-weight: 700; font-size: 17px; font-variant-numeric: tabular-nums; }
+.ps-empty, .ps-loading { text-align: center; color: #6b7280; padding: 24px 14px; font-size: 14px; }
+.ps-loading { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.ps .kv-tabbar { flex: 0 0 auto; }
+
+/* viên chọn chế độ (giỏ trống) và thanh giỏ hàng (có hàng) – nổi trên thanh tab */
+.ps-pill { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(68px + env(safe-area-inset-bottom)); background: #fff; border-radius: 999px; box-shadow: 0 6px 22px rgba(0, 0, 0, .18); display: flex; align-items: center; gap: 2px; padding: 6px; z-index: 20; white-space: nowrap; }
+.ps-pill button { appearance: none; border: 0; background: none; padding: 10px 20px; border-radius: 999px; font-size: 17px; font-weight: 600; color: #374151; cursor: pointer; }
+.ps-pill button.on { background: var(--kv-blue); color: #fff; }
+.ps-pill button.dots { padding: 10px 14px; font-size: 22px; display: inline-flex; }
+.ps-cartbar { position: absolute; left: 10px; right: 10px; bottom: calc(66px + env(safe-area-inset-bottom)); background: #fff; border-radius: 14px; box-shadow: 0 6px 22px rgba(0, 0, 0, .18); display: flex; align-items: center; gap: 4px; padding: 6px 6px 6px 10px; z-index: 20; }
+.ps-cart-main { appearance: none; border: 0; background: none; flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 4px 0; text-align: left; cursor: pointer; }
+.ps-cart-main .ic { font-size: 24px; color: #374151; display: inline-flex; padding: 4px; }
+.ps-cart-main .ic .ant-badge-count { background: var(--kv-blue); box-shadow: 0 0 0 1px #fff; }
+.ps-cart-main .sum { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.2; }
+.ps-cart-main .sum .l { font-size: 12px; color: #6b7280; }
+.ps-cart-main .sum b { font-size: 18px; color: #111827; font-variant-numeric: tabular-nums; }
+.ps-cart-main .go { background: var(--kv-blue); color: #fff; font-weight: 700; font-size: 16px; border-radius: 999px; padding: 10px 16px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.ps-cart-main .go .anticon { font-size: 12px; }
+
+/* giỏ hàng */
+.ps-rows { flex: 0 0 auto; background: #fff; margin-top: 8px; }
+.ps-prow { appearance: none; border: 0; background: none; width: 100%; display: flex; align-items: center; gap: 10px; padding: 14px; border-bottom: 1px solid #f1f3f6; font-size: 16px; font-weight: 600; color: #111827; text-align: left; cursor: pointer; }
+.ps-prow .anticon:first-child { color: #6b7280; font-size: 16px; }
+.ps-prow .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ps-prow .chev { color: #6b7280; font-size: 13px; }
+.ps-lines { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #fff; margin-top: 8px; }
+.ps-lines .pos-km-gifts { margin: 10px 14px 0; }
+.ps-note { margin: 10px 14px 0; padding: 8px 10px; background: #fff7ed; color: #9a3412; border-radius: 8px; font-size: 13px; }
+.ps-line { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; grid-template-areas: "img nm nm" "img price step" "x extra extra"; column-gap: 12px; row-gap: 8px; align-items: center; padding: 12px 14px; border-bottom: 1px solid #f1f3f6; }
+.ps-line > span:first-child { grid-area: img; align-self: start; }
+.ps-line .nm { grid-area: nm; font-size: 16px; font-weight: 600; color: #111827; line-height: 1.3; }
+.ps-line .price { grid-area: price; color: var(--kv-blue); font-weight: 700; font-size: 17px; font-variant-numeric: tabular-nums; }
+.ps-line .price .small { font-size: 12px; font-weight: 500; }
+.ps-line .extra { grid-area: extra; display: grid; gap: 4px; }
+.ps-line .err { color: #dc2626; font-size: 12.5px; }
+.ps-line.error { background: #fff5f5; }
+.ps-line.gift { background: #f0fdf4; }
+.ps-step { grid-area: step; display: inline-flex; align-items: center; height: 42px; border: 1.5px solid #e5484d; border-radius: 10px; overflow: hidden; background: #fff; }
+.ps-step button { appearance: none; border: 0; background: none; width: 44px; height: 100%; font-size: 16px; color: #374151; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.ps-step input { width: 48px; height: 100%; border: 0; outline: none; background: none; text-align: center; font-size: 17px; font-weight: 700; color: #111827; padding: 0; }
+.ps-foot { flex: 0 0 auto; background: #fff; padding: 12px 14px calc(12px + env(safe-area-inset-bottom)); box-shadow: 0 -4px 16px rgba(0, 0, 0, .06); }
+.ps-tot { display: flex; align-items: center; justify-content: space-between; font-size: 17px; font-weight: 600; color: #111827; font-variant-numeric: tabular-nums; }
+.ps-tot.sub { font-size: 14px; font-weight: 500; color: #6b7280; margin-top: 4px; }
+.ps-tot.grand { margin-top: 6px; color: var(--kv-blue); }
+.ps-tot b { font-size: 20px; }
+.ps-cnt { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 26px; padding: 0 6px; border-radius: 13px; border: 1.5px solid var(--kv-blue); color: var(--kv-blue); font-style: normal; font-size: 13px; font-weight: 700; margin-left: 8px; vertical-align: middle; }
+.ps-btns { display: grid; grid-template-columns: 1fr 1.25fr; gap: 10px; margin-top: 12px; }
+.ps-btns .ant-btn { height: 50px; font-size: 17px; font-weight: 600; border-radius: 10px; }
+.ps-btns .ant-btn-default { border-color: var(--kv-blue); color: var(--kv-blue); }
+
+/* tấm trượt từ dưới dùng chung */
+.ps-sheet .ant-drawer-content { border-radius: 16px 16px 0 0; }
+.ps-sheet .ant-drawer-header { padding: 12px 16px; }
+.ps-sheet .ant-drawer-title { font-size: 17px; }
+.ps-opt { appearance: none; border: 0; background: none; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; border-bottom: 1px solid #f1f3f6; font-size: 16px; color: #111827; text-align: left; cursor: pointer; }
+.ps-opt > span { display: flex; flex-direction: column; min-width: 0; }
+.ps-opt .s { font-size: 12.5px; color: #6b7280; margin-top: 2px; }
+.ps-opt.on { color: var(--kv-blue); font-weight: 600; }
+.ps-opt .anticon { color: var(--kv-blue); }
+.ps-more { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 6px; padding: 10px 0 16px; }
+.ps-more button { appearance: none; border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; color: #111827; text-align: center; line-height: 1.25; cursor: pointer; }
+.ps-more .ic { width: 64px; height: 64px; border-radius: 50%; background: #f1f3f6; display: inline-flex; align-items: center; justify-content: center; font-size: 26px; color: #111827; }
+.ps-edit-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 15px; color: #374151; }
+.ps-edit-row > span:first-child { flex: 0 0 auto; }
+.ps-edit-row.total { font-size: 17px; font-weight: 600; color: #111827; border-top: 1px dashed #e5e7eb; padding-top: 10px; }
+.ps-edit-row.total b { color: var(--kv-blue); font-size: 20px; }

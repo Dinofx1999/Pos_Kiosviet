@@ -9,6 +9,8 @@ export interface CartLine {
   sku: string;
   barcode?: string | null;
   name: string;
+  /** ảnh hiện ở giỏ hàng điện thoại (biến thể → hàng hóa) */
+  imageUrl?: string | null;
   productType: string;
   trackBatch: boolean;
   baseUnit?: string | null;

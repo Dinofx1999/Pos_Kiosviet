@@ -22,6 +22,7 @@ import PaymentsPage from './pages/purchasing/PaymentsPage';
 import PurchasingReportPage from './pages/reports/PurchasingReportPage';
 import SupplierDebtPage from './pages/reports/SupplierDebtPage';
 import PosPage from './pages/pos/PosPage';
+import MorePage from './pages/more/MorePage';
 import InvoicesPage from './pages/sales/InvoicesPage';
 import CustomersPage from './pages/sales/CustomersPage';
 import ShiftsPage from './pages/sales/ShiftsPage';
@@ -80,6 +81,7 @@ export const router = createBrowserRouter([
         element: <AppLayout />,
         children: [
           { path: '/', element: <RequirePerm perm="dashboard.view"><DashboardPage /></RequirePerm> },
+          { path: '/more', element: <MorePage /> },
           { path: '/products', element: <RequirePerm perm="product.view"><ProductsPage /></RequirePerm> },
           { path: '/price-books', element: <RequirePerm perm="pricebook.manage"><PriceBooksPage /></RequirePerm> },
           { path: '/promotions', element: <RequirePerm perm="promotion.view"><PromotionsPage /></RequirePerm> },

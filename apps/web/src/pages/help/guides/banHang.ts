@@ -9,7 +9,7 @@ export const BAN_HANG: Guide[] = [
     perms: ['Mở ca bán hàng (shift.open)'],
     keywords: ['shift', 'ca', 'tiền đầu ca', 'két', 'thu ngân'],
     steps: [
-      { text: 'Mở màn hình Bán hàng (nút Bán hàng xanh trên thanh tiêu đề / tab Bán hàng trên điện thoại). Góc phải trên hiện "Chưa mở ca".', shot: 'pos' },
+      { text: 'Mở màn hình Bán hàng (nút Bán hàng xanh trên thanh tiêu đề / tab Bán hàng trên điện thoại). Góc phải trên hiện "Chưa mở ca" (điện thoại: bấm nút ⋯ ở viên tròn dưới cùng → Mở ca bán hàng).', shot: 'pos' },
       { text: 'Bấm "Chưa mở ca" → Mở ca bán hàng. Nhập "Tiền mặt đầu ca (tiền trong két lúc bắt đầu)" và bấm Mở ca.', shot: 'shift-open', caption: 'Hộp thoại mở ca (có thể mở từ Nhân viên → Ca bán hàng → Mở ca)' },
       { text: 'Mã ca (CA…) hiện trên POS; mọi hóa đơn và phiếu thu / chi lập trong lúc ca mở được gắn vào ca này.' },
     ],
@@ -27,11 +27,11 @@ export const BAN_HANG: Guide[] = [
     perms: ['Tạo / giữ đơn bán hàng (invoice.create)', 'Thanh toán / hoàn thành hóa đơn (invoice.complete)'],
     keywords: ['POS', 'bán hàng', 'giỏ hàng', 'quét mã', 'F3', 'nhiều hóa đơn', 'tab', 'đơn vị', 'lô'],
     steps: [
-      { text: 'Bấm Bán hàng. Trên máy tính POS mở ở tab riêng với giỏ hàng bên trái và bảng thanh toán bên phải; trên điện thoại giỏ hàng chiếm cả màn hình, nút THANH TOÁN ở thanh dưới cùng.', shot: 'pos' },
+      { text: 'Bấm Bán hàng. Trên máy tính POS mở ở tab riêng với giỏ hàng bên trái và bảng thanh toán bên phải; trên điện thoại màn Bán hàng giống app KiotViet: danh sách hàng hóa của kho đang chọn hiện sẵn, bấm vào một hàng để thêm vào giỏ (bấm thêm lần nữa để tăng số lượng), thanh "Tổng tiền hàng" hiện ở dưới – bấm để mở giỏ với nút − / + từng dòng, Lưu tạm và Thanh toán. Viên tròn dưới cùng chuyển giữa Bán hàng và Đặt hàng (tạo đơn đặt hàng giữ tồn; Lưu tạm = đơn nháp); nút ⋯ mở Xử lý đặt hàng, Lập phiếu thu, Trả hàng, Mở / Đóng ca.', shot: 'pos' },
       { text: 'Chạm vào ô "Tìm hàng (F3) hoặc quét mã vạch rồi Enter", gõ tên / mã hoặc quét mã vạch; chọn kết quả để thêm vào giỏ. Quét lại cùng mã sẽ tăng số lượng.', shot: 'pos-cart', caption: 'Giỏ hàng có sản phẩm' },
       { text: 'Trên mỗi dòng: chỉnh SL bằng nút +/− hoặc gõ số; chọn ĐVT nếu hàng có đơn vị quy đổi; chọn Lô nếu hàng theo lô; bấm biểu tượng thùng rác để bỏ dòng.' },
       { text: 'Cần phục vụ nhiều khách cùng lúc: bấm dấu + cạnh tab hóa đơn (F2) để mở hóa đơn mới; chuyển qua lại giữa các tab.' },
-      { text: 'Kiểm tra Nhân viên bán, Kho xuất (bảng bên phải / bảng thanh toán trên điện thoại), Ghi chú đơn hàng, rồi sang bước thanh toán.' },
+      { text: 'Kiểm tra Nhân viên bán, Kho xuất (bảng bên phải; điện thoại: biểu tượng tờ giấy ở góc phải giỏ hàng hoặc trong bảng thanh toán), Ghi chú đơn hàng, rồi sang bước thanh toán.' },
     ],
     notes: [
       'Phím tắt trên máy tính: F2 thêm hóa đơn, F3 tìm hàng, F4 chọn khách, F6 giảm giá, F7 giữ đơn, F9 thanh toán.',
@@ -48,7 +48,7 @@ export const BAN_HANG: Guide[] = [
     perms: ['Thêm / sửa khách hàng (customer.manage) để thêm nhanh khách mới'],
     keywords: ['customer', 'khách lẻ', 'F4', 'thêm khách', 'SĐT', 'nhóm khách'],
     steps: [
-      { text: 'Chạm vào ô "Khách lẻ – tìm theo SĐT / tên (F4)" (điện thoại: nút hình người ở thanh dưới) và gõ số điện thoại hoặc tên.', shot: 'pos-customer' },
+      { text: 'Chạm vào ô "Khách lẻ – tìm theo SĐT / tên (F4)" (điện thoại: bấm "Khách lẻ" ngay dưới ô tìm kiếm) và gõ số điện thoại hoặc tên.', shot: 'pos-customer' },
       { text: 'Chọn khách trong danh sách gợi ý; tên, nhóm và công nợ hiện tại của khách hiện ngay dưới ô.' },
       { text: 'Khách mới: bấm "Thêm khách hàng" ở cuối danh sách gợi ý, điền Tên, Điện thoại, Nhóm, Hạn mức nợ… rồi Lưu – khách được chọn luôn vào hóa đơn.' },
       { text: 'Bỏ chọn (dấu x) để quay về Khách lẻ.' },
@@ -88,7 +88,7 @@ export const BAN_HANG: Guide[] = [
     perms: ['Thanh toán / hoàn thành hóa đơn (invoice.complete)'],
     keywords: ['payment', 'tiền mặt', 'chuyển khoản', 'thẻ', 'ví điện tử', 'kết hợp', 'tiền thừa', 'bán nợ', 'in', 'F9'],
     steps: [
-      { text: 'Trong bảng thanh toán (điện thoại: bấm THANH TOÁN để mở), chọn phương thức: QR chuyển khoản (khi đã cài SePay), Tiền mặt, Chuyển khoản, Thẻ, Ví điện tử hoặc Kết hợp.', shot: 'pos-cart', note: 'QR chuyển khoản: bấm TẠO MÃ QR, khách quét mã – hóa đơn tự lưu khi tiền về (xem bài "Thu tiền bằng mã QR").' },
+      { text: 'Trong bảng thanh toán (điện thoại: mở giỏ hàng rồi bấm Thanh toán), chọn phương thức: QR chuyển khoản (khi đã cài SePay), Tiền mặt, Chuyển khoản, Thẻ, Ví điện tử hoặc Kết hợp.', shot: 'pos-cart', note: 'QR chuyển khoản: bấm TẠO MÃ QR, khách quét mã – hóa đơn tự lưu khi tiền về (xem bài "Thu tiền bằng mã QR").' },
       { text: 'Tiền mặt: nhập "Tiền khách đưa" (hoặc chạm mệnh giá gợi ý) – "Tiền thừa trả khách" hiện ngay. Chuyển khoản / Thẻ / Ví: nhập Số tiền và Tham chiếu (mã GD, 4 số cuối thẻ…).' },
       { text: 'Kết hợp: thêm từng dòng phương thức + số tiền (tối đa 3), bấm Thêm phương thức nếu cần.', shot: 'pos-mixed' },
       { text: 'Nếu tổng thu nhỏ hơn "Khách cần trả", phần thiếu hiện "Còn nợ (ghi vào công nợ khách)" – bắt buộc đã chọn khách hàng và cửa hàng cho phép bán nợ.' },
@@ -110,7 +110,7 @@ export const BAN_HANG: Guide[] = [
     keywords: ['hold', 'draft', 'đơn tạm', 'lưu tạm', 'F7', 'mở lại'],
     steps: [
       { text: 'Khi giỏ đã có hàng, bấm Giữ đơn (F7). Đơn được lưu trên máy chủ dưới dạng hóa đơn nháp với mã HD…; giỏ hiện tại được giải phóng.', shot: 'pos-cart' },
-      { text: 'Để mở lại: bấm nút "Đơn giữ" trên thanh POS (điện thoại: biểu tượng tờ giấy ở góc phải); danh sách "Đơn đang giữ" hiện Mã, Thời gian, Khách, Tổng – bấm Mở lại.', shot: 'pos-held' },
+      { text: 'Để mở lại: bấm nút "Đơn giữ" trên thanh POS (điện thoại: biểu tượng đồng hồ ở góc phải tiêu đề Bán hàng); danh sách "Đơn đang giữ" hiện Mã, Thời gian, Khách, Tổng – bấm Mở lại.', shot: 'pos-held' },
       { text: 'Đơn giữ cũng xem được ở Đơn hàng → Hóa đơn (trạng thái Giữ đơn) với nút Mở ở POS; đơn nháp không cần nữa thì Xóa.' },
     ],
     notes: [

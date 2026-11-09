@@ -1,5 +1,5 @@
-import { App, Avatar, Badge, Button, Drawer, Dropdown, Menu, Select, Spin, Tooltip } from 'antd';
-import { AppstoreOutlined, BellOutlined, DownOutlined, FileTextOutlined, HomeOutlined, LockOutlined, LogoutOutlined, MenuOutlined, QuestionCircleOutlined, SettingOutlined, ShopOutlined, ShoppingOutlined, TagsOutlined, UserOutlined } from '@ant-design/icons';
+import { App, Avatar, Badge, Button, Dropdown, Menu, Select, Spin, Tooltip } from 'antd';
+import { AppstoreOutlined, BellOutlined, DownOutlined, LockOutlined, LogoutOutlined, QuestionCircleOutlined, SettingOutlined, ShopOutlined, UserOutlined } from '@ant-design/icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { PlanBanner } from '../PlanBanner';
@@ -9,6 +9,7 @@ import { useOnlineSummary } from '../../api/online';
 import { useIsMobile } from '../../hooks/useMedia';
 import { useAuthStore } from '../../store/auth';
 import { ChangePasswordModal } from '../ChangePasswordModal';
+import { MobileTabBar } from './MobileTabBar';
 
 const soon = (label: string) => ({ label: <Tooltip title="Sắp ra mắt" placement="right"><span style={{ opacity: .55 }}>{label}</span></Tooltip>, key: `soon-${label}`, disabled: true });
 
@@ -38,14 +39,10 @@ export default function AppLayout() {
   }, [isMobile]);
   const { modal } = App.useApp();
   const [pwdOpen, setPwdOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
   // SePay: transfers that matched no payment code wait in Sổ quỹ → Giao dịch chuyển khoản
   const { data: unmatchedBank = 0 } = useUnmatchedBankCount(!!me && can('cash.view'));
   const { data: onlineSummary } = useOnlineSummary(!!me && can('order.view'));
   const webPending = onlineSummary?.enabled || (onlineSummary?.pendingOrders ?? 0) > 0 ? onlineSummary?.pendingOrders ?? 0 : 0;
-
-  // close the mobile menu after navigation
-  useEffect(() => { setMenuOpen(false); }, [loc.pathname, loc.search]);
 
   // Menu theo đúng bố cục KiotViet: Tổng quan · Hàng hóa · Mua hàng · Đơn hàng · Khách hàng · Nhân viên · Sổ quỹ · Phân tích
   const items = useMemo(() => {
@@ -149,10 +146,9 @@ export default function AppLayout() {
     can('cash.view') && unmatchedBank > 0 ? { key: 'bank', label: <Link to="/cash/bank-transactions">{unmatchedBank} giao dịch chuyển khoản chưa khớp</Link> } : null,
   ].filter(Boolean) as any[]);
   if (!notifyItems.length) notifyItems.push({ key: 'none', label: 'Không có thông báo mới', disabled: true });
-  const tab = (path: string) => (loc.pathname === path || (path !== '/' && loc.pathname.startsWith(path)) ? 'on' : '');
 
   return (
-    <div className="kv-shell">
+    <div className={`kv-shell${isMobile && loc.pathname === '/more' ? ' kv-shell-nohead' : ''}`}>
       <header className="kv-header">
         <Link to="/" className="kv-logo"><span className="dot"><ShopOutlined /></span><span className="kv-logo-name" title={me?.tenant.name}>{me?.tenant.name ?? 'Retail ERP'}</span></Link>
         <div className="kv-menu"><Menu mode="horizontal" items={items} selectedKeys={selected} disabledOverflow={false} /></div>
@@ -169,28 +165,8 @@ export default function AppLayout() {
       <PlanBanner />
       <main className="kv-page" ref={mainRef}><Outlet /></main>
 
-      {/* ---- phone: hamburger drawer with the full grouped menu + bottom tab bar ---- */}
-      <Drawer className="kv-menu-drawer" placement="left" open={menuOpen} onClose={() => setMenuOpen(false)} width="86vw" title={<span><ShopOutlined /> {me?.tenant.name}</span>} styles={{ body: { padding: 0 } }}>
-        <div style={{ padding: '10px 14px', borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Avatar icon={<UserOutlined />} /><div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 600 }}>{me?.user.fullName}</div><div className="kv-hint">{me?.user.username}</div></div>
-        </div>
-        <Menu mode="inline" items={items} selectedKeys={selected} defaultOpenKeys={['goods', 'buy', 'trans', 'online', 'partners']} onClick={() => setMenuOpen(false)} />
-        <div style={{ padding: 12, display: 'grid', gap: 8 }}>
-          {(can('tenant.settings.manage') || can('branch.manage') || can('user.manage')) && <Button block icon={<SettingOutlined />} onClick={() => { setMenuOpen(false); nav('/settings'); }}>Thiết lập cửa hàng</Button>}
-          <Button block icon={<LockOutlined />} onClick={() => { setMenuOpen(false); setPwdOpen(true); }}>Đổi mật khẩu</Button>
-          <Button block icon={<QuestionCircleOutlined />} onClick={() => { setMenuOpen(false); nav('/help'); }}>Hướng dẫn sử dụng</Button>
-          <Button block danger icon={<LogoutOutlined />} onClick={doLogout}>Đăng xuất</Button>
-        </div>
-      </Drawer>
-      {isMobile && (
-        <nav className="kv-tabbar">
-          {can('dashboard.view') && <Link to="/" className={tab('/')}><HomeOutlined /><span>Tổng quan</span></Link>}
-          {can('product.view') && <Link to="/products" className={tab('/products')}><TagsOutlined /><span>Hàng hóa</span></Link>}
-          {can('invoice.create') && <a className="kv-tab kv-tab-pos" onClick={openPos}><ShoppingOutlined /><span>Bán hàng</span></a>}
-          {can('invoice.view') && <Link to="/invoices" className={tab('/invoices')}><FileTextOutlined /><span>Hóa đơn</span></Link>}
-          <a className={`kv-tab ${menuOpen ? 'on' : ''}`} onClick={() => setMenuOpen(true)}><MenuOutlined /><span>Khác</span></a>
-        </nav>
-      )}
+      {/* ---- phone: bottom tab bar (tab Khác mở trang lưới mục /more) ---- */}
+      {isMobile && <MobileTabBar />}
       <ChangePasswordModal open={pwdOpen} onClose={() => setPwdOpen(false)} />
     </div>
   );

@@ -32,20 +32,32 @@ const button = (page, re) => page.getByRole('button', { name: re });
 const firstRow = (page) => page.locator('.ant-table-tbody tr.ant-table-row, .sr-card, .od-card, .km-card, .tk-card, .cb-card').first();
 /** Mobile pages hide the toolbar buttons behind the floating "Bộ lọc"? No – only filters. Buttons stay in the toolbar. */
 const openUserMenu = async (page, ctx) => {
-  if (ctx.mobile) await click(page, page.locator('.kv-burger'));
-  else await click(page, page.locator('.kv-user'));
+  if (ctx.mobile) return; // điện thoại: các mục tài khoản nằm trên trang /more (route của ảnh chụp đã trỏ tới đó)
+  await click(page, page.locator('.kv-user'));
 };
 /** Type into the POS search box and pick the first suggestion (adds one line to the cart). */
 const addToCart = async (page, ctx, text = 'son') => {
   // the desktop header search stays in the DOM (hidden) on phones – pick the visible one for the viewport
-  const input = page.locator(ctx.mobile ? '.pos-msearch input' : '.pos-search input').first();
+  if (ctx.mobile) {
+    // điện thoại (PosMobile): ô tìm lọc danh mục, bấm vào dòng hàng để thêm vào giỏ
+    const input = page.locator('.ps-search input').first();
+    await input.click({ timeout: 5000 });
+    await input.fill(text);
+    await wait(page, 900);
+    await page.locator('.ps-row').first().click({ timeout: 6000 });
+    await wait(page, 700);
+    return;
+  }
+  const input = page.locator('.pos-search input').first();
   await input.click({ timeout: 5000 });
   await input.fill(text);
   await page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option').first().click({ timeout: 6000 });
   await wait(page, 900);
 };
 /** On phones the payment panel lives in a bottom sheet – open it. */
-const openPaySheet = async (page, ctx) => { if (ctx.mobile) await click(page, page.locator('.pos-mbar .pos-pay-btn'), 700); };
+/** Điện thoại: mở giỏ hàng (thanh Tổng tiền hàng) rồi bấm Thanh toán. */
+const openCart = async (page, ctx) => { if (ctx.mobile) await click(page, page.locator('.ps-cart-main'), 600); };
+const openPaySheet = async (page, ctx) => { if (ctx.mobile) { await openCart(page, ctx); await click(page, page.locator('.ps-btns .ant-btn-primary'), 700); } };
 const apiGet = (page, p) => page.evaluate(async (p) => {
   const raw = localStorage.getItem('erp-auth');
   const tok = raw ? JSON.parse(raw)?.state?.accessToken : null;
@@ -79,8 +91,8 @@ const SHOTS = [
   // ---- bắt đầu
   ['login', '/login'],
   ['dashboard', '/'],
-  ['menu-drawer', '/', async (page, ctx) => { if (ctx.mobile) await click(page, page.locator('.kv-burger')); }],
-  ['change-password', '/', async (page, ctx) => { await openUserMenu(page, ctx); await click(page, ctx.mobile ? button(page, /Đổi mật khẩu/) : page.locator('.ant-dropdown-menu-item', { hasText: 'Đổi mật khẩu' })); }],
+  ['menu-drawer', (ctx) => (ctx.mobile ? '/more' : '/')],
+  ['change-password', (ctx) => (ctx.mobile ? '/more' : '/'), async (page, ctx) => { await openUserMenu(page, ctx); await click(page, ctx.mobile ? button(page, /Đổi mật khẩu/) : page.locator('.ant-dropdown-menu-item', { hasText: 'Đổi mật khẩu' })); }],
   ['settings-branches', '/settings/branches'],
   ['settings-warehouses', '/settings/warehouses'],
   ['settings-users', '/settings/users'],
@@ -127,15 +139,15 @@ const SHOTS = [
   ['payments-out', '/payments?direction=OUT'],
   // ---- bán hàng
   ['pos', '/pos'],
-  ['pos-cart', '/pos', async (page, ctx) => { await addToCart(page, ctx); }],
+  ['pos-cart', '/pos', async (page, ctx) => { await addToCart(page, ctx); await openCart(page, ctx); }],
   ['pos-customer', '/pos', async (page, ctx) => {
     await addToCart(page, ctx);
-    if (ctx.mobile) await click(page, page.locator('.pos-mbar button').first(), 500); // opens the sheet and focuses the customer box
+    if (ctx.mobile) await click(page, page.locator('.ps-chip').first(), 500); // mở tấm Khách hàng, ô tìm khách tự lấy focus
     else await click(page, page.locator('.pos-side .ant-select-show-search .ant-select-selection-search-input'), 300);
     await page.keyboard.type('a'); await wait(page, 900);
   }],
   ['pos-mixed', '/pos', async (page, ctx) => { await addToCart(page, ctx); await openPaySheet(page, ctx); await click(page, page.locator('.pos-chip', { hasText: 'Kết hợp' })); }],
-  ['pos-held', '/pos', async (page) => { await click(page, page.locator('.pos-header button:has(.anticon-file-text)'), 900); }],
+  ['pos-held', '/pos', async (page, ctx) => { await click(page, page.locator(ctx.mobile ? '.ps-ib[aria-label="Đơn tạm"]' : '.pos-header button:has(.anticon-file-text)'), 900); }],
   // VietQR / SePay (cần cấu hình SePay đã bật): tạo mã QR tại quầy – mã chờ thanh toán sẽ tự hết hạn
   ['pos-qr', '/pos', async (page, ctx) => {
     await addToCart(page, ctx); await openPaySheet(page, ctx);

@@ -313,47 +313,12 @@ html { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   .kv-toolbar .kv-search { width: 100%; }
 }
 
-/* ---------- POS on phones ---------- */
-.pos-mbar, .pos-mtabs, .pos-mcart { display: none; }
+/* ---------- POS on phones: màn Bán hàng riêng (PosMobile, pos-mobile.css); ở đây chỉ còn tấm Thanh toán ---------- */
 @media (max-width: 767px) {
-  .pos-app { height: var(--app-h, 100dvh); }
-  .pos-header { height: auto; min-height: 48px; padding: calc(6px + env(safe-area-inset-top)) 8px 6px; flex-wrap: wrap; gap: 6px; }
-  .pos-brand { font-size: 13px; }
-  .pos-header .pos-tabs, .pos-header .pos-search { display: none; }
-  .pos-header-right { margin-left: auto; gap: 6px; }
-  .pos-user { display: none; }
-  .pos-shift { font-size: 12px; padding: 4px 8px; }
-  .pos-mtabs { display: flex; gap: 6px; overflow-x: auto; padding: 6px 8px 0; background: var(--kv-blue); -webkit-overflow-scrolling: touch; }
-  .pos-mtabs .pos-tab { border-radius: 14px; padding: 5px 12px; font-size: 13px; }
-  .pos-mtabs .pos-tab.active { background: #fff; color: #0f3d8a; }
-  .pos-msearch { padding: 8px; background: var(--kv-blue); }
-  .pos-msearch .ant-select { width: 100% !important; }
-  .pos-body { flex-direction: column; padding: 8px; gap: 8px; padding-bottom: calc(84px + env(safe-area-inset-bottom)); overflow: auto; }
-  .pos-cart { flex: 1 1 auto; overflow: visible; background: transparent; border-radius: 0; }
-  .pos-cart .ant-table-wrapper, .pos-cart-foot .kv-hint { display: none; }
-  .pos-mcart { display: flex; flex-direction: column; gap: 8px; }
-  .pos-mline { background: #fff; border-radius: 8px; padding: 10px 12px; display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
-  .pos-mline.error { outline: 2px solid #fca5a5; }
-  .pos-mline .nm { font-weight: 600; font-size: 14px; line-height: 1.25; }
-  .pos-mline .meta { color: #6b7280; font-size: 12px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-  .pos-mline .del { color: #dc2626; font-size: 18px; padding: 4px; }
-  .pos-mline .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; grid-column: 1 / -1; }
-  .pos-mline .pos-qty .ant-btn { width: 40px; height: 40px; }
-  .pos-mline .pos-qty .ant-input-number { width: 64px; }
-  .pos-mline .pos-qty .ant-input-number-input { height: 38px; text-align: center; font-size: 16px; }
-  .pos-mline .tot { font-weight: 700; font-size: 15px; color: var(--kv-blue); }
-  .pos-mline .err { color: #dc2626; font-size: 12px; grid-column: 1 / -1; }
-  .pos-cart-foot { background: #fff; border-radius: 8px; border-top: none; }
-  .pos-side { display: none; }
-  .pos-mbar { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 120; background: #fff; border-top: 1px solid #e5e7eb; padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); gap: 8px; align-items: center; }
-  .pos-mbar .sum { flex: 1; min-width: 0; line-height: 1.2; }
-  .pos-mbar .sum .lbl { font-size: 12px; color: #6b7280; }
-  .pos-mbar .sum .amt { font-size: 19px; font-weight: 700; color: var(--kv-blue); white-space: nowrap; }
-  .pos-mbar .pos-pay-btn { flex: 0 0 48%; height: 48px; font-size: 15px; }
-  .pos-mbar .ant-btn-icon-only { width: 44px; height: 44px; }
   .pos-sheet .pos-side { display: flex; width: 100%; flex: 1 1 auto; padding: 0; border-radius: 0; overflow: visible; }
   .pos-sheet .pos-actions { position: sticky; bottom: 0; background: #fff; padding-top: 8px; margin-top: 8px; }
   .pos-sheet .ant-drawer-body { padding: 12px 12px calc(12px + env(safe-area-inset-bottom)); }
+  .pos-sheet .ant-drawer-content { border-radius: 16px 16px 0 0; }
   .pos-row .ant-select, .pos-row .ant-input-number { max-width: 60vw; }
   .pos-chip { padding: 7px 14px; font-size: 14px; }
   .pos-blocker { font-size: 14px; padding: 20px; text-align: center; }
@@ -523,4 +488,10 @@ html.ios-short-frame, html.ios-short-frame body { background: #fff; }
   .kv-logo { max-width: 170px; font-size: 16px; }
   .kv-menu .ant-menu-horizontal > .ant-menu-item, .kv-menu .ant-menu-horizontal > .ant-menu-submenu { padding-inline: 8px; }
   .kv-header-right .kv-branch-select { min-width: 140px !important; }
+}
+
+/* tab Khác trên điện thoại: thẻ cửa hàng thay cho thanh tiêu đề chung (như app KiotViet) */
+@media (max-width: 767px) {
+  .kv-shell-nohead > .kv-header { display: none; }
+  .kv-shell-nohead > .kv-page { padding-top: calc(10px + env(safe-area-inset-top)); }
 }

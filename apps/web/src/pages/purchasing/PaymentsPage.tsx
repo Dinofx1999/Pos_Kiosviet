@@ -31,6 +31,8 @@ export default function PaymentsPage() {
   const [other, setOther] = useState<{ open: boolean; direction: 'IN' | 'OUT' }>({ open: false, direction: 'OUT' });
   const [detailId, setDetailId] = useState<string | undefined>();
   useEffect(() => { setQ((s) => ({ ...s, direction: sp.get('direction') ?? undefined, search: sp.get('search') ?? s.search, page: 1 })); }, [sp]);
+  // ?new=IN|OUT (vd nút "Lập phiếu thu" ở màn Bán hàng điện thoại) → mở ngay form lập phiếu
+  useEffect(() => { const n = sp.get('new'); if ((n === 'IN' || n === 'OUT') && can('payment.create')) setModal({ open: true, direction: n }); }, [sp]);
   const { data, isLoading, isFetching, error, refetch } = usePayments({ ...q, branchId: branchId ?? undefined });
   const { data: categories } = useCashCategories({ includeInactive: true });
   const set = (patch: Partial<PaymentsQ>) => setQ((s) => ({ ...s, ...patch, page: patch.page ?? 1 }));

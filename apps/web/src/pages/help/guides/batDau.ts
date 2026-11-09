@@ -65,14 +65,14 @@ export const BAT_DAU: Guide[] = [
     keywords: ['mobile', 'di động', 'menu', 'thanh tab', 'hamburger', 'thêm vào màn hình chính'],
     steps: [
       { text: 'Thanh tab dưới cùng có 5 mục như app KiotViet: Tổng quan, Hàng hóa, Bán hàng, Hóa đơn và Khác.', shot: 'dashboard', caption: 'Trang Tổng quan trên điện thoại với thanh tab dưới cùng' },
-      { text: 'Bấm tab Khác (góc dưới bên phải) để mở menu đầy đủ theo nhóm: Hàng hóa, Mua hàng, Đơn hàng, Bán online, Khách hàng, Nhân viên, Sổ quỹ, Phân tích; cuối menu có Thiết lập cửa hàng, Đổi mật khẩu, Hướng dẫn sử dụng, Đăng xuất.', shot: 'menu-drawer' },
+      { text: 'Bấm tab Khác (góc dưới bên phải) để mở trang các mục theo nhóm như app KiotViet: thẻ cửa hàng (bấm tên chi nhánh để đổi), Giao dịch, Hàng hoá, Bán online, Đối tác, Giao hàng, Nhân viên, Sổ quỹ, Báo cáo; cuối trang là Cài đặt chung (Thiết lập cửa hàng, Tích hợp, Quản lý người dùng, Đổi mật khẩu), Hướng dẫn sử dụng và Đăng xuất.', shot: 'menu-drawer' },
       { text: 'Trong các danh sách, bấm nút nổi "Bộ lọc" ở góc dưới phải để mở bộ lọc (trạng thái, kho, thời gian…). Riêng Hàng hóa dùng hàng chip lọc phía trên (biểu tượng phễu, Loại hàng, Giá bán / Giá vốn, Tồn kho) và nút + để thêm hàng.' },
       { text: 'Bấm vào một dòng để mở chi tiết; các nút thao tác (Sửa, Hủy, In…) nằm ở cuối phần chi tiết.' },
       { text: 'Khi lập phiếu, các dòng hàng hiển thị dạng thẻ; nút Lưu tạm / Hoàn thành luôn dính ở cuối màn hình.' },
       { text: 'Hộp thoại mở toàn màn hình; nút Lưu / Bỏ qua ở dưới cùng. Vuốt xuống để xem hết biểu mẫu.' },
     ],
     notes: [
-      'Trang Tổng quan trên điện thoại giống app KiotViet: chọn kỳ (Hôm nay / 7 ngày / Tháng này) và chi nhánh ở hai nút tròn phía trên; lợi nhuận mặc định ẩn (***), bấm biểu tượng mắt để hiện. Nút Bán hàng trên điện thoại mở POS ngay trong cùng tab; trên máy tính POS mở ở tab trình duyệt riêng.',
+      'Trang Tổng quan trên điện thoại giống app KiotViet: chọn kỳ (Hôm nay / 7 ngày / Tháng này) và chi nhánh ở hai nút tròn phía trên; lợi nhuận mặc định ẩn (***), bấm biểu tượng mắt để hiện. Tab Bán hàng trên điện thoại mở màn bán hàng kiểu app KiotViet (danh sách hàng bấm để thêm vào giỏ, viên tròn Đặt hàng / Bán hàng / ⋯ ở dưới); trên máy tính POS mở ở tab trình duyệt riêng.',
       'Máy quét mã vạch Bluetooth hoạt động như bàn phím: chạm vào ô tìm hàng rồi quét.',
     ],
     related: ['ban-hang-pos', 'kiem-kho', 'cham-cong'],
@@ -85,7 +85,7 @@ export const BAT_DAU: Guide[] = [
     perms: ['Mọi tài khoản tự đổi được mật khẩu của mình'],
     keywords: ['password', 'bảo mật', 'reset', 'đặt lại mật khẩu'],
     steps: [
-      { text: 'Bấm tên người dùng ở góc phải trên (điện thoại: tab Khác → kéo xuống cuối menu) và chọn Đổi mật khẩu.', shot: 'change-password' },
+      { text: 'Bấm tên người dùng ở góc phải trên (điện thoại: tab Khác → Cài đặt chung → Đổi mật khẩu) và chọn Đổi mật khẩu.', shot: 'change-password' },
       { text: 'Nhập Mật khẩu hiện tại, Mật khẩu mới (tối thiểu 6 ký tự) và Nhập lại mật khẩu mới, rồi bấm Lưu.' },
       { text: 'Đăng nhập lại trên các thiết bị khác bằng mật khẩu mới.' },
     ],
