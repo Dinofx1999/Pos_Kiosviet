@@ -9,7 +9,7 @@ import { ChangePasswordModal } from '../../components/ChangePasswordModal';
 import { useAuthStore } from '../../store/auth';
 import './more.css';
 
-interface Item { to: string; label: string; icon: ReactNode; show: boolean; badge?: number; tone?: 'green' | 'orange' | 'purple' }
+interface Item { to: string; label: string; icon: ReactNode; show: boolean; badge?: number }
 interface Section { title: string; items: Item[] }
 
 /** Tab Khác trên điện thoại – trang lưới các mục theo nhóm như app KiotViet (thẻ cửa hàng, Giao dịch, Hàng hóa, Bán online, Đối tác, Giao hàng, Nhân viên, Sổ quỹ, Báo cáo, Cài đặt chung). */
@@ -37,29 +37,29 @@ export default function MorePage() {
       { to: '/invoices', label: 'Hóa đơn', icon: <FileTextOutlined />, show: can('invoice.view') },
       { to: '/orders', label: 'Đặt hàng', icon: <ShoppingCartOutlined />, show: can('order.view') },
       { to: '/sales-returns', label: 'Trả hàng', icon: <RollbackOutlined />, show: can('return.view') },
-      { to: '/payments?direction=IN', label: 'Phiếu thu', icon: <ArrowDownOutlined />, show: can('payment.view'), tone: 'green' },
-      { to: '/payments?direction=OUT', label: 'Phiếu chi', icon: <ArrowUpOutlined />, show: can('payment.view'), tone: 'orange' },
+      { to: '/payments?direction=IN', label: 'Phiếu thu', icon: <ArrowDownOutlined />, show: can('payment.view') },
+      { to: '/payments?direction=OUT', label: 'Phiếu chi', icon: <ArrowUpOutlined />, show: can('payment.view') },
       { to: '/shifts', label: 'Ca bán hàng', icon: <ClockCircleOutlined />, show: can('shift.view') },
-      { to: '/promotions', label: 'Khuyến mại', icon: <GiftOutlined />, show: can('promotion.view'), tone: 'purple' },
+      { to: '/promotions', label: 'Khuyến mại', icon: <GiftOutlined />, show: can('promotion.view') },
     ] },
     { title: 'Hàng hoá', items: [
       { to: '/products', label: 'Hàng hoá', icon: <AppstoreOutlined />, show: can('product.view') },
       { to: '/stocktakes', label: 'Kiểm kho', icon: <CheckSquareOutlined />, show: can('stocktake.view') },
       { to: '/purchase-receipts', label: 'Nhập hàng', icon: <ImportOutlined />, show: can('purchase.receipt.view') },
       { to: '/purchase-returns', label: 'Trả hàng nhập', icon: <ExportOutlined />, show: can('purchase.return.view') },
-      { to: '/transfers', label: 'Chuyển hàng', icon: <SwapOutlined />, show: can('transfer.view'), tone: 'green' },
-      { to: '/inventory/documents?type=ISSUE', label: 'Xuất hủy / nội bộ', icon: <DeleteOutlined />, show: can('inventory.document.view'), tone: 'orange' },
+      { to: '/transfers', label: 'Chuyển hàng', icon: <SwapOutlined />, show: can('transfer.view') },
+      { to: '/inventory/documents?type=ISSUE', label: 'Xuất hủy / nội bộ', icon: <DeleteOutlined />, show: can('inventory.document.view') },
       { to: '/purchase-orders', label: 'Đặt hàng nhập', icon: <ProfileOutlined />, show: can('purchase.order.view') },
       { to: '/inventory/documents', label: 'Phiếu kho', icon: <FileDoneOutlined />, show: can('inventory.document.view') },
       { to: '/price-books', label: 'Thiết lập giá', icon: <TagsOutlined />, show: can('pricebook.manage') },
     ] },
     { title: 'Bán online', items: [
       { to: '/online/settings', label: 'Web bán hàng', icon: <GlobalOutlined />, show: can('online.manage') },
-      { to: '/online/flash-sales', label: 'Flash Sale', icon: <ThunderboltOutlined />, show: can('online.manage'), tone: 'orange' },
-      { to: '/orders?source=ONLINE', label: 'Đơn đặt trên web', icon: <ShoppingCartOutlined />, show: can('order.view'), badge: webPending, tone: 'green' },
+      { to: '/online/flash-sales', label: 'Flash Sale', icon: <ThunderboltOutlined />, show: can('online.manage') },
+      { to: '/orders?source=ONLINE', label: 'Đơn đặt trên web', icon: <ShoppingCartOutlined />, show: can('order.view'), badge: webPending },
     ] },
     { title: 'Đối tác', items: [
-      { to: '/customers', label: 'Khách hàng', icon: <UserOutlined />, show: can('customer.view'), tone: 'green' },
+      { to: '/customers', label: 'Khách hàng', icon: <UserOutlined />, show: can('customer.view') },
       { to: '/suppliers', label: 'Nhà cung cấp', icon: <IdcardOutlined />, show: can('supplier.view') },
     ] },
     { title: 'Giao hàng', items: [
@@ -68,7 +68,7 @@ export default function MorePage() {
     { title: 'Nhân viên', items: [
       { to: '/employees', label: 'Nhân viên', icon: <TeamOutlined />, show: can('attendance.view') },
       { to: '/employees/attendance', label: 'Chấm công', icon: <FieldTimeOutlined />, show: true },
-      { to: '/employees/commissions', label: 'Hoa hồng', icon: <PercentageOutlined />, show: true, tone: 'green' },
+      { to: '/employees/commissions', label: 'Hoa hồng', icon: <PercentageOutlined />, show: true },
       { to: '/employees/performance', label: 'Hiệu suất', icon: <RiseOutlined />, show: can('attendance.view') },
       { to: '/settings/users', label: 'Tài khoản đăng nhập', icon: <KeyOutlined />, show: can('user.manage') },
       { to: '/settings/roles', label: 'Vai trò & phân quyền', icon: <SafetyCertificateOutlined />, show: can('role.manage') },
@@ -76,13 +76,13 @@ export default function MorePage() {
     { title: 'Sổ quỹ', items: [
       { to: '/cash', label: 'Sổ quỹ', icon: <WalletOutlined />, show: can('cash.view') },
       { to: '/cash/accounts', label: 'Quỹ tiền / Tài khoản', icon: <BankOutlined />, show: can('cash.view') },
-      { to: '/cash/transfers', label: 'Chuyển quỹ', icon: <SwapOutlined />, show: can('cash.view'), tone: 'green' },
+      { to: '/cash/transfers', label: 'Chuyển quỹ', icon: <SwapOutlined />, show: can('cash.view') },
       { to: '/cash/bank-transactions', label: 'Giao dịch chuyển khoản', icon: <QrcodeOutlined />, show: can('cash.view'), badge: unmatchedBank },
     ] },
     { title: 'Báo cáo', items: [
       { to: '/reports/sales', label: 'Doanh thu bán hàng', icon: <LineChartOutlined />, show: can('sales.report.view') },
-      { to: '/reports/profit', label: 'Lãi lỗ', icon: <FundOutlined />, show: can('report.profit.view'), tone: 'green' },
-      { to: '/reports/products', label: 'Hàng bán chạy / chậm', icon: <FireOutlined />, show: can('sales.report.view'), tone: 'orange' },
+      { to: '/reports/profit', label: 'Lãi lỗ', icon: <FundOutlined />, show: can('report.profit.view') },
+      { to: '/reports/products', label: 'Hàng bán chạy / chậm', icon: <FireOutlined />, show: can('sales.report.view') },
       { to: '/inventory/balances', label: 'Tồn kho', icon: <DatabaseOutlined />, show: can('inventory.view') },
       { to: '/reports/inventory-nxt', label: 'Nhập xuất tồn', icon: <BarChartOutlined />, show: can('inventory.view') },
       { to: '/inventory/movements', label: 'Thẻ kho', icon: <FileSearchOutlined />, show: can('inventory.movement.view') },
@@ -120,7 +120,7 @@ export default function MorePage() {
             <div className="mr-grid">
               {items.map((i) => (
                 <Link key={i.to} to={i.to} className="mr-item">
-                  <span className={`mr-ic ${i.tone ?? ''}`}>{i.icon}</span>
+                  <span className="mr-ic">{i.icon}</span>
                   <span className="mr-label">{i.label}</span>
                   {i.badge ? <Badge count={i.badge} size="small" overflowCount={99} /> : null}
                 </Link>
