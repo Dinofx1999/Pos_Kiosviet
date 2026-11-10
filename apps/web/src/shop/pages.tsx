@@ -87,13 +87,13 @@ function ProductTile({ p }: { p: ProductCard }) {
         <Img src={p.imageUrl} alt={p.name} />
         {p.flash && <span className="sh-badge flash">{Icon.bolt(12)} -{p.flash.discountPercent}%</span>}
         {!p.inStock && <span className="sh-oos">Hết hàng</span>}
+        {cfg.showStock && p.inStock && p.available !== null && p.available <= 10 && <span className="sh-left">Còn {p.available}</span>}
       </div>
       <div className="nm">{p.name}</div>
       <div className="foot">
         <PriceTag price={p.price} priceMax={p.variantCount > 1 ? p.priceMax : null} flash={p.flash} />
         {cfg.allowOrder && <button type="button" className="sh-add" aria-label={p.variantCount > 1 ? 'Chọn phiên bản' : 'Thêm vào giỏ'} disabled={!p.inStock} onClick={quickAdd}>{Icon.plus(16)}</button>}
       </div>
-      {cfg.showStock && p.inStock && p.available !== null && p.available <= 10 && <div className="sh-left">Còn {p.available}</div>}
     </Link>
   );
 }

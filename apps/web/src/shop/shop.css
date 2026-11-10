@@ -42,17 +42,21 @@ img { display: block; max-width: 100%; }
 .sh-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .sh-card { position: relative; background: var(--card); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; padding-bottom: 8px; border: 1px solid #f0e8eb; transition: transform .15s; }
 .sh-card:active { transform: scale(.98); }
-.sh-card .img { position: relative; aspect-ratio: 1; background: #fff; padding: 6px; border-bottom: 1px solid #f6f0f2; }
-.sh-card .img img { width: 100%; height: 100%; object-fit: contain; }
-.sh-card .nm { padding: 6px 8px 2px; font-size: 12.5px; line-height: 1.3; color: #3a3236; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 34px; }
-.sh-card .foot { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin: 2px 8px 0; }
+/* ảnh luôn vuông: img đặt tuyệt đối nên ảnh dọc/ngang không kéo ô cao thấp khác nhau */
+.sh-card .img { position: relative; aspect-ratio: 1; height: auto; overflow: hidden; background: #fff; border-bottom: 1px solid #f6f0f2; }
+.sh-card .img img { position: absolute; inset: 6px; width: calc(100% - 12px); height: calc(100% - 12px); object-fit: contain; }
+/* tên luôn chiếm đúng 2 dòng (dù ngắn) để hàng giá của mọi thẻ nằm cùng một mức */
+.sh-card .nm { padding: 6px 8px 0; font-size: 12.5px; line-height: 1.3; color: #3a3236; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; height: calc(12.5px * 1.3 * 2 + 6px); box-sizing: border-box; }
+.sh-card .foot { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin: 4px 8px 0; margin-top: auto; padding-top: 4px; min-height: 34px; }
 .sh-card .foot .sh-price { margin: 0; min-width: 0; }
 .sh-add { width: 30px; height: 30px; border-radius: 50%; border: 0; background: var(--c); color: #fff; display: grid; place-items: center; flex-shrink: 0; box-shadow: 0 2px 6px color-mix(in srgb, var(--c) 35%, transparent); }
 .sh-add:disabled { background: #e3d8dc; box-shadow: none; }
-.sh-card .sh-price, .sh-card .sh-fbar, .sh-card .sh-left { margin: 0 8px; }
+.sh-card .sh-price, .sh-card .sh-fbar { margin: 0 8px; }
 .sh-card.oos .img img { opacity: .55; }
 .sh-oos { position: absolute; inset: auto 0 0; background: rgba(31,26,28,.62); color: #fff; text-align: center; font-size: 11.5px; font-weight: 600; padding: 3px; }
 .sh-left { font-size: 12px; color: #c2410c; margin-top: 2px; }
+/* "Còn N" trên thẻ hàng là nhãn nhỏ đè lên góc ảnh, không chen vào bố cục */
+.sh-card .sh-left { position: absolute; left: 8px; bottom: 8px; margin: 0; font-size: 11px; font-weight: 600; color: #c2410c; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 6px; padding: 1px 6px; }
 .sh-badge { position: absolute; top: 8px; left: 8px; display: inline-flex; align-items: center; gap: 2px; font-size: 11.5px; font-weight: 800; color: #fff; background: var(--c); border-radius: 6px; padding: 2px 6px; }
 .sh-badge.flash { background: linear-gradient(135deg, #ff5a1f, var(--flash)); }
 .sh-badge.big { top: 12px; left: 12px; font-size: 13px; padding: 4px 8px; }
