@@ -160,7 +160,7 @@ export function PosMobile({ ctx, children }: { ctx: PosMobileCtx; children?: Rea
     <>
       <div className="ps-top">
         <div className="ps-head">
-          <h1>Bán hàng</h1>
+          <h1>{modeLabel}</h1>
           <button type="button" className="ps-ib ps-held" aria-label="Đơn tạm" title="Đơn tạm (đơn đang giữ)" onClick={openHeld}><Badge count={heldCount} size="small" overflowCount={99}><HeldIcon /></Badge></button>
         </div>
         <div className="ps-search">
