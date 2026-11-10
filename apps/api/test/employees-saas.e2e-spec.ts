@@ -188,4 +188,63 @@ describe('Employees (commission, attendance, performance), SaaS plans and tax re
     expect(rep.body.returns.count).toBe(1);
     expect((await t.http().get(`${api}/reports/tax`).set(cashierAuth)).status).toBe(403);
   });
+  it('T-246 GPS attendance at the branch + trusted devices: branch coordinates; gpsRequired rejects missing / far / inaccurate positions and stores the distance in range; deviceLock binds one phone per employee, a new phone waits for approval, a colleague\'s phone is rejected (no proxy check-in); manager approves / blocks / removes devices', async () => {
+    await t.http().post(`${api}/employees/attendance/check-out`).set(cashierAuth).send({});
+    const br = await t.http().patch(`${api}/branches/${s.branchId}`).set(s.auth).send({ latitude: 15.5736, longitude: 108.474, radiusMeters: 100 });
+    expect(br.status).toBe(200);
+    expect(Number(br.body.latitude)).toBeCloseTo(15.5736, 4);
+    expect((await t.http().put(`${api}/settings`).set(s.auth).send({ settings: { 'attendance.gpsRequired': true, 'attendance.deviceLock': true, 'attendance.maxAccuracyMeters': 100 } })).status).toBe(200);
+    const cur0 = await t.http().get(`${api}/employees/attendance/current`).set(cashierAuth).query({ deviceId: 'phone-A' });
+    expect(cur0.body.policy).toMatchObject({ gpsRequired: true, deviceLock: true });
+    expect(cur0.body.branches.find((b: { id: string }) => b.id === s.branchId)).toMatchObject({ hasGeo: true, radius: 100 });
+    expect(cur0.body.device).toBeNull();
+    const ci = (auth: { Authorization: string }, body: Record<string, unknown>) => t.http().post(`${api}/employees/attendance/check-in`).set(auth).send({ branchId: s.branchId, ...body });
+    expect((await ci(cashierAuth, { deviceId: 'phone-A' })).body.code).toBe('ATTENDANCE_GPS_REQUIRED');
+    expect((await ci(cashierAuth, { deviceId: 'phone-A', latitude: 15.58, longitude: 108.474, accuracy: 10 })).body.code).toBe('ATTENDANCE_OUT_OF_RANGE'); // ~700 m away
+    expect((await ci(cashierAuth, { deviceId: 'phone-A', latitude: 15.5736, longitude: 108.474, accuracy: 500 })).body.code).toBe('ATTENDANCE_GPS_INACCURATE');
+    const ok = await ci(cashierAuth, { deviceId: 'phone-A', deviceName: 'iPhone · Safari', latitude: 15.5738, longitude: 108.4742, accuracy: 12 });
+    expect(ok.status).toBe(201);
+    expect(ok.body.distanceMeters).toBeGreaterThan(0);
+    expect(ok.body.distanceMeters).toBeLessThan(60);
+    expect(ok.body.deviceId).toBe('phone-A');
+    expect(ok.body.flags).toEqual([]);
+    expect((await t.http().get(`${api}/employees/attendance/current`).set(cashierAuth).query({ deviceId: 'phone-A' })).body.device.status).toBe('TRUSTED');
+    // check-out far away from another device: never blocked, only flagged
+    const out = await t.http().post(`${api}/employees/attendance/check-out`).set(cashierAuth).send({ deviceId: 'phone-B', latitude: 15.6, longitude: 108.474, accuracy: 10 });
+    expect(out.status).toBe(200);
+    expect(out.body.flags).toEqual(expect.arrayContaining(['OUT_OUT_OF_RANGE', 'DEVICE_CHANGED']));
+    // same employee, new phone → pending approval
+    expect((await ci(cashierAuth, { deviceId: 'phone-B', latitude: 15.5736, longitude: 108.474, accuracy: 10 })).body.code).toBe('ATTENDANCE_DEVICE_UNTRUSTED');
+    // a colleague logs in on the cashier's phone to check in for them → rejected
+    const roles = (await t.http().get(`${api}/roles`).set(s.auth)).body;
+    const u2 = await t.http().post(`${api}/users`).set(s.auth).send({ username: 'nvhai', password: 'Secret123', fullName: 'Trần Thị Hai', roleIds: [roles.find((r: { code: string }) => r.code === 'CASHIER').id], branchIds: [s.branchId] });
+    expect(u2.status).toBe(201);
+    const l2 = await t.http().post(`${api}/auth/login`).send({ tenantCode: s.tenantCode, username: 'nvhai', password: 'Secret123' });
+    const auth2 = { Authorization: `Bearer ${l2.body.accessToken}` };
+    expect((await ci(auth2, { deviceId: 'phone-A', latitude: 15.5736, longitude: 108.474, accuracy: 10 })).body.code).toBe('ATTENDANCE_DEVICE_SHARED');
+    // manager: list, approve phone-B, cashier can use it
+    const devs = await t.http().get(`${api}/employees/attendance/devices`).set(s.auth);
+    expect(devs.status).toBe(200);
+    const devB = devs.body.find((d: { deviceId: string }) => d.deviceId === 'phone-B');
+    expect(devB.status).toBe('PENDING');
+    expect(devB.user.id).toBe(cashierId);
+    expect((await t.http().patch(`${api}/employees/attendance/devices/${devB.id}`).set(cashierAuth).send({ status: 'TRUSTED' })).status).toBe(403);
+    expect((await t.http().patch(`${api}/employees/attendance/devices/${devB.id}`).set(s.auth).send({ status: 'TRUSTED' })).body.status).toBe('TRUSTED');
+    expect((await ci(cashierAuth, { deviceId: 'phone-B', latitude: 15.5736, longitude: 108.474, accuracy: 10 })).status).toBe(201);
+    await t.http().post(`${api}/employees/attendance/check-out`).set(cashierAuth).send({ deviceId: 'phone-B' });
+    // block phone-A → rejected; remove it → the colleague can register that phone as their own
+    const devA = devs.body.find((d: { deviceId: string }) => d.deviceId === 'phone-A');
+    await t.http().patch(`${api}/employees/attendance/devices/${devA.id}`).set(s.auth).send({ status: 'BLOCKED' });
+    expect((await ci(cashierAuth, { deviceId: 'phone-A', latitude: 15.5736, longitude: 108.474, accuracy: 10 })).body.code).toBe('ATTENDANCE_DEVICE_BLOCKED');
+    expect((await t.http().delete(`${api}/employees/attendance/devices/${devA.id}`).set(s.auth)).status).toBe(204);
+    expect((await ci(auth2, { deviceId: 'phone-A', latitude: 15.5736, longitude: 108.474, accuracy: 10 })).status).toBe(201);
+    // manager list shows distance and flags
+    const list = await t.http().get(`${api}/employees/attendance`).set(s.auth).query({ userId: cashierId });
+    const first = list.body.data.find((a: { id: string }) => a.id === ok.body.id);
+    expect(first.distanceMeters).toBe(ok.body.distanceMeters);
+    expect(first.flags).toEqual(expect.arrayContaining(['DEVICE_CHANGED']));
+    // relax for the rest of the suite
+    await t.http().put(`${api}/settings`).set(s.auth).send({ settings: { 'attendance.gpsRequired': false, 'attendance.deviceLock': false } });
+    await t.http().post(`${api}/employees/attendance/check-out`).set(auth2).send({});
+  });
 });

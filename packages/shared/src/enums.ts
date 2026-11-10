@@ -49,6 +49,10 @@ export const TENANT_SETTING_KEYS = {
   PRICE_INCLUDES_TAX: 'pricing.priceIncludesTax',
   PURCHASE_TAX_IN_COST: 'purchasing.includeTaxInCost',
   POS_REQUIRE_SHIFT: 'pos.requireOpenShift', // bắt buộc mở ca trước khi bán
+  ATTENDANCE_GPS_REQUIRED: 'attendance.gpsRequired', // chấm công phải đứng trong bán kính chi nhánh (chi nhánh có tọa độ)
+  ATTENDANCE_RADIUS: 'attendance.radiusMeters', // bán kính mặc định (m) khi chi nhánh không đặt riêng
+  ATTENDANCE_DEVICE_LOCK: 'attendance.deviceLock', // mỗi nhân viên một thiết bị tin cậy, thiết bị mới phải được duyệt; chặn chấm công hộ
+  ATTENDANCE_MAX_ACCURACY: 'attendance.maxAccuracyMeters', // từ chối vị trí có sai số lớn hơn (m)
   POS_ALLOW_CREDIT: 'pos.allowCreditSales', // cho phép bán nợ (khách trả sau)
   CASH_ALLOW_NEGATIVE: 'cash.allowNegativeBalance', // cho phép quỹ tiền âm (phiếu chi vượt tồn quỹ)
   LOYALTY_ENABLED: 'loyalty.enabled', // tích điểm

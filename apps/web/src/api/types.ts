@@ -3,7 +3,7 @@ export interface ApiError { code: string; message: string; statusCode?: number; 
 
 export interface Tenant { id: string; code: string; name: string; status: string; planCode: string; currency: string; timezone: string }
 export interface UserBrief { id: string; username: string; fullName: string; email?: string | null; phone?: string | null; isOwner: boolean; allBranches: boolean; status: string; lastLoginAt?: string | null }
-export interface Branch { id: string; code: string; name: string; address?: string | null; phone?: string | null; email?: string | null; isDefault: boolean; isActive: boolean; _count?: { warehouses: number }; warehouses?: Warehouse[] }
+export interface Branch { id: string; code: string; name: string; address?: string | null; phone?: string | null; email?: string | null; latitude?: number | string | null; longitude?: number | string | null; radiusMeters?: number | null; isDefault: boolean; isActive: boolean; _count?: { warehouses: number }; warehouses?: Warehouse[] }
 export interface Warehouse { id: string; branchId: string; code: string; name: string; address?: string | null; isDefault: boolean; isActive: boolean; branchName?: string; branch?: { id: string; name: string; code: string } }
 export interface Me { user: UserBrief & { roles: { id: string; code: string; name: string }[] }; tenant: Tenant; permissions: string[]; branches: Branch[]; warehouses: Warehouse[]; settings: Record<string, unknown> }
 export interface Tokens { accessToken: string; refreshToken: string; expiresIn: number }

@@ -1,6 +1,6 @@
 import { App, Button, Card, Form, Input, InputNumber, Menu, Modal, Select, Switch, Tag } from 'antd';
 import Table from '../../components/ResponsiveTable';
-import { EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { EditOutlined, EnvironmentOutlined, PlusOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -70,19 +70,28 @@ function BranchesTab() {
   const { data, isLoading } = useBranches();
   const [form] = Form.useForm();
   const [editing, setEditing] = useState<Branch | null | undefined>(undefined);
-  useEffect(() => { if (editing === undefined) return; if (editing) form.setFieldsValue(editing); else { form.resetFields(); form.setFieldsValue({ createDefaultWarehouse: true, isActive: true }); } }, [editing]);
+  useEffect(() => { if (editing === undefined) return; if (editing) form.setFieldsValue({ ...editing, latitude: editing.latitude != null ? Number(editing.latitude) : undefined, longitude: editing.longitude != null ? Number(editing.longitude) : undefined, radiusMeters: editing.radiusMeters ?? undefined }); else { form.resetFields(); form.setFieldsValue({ createDefaultWarehouse: true, isActive: true }); } }, [editing]);
+  const [locating, setLocating] = useState(false);
+  // đứng tại cửa hàng bấm để lấy tọa độ GPS của chi nhánh (dùng cho chấm công tại chỗ)
+  const useHere = () => {
+    if (!navigator.geolocation) { message.warning('Trình duyệt không hỗ trợ định vị'); return; }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition((p) => { form.setFieldsValue({ latitude: Math.round(p.coords.latitude * 1e6) / 1e6, longitude: Math.round(p.coords.longitude * 1e6) / 1e6 }); message.success(`Đã lấy vị trí (sai số ±${Math.round(p.coords.accuracy)} m)`); setLocating(false); }, () => { message.error('Không lấy được vị trí – cho phép trình duyệt dùng định vị rồi thử lại'); setLocating(false); }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+  };
+  const geoOf = (v: { latitude?: number | null; longitude?: number | null; radiusMeters?: number | null }) => ({ latitude: v.latitude ?? null, longitude: v.longitude ?? null, radiusMeters: v.radiusMeters ?? null });
   const save = async () => {
     const v = await form.validateFields();
+    if ((v.latitude == null) !== (v.longitude == null)) { message.warning('Nhập đủ cả vĩ độ và kinh độ (hoặc để trống cả hai)'); return; }
     try {
-      if (editing) await orgApi.updateBranch(editing.id, { name: v.name, address: v.address, phone: v.phone, email: v.email || undefined, isActive: v.isActive, isDefault: v.isDefault });
-      else await orgApi.createBranch({ code: v.code, name: v.name, address: v.address, phone: v.phone, email: v.email || undefined, createDefaultWarehouse: v.createDefaultWarehouse });
+      if (editing) await orgApi.updateBranch(editing.id, { name: v.name, address: v.address, phone: v.phone, email: v.email || undefined, isActive: v.isActive, isDefault: v.isDefault, ...geoOf(v) });
+      else await orgApi.createBranch({ code: v.code, name: v.name, address: v.address, phone: v.phone, email: v.email || undefined, createDefaultWarehouse: v.createDefaultWarehouse, ...(v.latitude != null ? geoOf(v) : {}) });
       message.success('Đã lưu chi nhánh'); qc.invalidateQueries({ queryKey: ['branches'] }); qc.invalidateQueries({ queryKey: ['me'] }); qc.invalidateQueries({ queryKey: ['warehouses'] }); setEditing(undefined);
     } catch (e) { message.error(errMsg(e)); }
   };
   return (
     <Card size="small" title="Chi nhánh" extra={<Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => setEditing(null)}>Thêm chi nhánh</Button>}>
       <Table rowKey="id" size="small" loading={isLoading} dataSource={data ?? []} pagination={false}
-        columns={[{ title: 'Mã', dataIndex: 'code', width: 100 }, { title: 'Tên chi nhánh', dataIndex: 'name', render: (v, b) => <span>{v} {b.isDefault && <Tag color="blue">Mặc định</Tag>}</span> }, { title: 'Địa chỉ', dataIndex: 'address' }, { title: 'Điện thoại', dataIndex: 'phone', width: 120 }, { title: 'Số kho', width: 80, className: 'num', render: (_, b) => b._count?.warehouses }, { title: 'Trạng thái', dataIndex: 'isActive', width: 120, render: (v) => v ? <Tag color="green">Hoạt động</Tag> : <Tag>Ngừng</Tag> }, { title: '', width: 60, render: (_, b) => <Button size="small" type="link" icon={<EditOutlined />} onClick={() => setEditing(b)} /> }]} />
+        columns={[{ title: 'Mã', dataIndex: 'code', width: 100 }, { title: 'Tên chi nhánh', dataIndex: 'name', render: (v, b) => <span>{v} {b.isDefault && <Tag color="blue">Mặc định</Tag>}{b.latitude != null && b.longitude != null && <Tag color="green"><EnvironmentOutlined /> GPS{b.radiusMeters ? ` ${b.radiusMeters} m` : ''}</Tag>}</span> }, { title: 'Địa chỉ', dataIndex: 'address' }, { title: 'Điện thoại', dataIndex: 'phone', width: 120 }, { title: 'Số kho', width: 80, className: 'num', render: (_, b) => b._count?.warehouses }, { title: 'Trạng thái', dataIndex: 'isActive', width: 120, render: (v) => v ? <Tag color="green">Hoạt động</Tag> : <Tag>Ngừng</Tag> }, { title: '', width: 60, render: (_, b) => <Button size="small" type="link" icon={<EditOutlined />} onClick={() => setEditing(b)} /> }]} />
       <Modal title={editing ? 'Sửa chi nhánh' : 'Thêm chi nhánh'} open={editing !== undefined} onCancel={() => setEditing(undefined)} onOk={save} okText="Lưu" cancelText="Bỏ qua" destroyOnClose>
         <Form form={form} layout="vertical">
           <Form.Item name="code" label="Mã chi nhánh" rules={[{ required: true, pattern: /^[A-Za-z0-9_-]{1,50}$/, message: 'Chữ, số, -, _' }]}><Input disabled={!!editing} placeholder="CN02" /></Form.Item>
@@ -90,6 +99,16 @@ function BranchesTab() {
           <Form.Item name="address" label="Địa chỉ"><Input /></Form.Item>
           <Form.Item name="phone" label="Điện thoại"><Input /></Form.Item>
           <Form.Item name="email" label="Email"><Input type="email" /></Form.Item>
+          <div className="kv-hint" style={{ marginBottom: 6 }}><EnvironmentOutlined /> Vị trí GPS của chi nhánh – dùng để chấm công tại chỗ (Thiết lập → Chính sách → Chấm công). Đứng tại cửa hàng rồi bấm "Lấy vị trí hiện tại", hoặc dán tọa độ từ Google Maps.</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <Form.Item name="latitude" label="Vĩ độ" style={{ marginBottom: 8 }}><InputNumber style={{ width: '100%' }} min={-90} max={90} step={0.000001} precision={6} placeholder="15.573600" /></Form.Item>
+            <Form.Item name="longitude" label="Kinh độ" style={{ marginBottom: 8 }}><InputNumber style={{ width: '100%' }} min={-180} max={180} step={0.000001} precision={6} placeholder="108.474000" /></Form.Item>
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 12 }}>
+            <Form.Item name="radiusMeters" label="Bán kính chấm công (m)" style={{ marginBottom: 0, flex: 1 }}><InputNumber style={{ width: '100%' }} min={20} max={5000} step={10} placeholder="Theo cấu hình chung" /></Form.Item>
+            <Button icon={<EnvironmentOutlined />} loading={locating} onClick={useHere}>Lấy vị trí hiện tại</Button>
+            <Form.Item noStyle shouldUpdate>{() => { const la = form.getFieldValue('latitude'); const lo = form.getFieldValue('longitude'); return la != null && lo != null ? <a href={`https://www.google.com/maps?q=${la},${lo}`} target="_blank" rel="noreferrer">Mở bản đồ</a> : null; }}</Form.Item>
+          </div>
           {!editing && <Form.Item name="createDefaultWarehouse" label="Tạo kho mặc định cho chi nhánh" valuePropName="checked"><Switch /></Form.Item>}
           {editing && <><Form.Item name="isDefault" label="Chi nhánh mặc định" valuePropName="checked"><Switch /></Form.Item><Form.Item name="isActive" label="Đang hoạt động" valuePropName="checked"><Switch /></Form.Item></>}
         </Form>
@@ -154,6 +173,10 @@ function ConfigTab() {
           <span className="k">Bắt buộc mở ca trước khi bán</span><span><Switch checked={s['pos.requireOpenShift'] === true} onChange={(v) => setSetting('pos.requireOpenShift', v)} /> <span className="kv-hint">Thu ngân phải mở ca bán hàng mới thanh toán được</span></span>
           <span className="k">Trần giảm giá tại quầy (%)</span><span><InputNumber size="small" min={0} max={100} style={{ width: 100 }} value={typeof s['pos.maxDiscountPercent'] === 'number' ? (s['pos.maxDiscountPercent'] as number) : 100} onChange={(v) => { if (v !== null && v !== undefined) void setSetting('pos.maxDiscountPercent', Number(v)); }} /> <span className="kv-hint">Giảm giá dòng / hóa đơn không vượt quá tỷ lệ này (100 = không giới hạn)</span></span>
           <span className="k">Cho phép bán nợ (khách trả sau)</span><span><Switch checked={s['pos.allowCreditSales'] !== false} onChange={(v) => setSetting('pos.allowCreditSales', v)} /> <span className="kv-hint">Tắt = hóa đơn phải thanh toán đủ tại quầy</span></span>
+          <span className="k">Chấm công: phải đứng tại chi nhánh (GPS)</span><span><Switch checked={s['attendance.gpsRequired'] === true} onChange={(v) => setSetting('attendance.gpsRequired', v)} /> <span className="kv-hint">Chi nhánh cần có tọa độ (tab Chi nhánh). Nhân viên đứng ngoài bán kính hoặc tắt định vị sẽ không chấm được</span></span>
+          <span className="k">Bán kính chấm công mặc định (m)</span><span><InputNumber size="small" min={20} max={5000} step={10} style={{ width: 110 }} defaultValue={typeof s['attendance.radiusMeters'] === 'number' ? (s['attendance.radiusMeters'] as number) : 150} onBlur={(e) => { const n = Number(String(e.target.value).replace(/\D/g, '')); if (n >= 20 && n <= 5000) void setSetting('attendance.radiusMeters', n); }} /> <span className="kv-hint">Dùng khi chi nhánh không đặt bán kính riêng</span></span>
+          <span className="k">Sai số GPS tối đa (m)</span><span><InputNumber size="small" min={20} max={2000} step={10} style={{ width: 110 }} defaultValue={typeof s['attendance.maxAccuracyMeters'] === 'number' ? (s['attendance.maxAccuracyMeters'] as number) : 150} onBlur={(e) => { const n = Number(String(e.target.value).replace(/\D/g, '')); if (n >= 20 && n <= 2000) void setSetting('attendance.maxAccuracyMeters', n); }} /> <span className="kv-hint">Vị trí giả lập / sai số lớn hơn mức này bị từ chối khi bắt buộc GPS</span></span>
+          <span className="k">Khóa thiết bị chấm công (chống chấm hộ)</span><span><Switch checked={s['attendance.deviceLock'] === true} onChange={(v) => setSetting('attendance.deviceLock', v)} /> <span className="kv-hint">Mỗi nhân viên một điện thoại tin cậy; đổi máy phải được quản lý duyệt (Chấm công → Thiết bị); đăng nhập tài khoản đồng nghiệp trên máy mình để chấm hộ sẽ bị từ chối</span></span>
           <span className="k">Đơn vị tiền tệ</span><span><Select size="small" style={{ width: 120 }} value={(s['general.currency'] as string) ?? 'VND'} onChange={(v) => setSetting('general.currency', v)} options={[{ value: 'VND', label: 'VND' }, { value: 'USD', label: 'USD' }]} /></span>
         </div>
       </Card>

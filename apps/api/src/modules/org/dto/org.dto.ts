@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { ArrayUnique, IsArray, IsBoolean, IsEmail, IsIn, IsInt, IsISO8601, IsObject, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, ValidateIf, ValidateNested } from 'class-validator';
+import { ArrayUnique, IsArray, IsBoolean, IsEmail, IsIn, IsInt, IsISO8601, IsNumber, IsObject, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, ValidateIf, ValidateNested } from 'class-validator';
 import { IsDecimalStr } from '../../../common/validators';
 import { PaginationQueryDto } from '../../../common/pagination';
 
@@ -10,6 +10,9 @@ export class CreateBranchDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) address?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(30) phone?: string;
   @ApiPropertyOptional() @IsOptional() @IsEmail() email?: string;
+  @ApiPropertyOptional({ description: 'Vĩ độ GPS của cửa hàng – để chấm công tại chỗ' }) @IsOptional() @ValidateIf((_o, v) => v !== null) @IsNumber() @Min(-90) @Max(90) latitude?: number | null;
+  @ApiPropertyOptional({ description: 'Kinh độ GPS của cửa hàng' }) @IsOptional() @ValidateIf((_o, v) => v !== null) @IsNumber() @Min(-180) @Max(180) longitude?: number | null;
+  @ApiPropertyOptional({ description: 'Bán kính chấm công (m); trống = theo cấu hình chung' }) @IsOptional() @ValidateIf((_o, v) => v !== null) @IsInt() @Min(20) @Max(5000) radiusMeters?: number | null;
   @ApiPropertyOptional({ description: 'Tạo kho mặc định cho chi nhánh (mặc định true)' }) @IsOptional() @IsBoolean() createDefaultWarehouse?: boolean = true;
 }
 export class UpdateBranchDto {
@@ -19,6 +22,9 @@ export class UpdateBranchDto {
   @ApiPropertyOptional() @IsOptional() @IsEmail() email?: string;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() isActive?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() isDefault?: boolean;
+  @ApiPropertyOptional({ description: 'Vĩ độ GPS của cửa hàng – để chấm công tại chỗ' }) @IsOptional() @ValidateIf((_o, v) => v !== null) @IsNumber() @Min(-90) @Max(90) latitude?: number | null;
+  @ApiPropertyOptional({ description: 'Kinh độ GPS của cửa hàng' }) @IsOptional() @ValidateIf((_o, v) => v !== null) @IsNumber() @Min(-180) @Max(180) longitude?: number | null;
+  @ApiPropertyOptional({ description: 'Bán kính chấm công (m); trống = theo cấu hình chung' }) @IsOptional() @ValidateIf((_o, v) => v !== null) @IsInt() @Min(20) @Max(5000) radiusMeters?: number | null;
 }
 
 export class CreateWarehouseDto {

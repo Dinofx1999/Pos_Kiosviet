@@ -41,9 +41,26 @@ export class CheckInDto {
   @ApiPropertyOptional() @IsOptional() @TrimToUndefined() @IsString() @MaxLength(500) note?: string;
   @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(-90) @Max(90) latitude?: number;
   @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(-180) @Max(180) longitude?: number;
+  @ApiPropertyOptional({ description: 'Sai số vị trí (m) do GPS báo' }) @IsOptional() @IsNumber() @Min(0) @Max(100000) accuracy?: number;
+  @ApiPropertyOptional({ description: 'Mã thiết bị do trình duyệt sinh và lưu trên máy (chống chấm công hộ)' }) @IsOptional() @IsString() @MaxLength(80) deviceId?: string;
+  @ApiPropertyOptional({ description: 'Tên thiết bị / trình duyệt (hiển thị cho quản lý)' }) @IsOptional() @TrimToUndefined() @IsString() @MaxLength(200) deviceName?: string;
 }
 export class CheckOutDto {
   @ApiPropertyOptional() @IsOptional() @TrimToUndefined() @IsString() @MaxLength(500) note?: string;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(-90) @Max(90) latitude?: number;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(-180) @Max(180) longitude?: number;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(0) @Max(100000) accuracy?: number;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(80) deviceId?: string;
+}
+export class AttendanceCurrentQueryDto {
+  @ApiPropertyOptional({ description: 'Mã thiết bị đang dùng – trả về trạng thái tin cậy của thiết bị' }) @IsOptional() @IsString() @MaxLength(80) deviceId?: string;
+}
+export class AttendanceDeviceQueryDto {
+  @ApiPropertyOptional() @IsOptional() @IsUUID() userId?: string;
+  @ApiPropertyOptional({ enum: ['TRUSTED', 'PENDING', 'BLOCKED'] }) @IsOptional() @IsIn(['TRUSTED', 'PENDING', 'BLOCKED']) status?: string;
+}
+export class AttendanceDevicePatchDto {
+  @ApiProperty({ enum: ['TRUSTED', 'BLOCKED'] }) @IsIn(['TRUSTED', 'BLOCKED']) status: 'TRUSTED' | 'BLOCKED';
 }
 export class AttendanceQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional() @IsOptional() @IsISO8601() from?: string;

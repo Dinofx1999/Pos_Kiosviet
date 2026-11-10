@@ -1,13 +1,15 @@
 import { Injectable } from '@nestjs/common';
+import { TENANT_SETTING_KEYS } from '@erp/shared';
+import { ClsService } from 'nestjs-cls';
 import { CommissionBasis, Prisma } from '@prisma/client';
 import { Errors } from '../../common/errors/app-error';
 import { paginated, skipTake } from '../../common/pagination';
 import { D, money, ZERO } from '../../common/utils/decimal';
 import { AccessService } from '../../infra/access/access.service';
 import { AuditService } from '../../infra/audit/audit.service';
-import { RequestUser } from '../../infra/cls/request-context';
+import { getCtx, RequestUser } from '../../infra/cls/request-context';
 import { PrismaService } from '../../infra/prisma/prisma.service';
-import { AttendanceQueryDto, CheckInDto, CheckOutDto, CreateCommissionRuleDto, EditAttendanceDto, EmployeeQueryDto, ManualAttendanceDto, PeriodQueryDto, UpdateCommissionRuleDto } from './dto/employees.dto';
+import { AttendanceQueryDto, AttendanceDevicePatchDto, AttendanceDeviceQueryDto, CheckInDto, CheckOutDto, CreateCommissionRuleDto, EditAttendanceDto, EmployeeQueryDto, ManualAttendanceDto, PeriodQueryDto, UpdateCommissionRuleDto } from './dto/employees.dto';
 
 const NONE = '00000000-0000-0000-0000-000000000000';
 const uuidList = (ids: string[]) => Prisma.join((ids.length ? ids : [NONE]).map((id) => Prisma.sql`${id}::uuid`));
@@ -18,7 +20,7 @@ interface Rule { id: string; name: string; userId: string | null; categoryId: st
 /** Nhân viên (BR-150..BR-153): hồ sơ, quy tắc hoa hồng + báo cáo, chấm công, hiệu suất. */
 @Injectable()
 export class EmployeesService {
-  constructor(private readonly prisma: PrismaService, private readonly access: AccessService, private readonly audit: AuditService) {}
+  constructor(private readonly prisma: PrismaService, private readonly access: AccessService, private readonly audit: AuditService, private readonly cls: ClsService) {}
 
   // ---------------------------------------------------------------- employees (slim list for managers)
   async list(user: RequestUser, q: EmployeeQueryDto) {
@@ -129,27 +131,152 @@ export class EmployeesService {
   }
 
   // ---------------------------------------------------------------- attendance (BR-151)
+  // ---------------------------------------------------------------- chấm công GPS tại chi nhánh & chống chấm công hộ (thiết bị tin cậy)
+  private async attendanceConfig() {
+    const K = TENANT_SETTING_KEYS;
+    const rows = await this.prisma.db.tenantSetting.findMany({ where: { key: { in: [K.ATTENDANCE_GPS_REQUIRED, K.ATTENDANCE_RADIUS, K.ATTENDANCE_DEVICE_LOCK, K.ATTENDANCE_MAX_ACCURACY] } } });
+    const get = (k: string) => rows.find((r) => r.key === k)?.value as unknown;
+    const num = (v: unknown, d: number) => (typeof v === 'number' && v > 0 ? v : d);
+    return { gpsRequired: get(K.ATTENDANCE_GPS_REQUIRED) === true, radius: num(get(K.ATTENDANCE_RADIUS), 150), deviceLock: get(K.ATTENDANCE_DEVICE_LOCK) === true, maxAccuracy: num(get(K.ATTENDANCE_MAX_ACCURACY), 150) };
+  }
+  private async branchGeo(branchId: string | null) {
+    if (!branchId) return null;
+    const b = await this.prisma.db.branch.findFirst({ where: { id: branchId }, select: { id: true, name: true, latitude: true, longitude: true, radiusMeters: true } });
+    return b ? { id: b.id, name: b.name, latitude: b.latitude === null ? null : Number(b.latitude), longitude: b.longitude === null ? null : Number(b.longitude), radiusMeters: b.radiusMeters } : null;
+  }
+  /** Khoảng cách (m) giữa hai tọa độ – công thức haversine. */
+  static distanceMeters(aLat: number, aLng: number, bLat: number, bLng: number) {
+    const rad = (d: number) => (d * Math.PI) / 180;
+    const dLat = rad(bLat - aLat); const dLng = rad(bLng - aLng);
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(aLat)) * Math.cos(rad(bLat)) * Math.sin(dLng / 2) ** 2;
+    return Math.round(2 * 6371000 * Math.asin(Math.min(1, Math.sqrt(h))));
+  }
+  /**
+   * Kiểm tra vị trí so với chi nhánh. strict (chấm vào, cửa hàng bật "bắt buộc GPS", chi nhánh có tọa độ) → từ chối khi thiếu GPS,
+   * sai số quá lớn hoặc ngoài bán kính; ngược lại chỉ ghi cờ. Trả về khoảng cách (m) nếu tính được.
+   */
+  private geoCheck(cfg: { gpsRequired: boolean; radius: number; maxAccuracy: number }, branch: { name: string; latitude: number | null; longitude: number | null; radiusMeters: number | null } | null, pos: { latitude?: number; longitude?: number; accuracy?: number }, strict: boolean, flags: string[], prefix = ''): number | null {
+    const hasBranch = !!branch && branch.latitude !== null && branch.longitude !== null;
+    const hasPos = pos.latitude !== undefined && pos.longitude !== undefined;
+    const enforce = strict && cfg.gpsRequired && hasBranch;
+    if (!hasPos) {
+      if (enforce) throw Errors.conflict('ATTENDANCE_GPS_REQUIRED', `Chi nhánh ${branch!.name} yêu cầu bật định vị (GPS) khi chấm công – cho phép trình duyệt truy cập vị trí rồi thử lại`, { branchName: branch!.name });
+      flags.push(`${prefix}NO_GPS`);
+      return null;
+    }
+    if (!hasBranch) return null;
+    if (pos.accuracy !== undefined && pos.accuracy > cfg.maxAccuracy) {
+      if (enforce) throw Errors.conflict('ATTENDANCE_GPS_INACCURATE', `Vị trí chưa đủ chính xác (sai số ±${Math.round(pos.accuracy)} m) – ra chỗ thoáng, bật "định vị chính xác cao" rồi thử lại`, { accuracy: Math.round(pos.accuracy), maxAccuracy: cfg.maxAccuracy });
+      flags.push(`${prefix}GPS_INACCURATE`);
+    }
+    const distance = EmployeesService.distanceMeters(pos.latitude!, pos.longitude!, branch!.latitude!, branch!.longitude!);
+    const radius = branch!.radiusMeters ?? cfg.radius;
+    const tolerance = Math.min(pos.accuracy ?? 0, 50);
+    if (distance - tolerance > radius) {
+      if (enforce) throw Errors.conflict('ATTENDANCE_OUT_OF_RANGE', `Bạn đang cách ${branch!.name} khoảng ${distance} m, ngoài bán kính cho phép ${radius} m – hãy đến cửa hàng rồi chấm công`, { distance, radius, branchName: branch!.name });
+      flags.push(`${prefix}OUT_OF_RANGE`);
+    }
+    return distance;
+  }
+  /**
+   * Thiết bị: mã do trình duyệt sinh và lưu trên máy. Mỗi thiết bị thuộc đúng một nhân viên; khi bật "khóa thiết bị" nhân viên
+   * chỉ chấm được trên thiết bị đã tin cậy (thiết bị mới → PENDING chờ quản lý duyệt) và thiết bị của người khác bị từ chối –
+   * đăng nhập tài khoản đồng nghiệp để chấm hộ không qua được. Khi không khóa: vẫn ghi nhận và gắn cờ để quản lý soát.
+   */
+  private async deviceCheck(user: RequestUser, cfg: { deviceLock: boolean }, dto: { deviceId?: string; deviceName?: string }, flags: string[]) {
+    if (!dto.deviceId) {
+      if (cfg.deviceLock) throw Errors.conflict('ATTENDANCE_DEVICE_REQUIRED', 'Không nhận diện được thiết bị – hãy chấm công bằng trình duyệt thường (không ở chế độ ẩn danh)');
+      flags.push('NO_DEVICE');
+      return null;
+    }
+    const now = new Date();
+    const name = dto.deviceName?.slice(0, 200) || undefined;
+    const found = await this.prisma.db.attendanceDevice.findFirst({ where: { deviceId: dto.deviceId } });
+    if (!found) {
+      const trusted = await this.prisma.db.attendanceDevice.count({ where: { userId: user.id, status: 'TRUSTED' } });
+      const status = cfg.deviceLock && trusted >= 1 ? 'PENDING' : 'TRUSTED';
+      const d = await this.prisma.db.attendanceDevice.create({ data: { tenantId: user.tenantId, userId: user.id, deviceId: dto.deviceId, name: name ?? null, status, firstSeenAt: now, lastSeenAt: now } });
+      await this.audit.log(this.prisma.db as never, { action: 'attendance.device.register', entityType: 'AttendanceDevice', entityId: d.id, after: { status, name } });
+      if (status === 'PENDING') throw Errors.conflict('ATTENDANCE_DEVICE_UNTRUSTED', 'Thiết bị mới chưa được duyệt – nhờ quản lý duyệt ở Chấm công → Thiết bị, hoặc chấm công bằng điện thoại đã đăng ký', { deviceId: d.id });
+      if (trusted >= 1) flags.push('NEW_DEVICE');
+      return d;
+    }
+    if (found.userId !== user.id) {
+      if (cfg.deviceLock) throw Errors.conflict('ATTENDANCE_DEVICE_SHARED', 'Thiết bị này đã đăng ký cho nhân viên khác – không chấm công hộ được, hãy dùng điện thoại của bạn', { deviceId: found.id });
+      flags.push('DEVICE_SHARED');
+      await this.prisma.db.attendanceDevice.update({ where: { id: found.id }, data: { lastSeenAt: now } });
+      return found;
+    }
+    if (found.status === 'BLOCKED') throw Errors.conflict('ATTENDANCE_DEVICE_BLOCKED', 'Thiết bị này đã bị quản lý khóa chấm công', { deviceId: found.id });
+    if (found.status === 'PENDING' && cfg.deviceLock) throw Errors.conflict('ATTENDANCE_DEVICE_UNTRUSTED', 'Thiết bị đang chờ quản lý duyệt – nhờ quản lý duyệt ở Chấm công → Thiết bị', { deviceId: found.id });
+    return this.prisma.db.attendanceDevice.update({ where: { id: found.id }, data: { lastSeenAt: now, status: 'TRUSTED', ...(name ? { name } : {}) } });
+  }
+
   async checkIn(user: RequestUser, dto: CheckInDto) {
     if (dto.branchId) this.access.assertBranch(user, dto.branchId);
     const open = await this.prisma.db.attendance.findFirst({ where: { userId: user.id, checkOutAt: null } });
     if (open) throw Errors.conflict('ATTENDANCE_OPEN', 'Bạn đang trong ca (chưa chấm ra)', { attendanceId: open.id, checkInAt: open.checkInAt });
-    const a = await this.prisma.db.attendance.create({ data: { tenantId: user.tenantId, userId: user.id, branchId: dto.branchId ?? (user.branchIds[0] ?? null), note: dto.note, latitude: dto.latitude, longitude: dto.longitude } });
-    await this.audit.log(this.prisma.db as never, { action: 'attendance.check_in', entityType: 'Attendance', entityId: a.id, after: { branchId: a.branchId } });
+    const branchId = dto.branchId ?? (user.branchIds[0] ?? null);
+    const cfg = await this.attendanceConfig();
+    const branch = await this.branchGeo(branchId);
+    const flags: string[] = [];
+    const distance = this.geoCheck(cfg, branch, dto, true, flags);
+    const device = await this.deviceCheck(user, cfg, dto, flags);
+    const ctx = getCtx(this.cls);
+    const a = await this.prisma.db.attendance.create({ data: {
+      tenantId: user.tenantId, userId: user.id, branchId, note: dto.note, latitude: dto.latitude, longitude: dto.longitude, accuracy: dto.accuracy === undefined ? undefined : Math.round(dto.accuracy * 10) / 10,
+      distanceMeters: distance, deviceId: device?.deviceId ?? dto.deviceId ?? null, ip: ctx.ip?.slice(0, 64) ?? null, userAgent: ctx.userAgent?.slice(0, 300) ?? null, flags,
+    } });
+    await this.audit.log(this.prisma.db as never, { action: 'attendance.check_in', entityType: 'Attendance', entityId: a.id, after: { branchId: a.branchId, distance, flags } });
     return a;
   }
   async checkOut(user: RequestUser, dto: CheckOutDto) {
     const open = await this.prisma.db.attendance.findFirst({ where: { userId: user.id, checkOutAt: null }, orderBy: { checkInAt: 'desc' } });
     if (!open) throw Errors.conflict('ATTENDANCE_NOT_OPEN', 'Bạn chưa chấm công vào');
     const now = new Date();
-    const a = await this.prisma.db.attendance.update({ where: { id: open.id }, data: { checkOutAt: now, minutes: Math.max(0, Math.round((now.getTime() - open.checkInAt.getTime()) / 60000)), note: dto.note ? [open.note, dto.note].filter(Boolean).join(' · ') : open.note } });
-    await this.audit.log(this.prisma.db as never, { action: 'attendance.check_out', entityType: 'Attendance', entityId: a.id, after: { minutes: a.minutes } });
+    const cfg = await this.attendanceConfig();
+    const branch = await this.branchGeo(open.branchId);
+    const flags = [...(open.flags ?? [])];
+    const distance = this.geoCheck(cfg, branch, dto, false, flags, 'OUT_');
+    if (dto.deviceId && open.deviceId && dto.deviceId !== open.deviceId) flags.push('DEVICE_CHANGED');
+    const a = await this.prisma.db.attendance.update({ where: { id: open.id }, data: {
+      checkOutAt: now, minutes: Math.max(0, Math.round((now.getTime() - open.checkInAt.getTime()) / 60000)), note: dto.note ? [open.note, dto.note].filter(Boolean).join(' · ') : open.note,
+      outLatitude: dto.latitude, outLongitude: dto.longitude, outDistanceMeters: distance, flags: Array.from(new Set(flags)),
+    } });
+    await this.audit.log(this.prisma.db as never, { action: 'attendance.check_out', entityType: 'Attendance', entityId: a.id, after: { minutes: a.minutes, distance, flags: a.flags } });
     return a;
   }
-  async current(user: RequestUser) {
+  async current(user: RequestUser, deviceId?: string) {
     const open = await this.prisma.db.attendance.findFirst({ where: { userId: user.id, checkOutAt: null }, orderBy: { checkInAt: 'desc' } });
     const since = new Date(new Date().setDate(1));
-    const month = await this.prisma.db.attendance.aggregate({ where: { userId: user.id, checkInAt: { gte: since } }, _sum: { minutes: true }, _count: { _all: true } });
-    return { open, monthMinutes: month._sum.minutes ?? 0, monthDays: month._count._all };
+    const [month, cfg, device, branches] = await Promise.all([
+      this.prisma.db.attendance.aggregate({ where: { userId: user.id, checkInAt: { gte: since } }, _sum: { minutes: true }, _count: { _all: true } }),
+      this.attendanceConfig(),
+      deviceId ? this.prisma.db.attendanceDevice.findFirst({ where: { deviceId }, select: { id: true, userId: true, status: true, name: true } }) : null,
+      this.prisma.db.branch.findMany({ where: { isActive: true, ...(user.allBranches ? {} : { id: { in: user.branchIds } }) }, select: { id: true, name: true, latitude: true, longitude: true, radiusMeters: true }, orderBy: { name: 'asc' } }),
+    ]);
+    return {
+      open, monthMinutes: month._sum.minutes ?? 0, monthDays: month._count._all,
+      policy: { gpsRequired: cfg.gpsRequired, deviceLock: cfg.deviceLock, radius: cfg.radius, maxAccuracy: cfg.maxAccuracy },
+      device: device ? { id: device.id, status: device.userId === user.id ? device.status : 'OTHER_USER', name: device.name } : null,
+      branches: branches.map((b) => ({ id: b.id, name: b.name, hasGeo: b.latitude !== null && b.longitude !== null, radius: b.radiusMeters ?? cfg.radius })),
+    };
+  }
+  async listDevices(_user: RequestUser, q: AttendanceDeviceQueryDto) {
+    return this.prisma.db.attendanceDevice.findMany({ where: { ...(q.userId ? { userId: q.userId } : {}), ...(q.status ? { status: q.status } : {}) }, include: { user: { select: { id: true, fullName: true, username: true } } }, orderBy: [{ status: 'desc' }, { lastSeenAt: 'desc' }], take: 500 });
+  }
+  async patchDevice(user: RequestUser, id: string, dto: AttendanceDevicePatchDto) {
+    const d = await this.prisma.db.attendanceDevice.findFirst({ where: { id } });
+    if (!d) throw Errors.notFound('Thiết bị chấm công', id);
+    const after = await this.prisma.db.attendanceDevice.update({ where: { id }, data: { status: dto.status, approvedById: user.id } });
+    await this.audit.log(this.prisma.db as never, { action: 'attendance.device.' + (dto.status === 'TRUSTED' ? 'approve' : 'block'), entityType: 'AttendanceDevice', entityId: id, before: { status: d.status }, after: { status: after.status, userId: d.userId } });
+    return after;
+  }
+  async removeDevice(user: RequestUser, id: string) {
+    const d = await this.prisma.db.attendanceDevice.findFirst({ where: { id } });
+    if (!d) throw Errors.notFound('Thiết bị chấm công', id);
+    await this.prisma.db.attendanceDevice.delete({ where: { id } });
+    await this.audit.log(this.prisma.db as never, { action: 'attendance.device.remove', entityType: 'AttendanceDevice', entityId: id, before: { userId: d.userId, status: d.status, name: d.name } });
   }
   async listAttendance(user: RequestUser, q: AttendanceQueryDto, onlyMine: boolean) {
     const where: Prisma.AttendanceWhereInput = {

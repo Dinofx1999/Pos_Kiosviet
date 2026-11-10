@@ -84,6 +84,7 @@ model Tenant {
   pointEntries         CustomerPointEntry[]
   commissionRules      CommissionRule[]
   attendances          Attendance[]
+  attendanceDevices    AttendanceDevice[]
   paymentCategories    PaymentCategory[]
   cashTransfers        CashTransfer[]
   cashReconciliations  CashReconciliation[]
@@ -120,6 +121,10 @@ model Branch {
   email     String?  @db.VarChar(200)
   isDefault Boolean  @default(false) @map("is_default")
   isActive  Boolean  @default(true) @map("is_active")
+  /// vị trí GPS của chi nhánh và bán kính (m) cho phép chấm công tại chỗ; trống = không kiểm tra vị trí
+  latitude     Decimal? @db.Decimal(9, 6)
+  longitude    Decimal? @db.Decimal(9, 6)
+  radiusMeters Int?     @map("radius_meters")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -220,6 +225,7 @@ model User {
   loginHistory         LoginHistory[]
   commissionRules      CommissionRule[]
   attendances          Attendance[]
+  attendanceDevices    AttendanceDevice[]
   shifts               Shift[]
   soldInvoices         Invoice[]             @relation("InvoiceSeller")
   bankTransferRequests BankTransferRequest[] @relation("BankRequestCreatedBy")
@@ -2323,6 +2329,16 @@ model Attendance {
   note       String?   @db.VarChar(500)
   latitude   Decimal?  @db.Decimal(9, 6)
   longitude  Decimal?  @db.Decimal(9, 6)
+  /// chấm công GPS & chống chấm hộ: độ chính xác (m), khoảng cách tới chi nhánh (m), thiết bị, IP, trình duyệt, cờ nghi vấn
+  accuracy          Decimal? @db.Decimal(8, 1)
+  distanceMeters    Int?     @map("distance_meters")
+  outLatitude       Decimal? @map("out_latitude") @db.Decimal(9, 6)
+  outLongitude      Decimal? @map("out_longitude") @db.Decimal(9, 6)
+  outDistanceMeters Int?     @map("out_distance_meters")
+  deviceId          String?  @map("device_id") @db.VarChar(80)
+  ip                String?  @db.VarChar(64)
+  userAgent         String?  @map("user_agent") @db.VarChar(300)
+  flags             String[] @default([])
   editedById String?   @map("edited_by_id") @db.Uuid
   createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
@@ -2332,6 +2348,28 @@ model Attendance {
   @@index([tenantId, userId, checkInAt])
   @@index([tenantId, checkInAt])
   @@map("attendances")
+}
+
+/// Thiết bị chấm công của nhân viên (mã do trình duyệt sinh, lưu trên máy): một thiết bị chỉ thuộc một người →
+/// chặn đăng nhập tài khoản đồng nghiệp để chấm công hộ. PENDING = thiết bị mới chờ quản lý duyệt khi bật khóa thiết bị.
+model AttendanceDevice {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  deviceId     String    @map("device_id") @db.VarChar(80)
+  name         String?   @db.VarChar(200)
+  status       String    @default("TRUSTED") @db.VarChar(20)
+  firstSeenAt  DateTime  @default(now()) @map("first_seen_at") @db.Timestamptz(6)
+  lastSeenAt   DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  approvedById String?   @map("approved_by_id") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, deviceId])
+  @@index([tenantId, userId])
+  @@map("attendance_devices")
 }
 
 /// Mã hàng phụ của hệ thống cũ (KiotViet) trỏ về một biến thể + đơn vị quy đổi, dùng khi nhập lịch sử chứng từ.

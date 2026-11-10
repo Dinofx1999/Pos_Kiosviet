@@ -24,7 +24,7 @@ export class BranchesService {
     if (dup) throw Errors.duplicate('DUPLICATE_CODE', 'Mã chi nhánh đã tồn tại', { code: dto.code });
     return this.prisma.tx(async (tx) => {
       await this.plans.assertLimit(tx, user.tenantId, 'branches');
-      const branch = await tx.branch.create({ data: { tenantId: user.tenantId, code: dto.code, name: dto.name, address: dto.address, phone: dto.phone, email: dto.email } });
+      const branch = await tx.branch.create({ data: { tenantId: user.tenantId, code: dto.code, name: dto.name, address: dto.address, phone: dto.phone, email: dto.email, latitude: dto.latitude ?? undefined, longitude: dto.longitude ?? undefined, radiusMeters: dto.radiusMeters ?? undefined } });
       if (dto.createDefaultWarehouse !== false) {
         await tx.warehouse.create({ data: { tenantId: user.tenantId, branchId: branch.id, code: `KHO-${dto.code}`, name: `Kho ${dto.name}`, isDefault: true } });
       }
@@ -42,7 +42,8 @@ export class BranchesService {
     if (dto.isActive === false && before.isDefault) throw Errors.conflict('BRANCH_DEFAULT', 'Không thể ngừng hoạt động chi nhánh mặc định');
     return this.prisma.tx(async (tx) => {
       if (dto.isDefault) await tx.branch.updateMany({ where: { isDefault: true }, data: { isDefault: false } });
-      const after = await tx.branch.update({ where: { id }, data: dto });
+      const { createDefaultWarehouse: _c, ...data } = dto as UpdateBranchDto & { createDefaultWarehouse?: boolean };
+      const after = await tx.branch.update({ where: { id }, data });
       await this.audit.log(tx, { action: 'branch.update', entityType: 'Branch', entityId: id, entityCode: after.code, before, after });
       return after;
     });

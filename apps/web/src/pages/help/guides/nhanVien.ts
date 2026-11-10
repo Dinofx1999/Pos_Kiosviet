@@ -27,7 +27,8 @@ export const NHAN_VIEN: Guide[] = [
     perms: ['Mọi nhân viên tự chấm công của mình', 'Hồ sơ nhân viên, quy tắc hoa hồng, sửa chấm công (employee.manage) để sửa giờ / thêm lượt'],
     keywords: ['attendance', 'timesheet', 'giờ công', 'GPS', 'check in', 'check out'],
     steps: [
-      { text: 'Vào Nhân viên → Bảng chấm công (điện thoại: Thêm → Chấm công). Chọn Chi nhánh, bật "Gửi kèm vị trí (GPS) khi chấm công" nếu cửa hàng yêu cầu.', shot: 'attendance' },
+      { text: 'Vào Nhân viên → Bảng chấm công (điện thoại: Khác → Chấm công). Chọn Chi nhánh; nếu cửa hàng bật "Chấm công: phải đứng tại chi nhánh (GPS)" và chi nhánh đã có tọa độ, điện thoại phải bật định vị và bạn phải đứng trong bán kính cho phép (mặc định 150 m) – chấm xong màn hình báo "cách cửa hàng … m".', shot: 'attendance' },
+      { text: 'Chống chấm công hộ: mỗi điện thoại được đăng ký cho đúng một nhân viên ở lần chấm đầu. Khi cửa hàng bật "Khóa thiết bị chấm công", đổi máy phải chờ quản lý duyệt (Chấm công → Thiết bị) và đăng nhập tài khoản đồng nghiệp trên máy mình để chấm hộ sẽ bị từ chối. Quản lý thấy khoảng cách tới cửa hàng, cờ Nghi vấn (ngoài bán kính, GPS sai số lớn, thiết bị của người khác), IP và trình duyệt của từng lượt.' },
       { text: 'Bấm CHẤM CÔNG VÀO khi bắt đầu; màn hình hiện "Đang trong ca · vào lúc …". Cuối ca bấm CHẤM CÔNG RA (có thể ghi chú).' },
       { text: 'Tab Của tôi hiện Giờ công tháng này, Lượt tháng này, Trung bình / lượt và Lịch sử chấm công. Quản lý xem tab Toàn bộ nhân viên, biểu đồ Giờ công theo nhân viên.' },
       { text: 'Quản lý bấm Sửa giờ trên một lượt hoặc Thêm lượt (Nhân viên, Chi nhánh, Giờ vào, Giờ ra, Ghi chú) để bổ sung lượt quên chấm.' },

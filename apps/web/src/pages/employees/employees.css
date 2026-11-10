@@ -24,6 +24,24 @@
 .em-clock-btn.in:hover { background: #15803d !important; }
 .em-clock-btn.out { background: #dc2626 !important; border-color: #dc2626 !important; color: #fff !important; }
 .em-geo { font-size: 12px; color: #6b7280; }
+.em-policy { display: grid; gap: 4px; font-size: 12.5px; color: #6b7280; max-width: 420px; margin: 0 auto; text-align: left; }
+.em-policy .need { color: #b45309; font-weight: 600; }
+.em-policy .dev.trusted { color: #15803d; }
+.em-policy .dev.pending { color: #b45309; }
+.em-policy .dev.blocked, .em-policy .dev.other_user { color: #dc2626; }
+.em-geo-cell { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: #374151; white-space: nowrap; }
+.em-geo-cell .d { display: inline-flex; align-items: center; gap: 3px; font-variant-numeric: tabular-nums; }
+.em-geo-cell.bad .d { color: #dc2626; font-weight: 600; }
+.em-geo-cell .ant-tag { margin-inline-end: 0; font-size: 11px; line-height: 16px; }
+.em-session .g { grid-column: 1 / span 2; margin-top: 2px; }
+.em-devices { display: flex; flex-direction: column; gap: 8px; }
+.em-device { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; align-items: center; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 12px; }
+.em-device.pending { border-color: #fcd34d; background: #fffbeb; }
+.em-device.blocked { opacity: .75; }
+.em-device .main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.em-device .nm { font-size: 13px; color: #374151; }
+.em-device .meta { font-size: 12px; color: #9ca3af; }
+.em-device .acts { grid-column: 1 / span 2; display: flex; gap: 6px; flex-wrap: wrap; }
 
 /* ---- session list ---- */
 .em-sessions { display: flex; flex-direction: column; gap: 8px; }

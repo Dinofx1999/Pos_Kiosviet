@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, HttpCode, Param, ParseBoolPipe, ParseUUI
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser, RequirePermission } from '../../common/decorators';
 import { RequestUser } from '../../infra/cls/request-context';
-import { AttendanceQueryDto, CheckInDto, CheckOutDto, CreateCommissionRuleDto, EditAttendanceDto, EmployeeQueryDto, ManualAttendanceDto, PeriodQueryDto, UpdateCommissionRuleDto } from './dto/employees.dto';
+import { AttendanceQueryDto, AttendanceCurrentQueryDto, AttendanceDevicePatchDto, AttendanceDeviceQueryDto, CheckInDto, CheckOutDto, CreateCommissionRuleDto, EditAttendanceDto, EmployeeQueryDto, ManualAttendanceDto, PeriodQueryDto, UpdateCommissionRuleDto } from './dto/employees.dto';
 import { EmployeesService } from './employees.service';
 
 @ApiTags('employees') @ApiBearerAuth() @Controller('employees')
@@ -19,7 +19,10 @@ export class EmployeesController {
   // chấm công
   @Post('attendance/check-in') @HttpCode(201) checkIn(@CurrentUser() u: RequestUser, @Body() dto: CheckInDto) { return this.svc.checkIn(u, dto); }
   @Post('attendance/check-out') @HttpCode(200) checkOut(@CurrentUser() u: RequestUser, @Body() dto: CheckOutDto) { return this.svc.checkOut(u, dto); }
-  @Get('attendance/current') current(@CurrentUser() u: RequestUser) { return this.svc.current(u); }
+  @Get('attendance/current') @ApiOperation({ summary: 'Ca đang mở, giờ công tháng, chính sách GPS / thiết bị và trạng thái thiết bị đang dùng' }) current(@CurrentUser() u: RequestUser, @Query() q: AttendanceCurrentQueryDto) { return this.svc.current(u, q.deviceId); }
+  @Get('attendance/devices') @RequirePermission('attendance.view') @ApiOperation({ summary: 'Thiết bị chấm công đã đăng ký (tin cậy / chờ duyệt / khóa)' }) devices(@CurrentUser() u: RequestUser, @Query() q: AttendanceDeviceQueryDto) { return this.svc.listDevices(u, q); }
+  @Patch('attendance/devices/:id') @RequirePermission('employee.manage') patchDevice(@CurrentUser() u: RequestUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: AttendanceDevicePatchDto) { return this.svc.patchDevice(u, id, dto); }
+  @Delete('attendance/devices/:id') @RequirePermission('employee.manage') @HttpCode(204) async removeDevice(@CurrentUser() u: RequestUser, @Param('id', ParseUUIDPipe) id: string) { await this.svc.removeDevice(u, id); }
   @Get('attendance/me') mine(@CurrentUser() u: RequestUser, @Query() q: AttendanceQueryDto) { return this.svc.listAttendance(u, q, true); }
   @Get('attendance') @RequirePermission('attendance.view') attendance(@CurrentUser() u: RequestUser, @Query() q: AttendanceQueryDto) { return this.svc.listAttendance(u, q, false); }
   @Post('attendance') @RequirePermission('employee.manage') @HttpCode(201) @ApiOperation({ summary: 'Chấm công hộ / bổ sung' }) manual(@CurrentUser() u: RequestUser, @Body() dto: ManualAttendanceDto) { return this.svc.manualAttendance(u, dto); }
