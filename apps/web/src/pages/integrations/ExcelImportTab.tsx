@@ -1,6 +1,6 @@
 import { Alert, App, Button, Card, DatePicker, Empty, Select, Spin, Steps, Switch, Tag, Upload } from 'antd';
 import Table from '../../components/ResponsiveTable';
-import { ArrowLeftOutlined, CheckCircleOutlined, FileExcelOutlined, InboxOutlined, ReloadOutlined, ShopOutlined, SolutionOutlined, TeamOutlined, UploadOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, CheckCircleOutlined, FileExcelOutlined, InboxOutlined, ReloadOutlined, ShopOutlined, SolutionOutlined, TagsOutlined, TeamOutlined, UploadOutlined } from '@ant-design/icons';
 import type { Dayjs } from 'dayjs';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
@@ -18,6 +18,7 @@ const TYPE_META: Record<ImportType, TypeMeta> = {
   CUSTOMERS: { icon: <TeamOutlined />, path: 'Khách hàng → Xuất file', hint: 'Trong KiotViet vào Khách hàng, bấm Xuất file. Cột "Nợ cần thu hiện tại" sẽ được đưa vào công nợ đầu kỳ.' },
   SUPPLIERS: { icon: <SolutionOutlined />, path: 'Đối tác → Nhà cung cấp → Xuất file', hint: 'Trong KiotViet vào Đối tác → Nhà cung cấp, bấm Xuất file. Cột "Nợ cần trả hiện tại" sẽ được đưa vào công nợ đầu kỳ.' },
   INVOICES: { icon: <FileExcelOutlined />, path: 'Giao dịch → Hóa đơn → Xuất file', hint: 'Trong KiotViet vào Giao dịch → Hóa đơn, chọn khoảng thời gian rồi bấm Xuất file (chọn "Xuất file chi tiết" để có dòng hàng hóa). Hãy nhập Hàng hóa và Khách hàng trước.' },
+  PRICEBOOKS: { icon: <TagsOutlined />, path: 'Hàng hóa → Thiết lập giá → Xuất file', hint: 'Trong KiotViet vào Hàng hóa → Thiết lập giá, chọn các bảng giá cần lấy rồi bấm Xuất file. Mỗi cột giá trong file (tiêu đề = tên bảng giá) thành một bảng giá ở đây; chạy lại sẽ thay toàn bộ giá của bảng đó. Bảng giá "tự tính theo %" được lưu thành giá cụ thể. Hãy nhập Hàng hóa trước.' },
 };
 /** Which mapped fields a phone preview card shows. */
 const CARD_FIELDS: Record<ImportType, string[]> = {
@@ -25,10 +26,11 @@ const CARD_FIELDS: Record<ImportType, string[]> = {
   CUSTOMERS: ['code', 'name', 'phone', 'debt', 'groupName'],
   SUPPLIERS: ['code', 'name', 'phone', 'debt'],
   INVOICES: ['code', 'date', 'customerName', 'total', 'lineCode', 'lineQty'],
+  PRICEBOOKS: ['code', 'name', 'basePrice'],
 };
 const TYPES = Object.keys(TYPE_META) as ImportType[];
 
-interface Step1Options { defaultWarehouseId?: string; importStock: boolean; syncDebt: boolean; updateExisting: boolean; defaultBranchId?: string; invoicesFrom?: Dayjs | null }
+interface Step1Options { defaultWarehouseId?: string; importStock: boolean; syncDebt: boolean; updateExisting: boolean; updateBasePrice?: boolean; defaultBranchId?: string; invoicesFrom?: Dayjs | null }
 
 export function ExcelImportTab() {
   const { message } = App.useApp();
@@ -59,6 +61,7 @@ export function ExcelImportTab() {
   const baseOptions = (): ImportOptions => {
     if (type === 'PRODUCTS') return { defaultWarehouseId: opts.defaultWarehouseId, importStock: opts.importStock, updateExisting: opts.updateExisting };
     if (type === 'INVOICES') return { defaultBranchId: opts.defaultBranchId, invoicesFrom: opts.invoicesFrom ? opts.invoicesFrom.startOf('day').toISOString() : undefined, updateExisting: opts.updateExisting };
+    if (type === 'PRICEBOOKS') return { updateExisting: opts.updateExisting, updateBasePrice: !!opts.updateBasePrice };
     return { syncDebt: opts.syncDebt, updateExisting: opts.updateExisting };
   };
 
@@ -146,6 +149,16 @@ export function ExcelImportTab() {
                   </OptRow>
                   <OptRow label="Cập nhật bản ghi đã có" hint="Khớp theo mã, không có mã thì khớp số điện thoại.">
                     <Switch checked={opts.updateExisting} onChange={(v) => setOpts({ ...opts, updateExisting: v })} />
+                  </OptRow>
+                </>
+              )}
+              {type === 'PRICEBOOKS' && (
+                <>
+                  <OptRow label="Cập nhật bảng giá đã có" hint="Bảng giá cùng tên: thay toàn bộ giá theo file. Tắt: chỉ tạo bảng giá chưa có.">
+                    <Switch checked={opts.updateExisting} onChange={(v) => setOpts({ ...opts, updateExisting: v })} />
+                  </OptRow>
+                  <OptRow label="Cập nhật giá bán chung" hint="Đưa giá bán của hàng hóa về đúng cột “Giá bán” (bảng giá chung) trong file.">
+                    <Switch checked={!!opts.updateBasePrice} onChange={(v) => setOpts({ ...opts, updateBasePrice: v })} />
                   </OptRow>
                 </>
               )}

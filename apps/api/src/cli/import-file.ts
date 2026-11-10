@@ -19,8 +19,8 @@ import { ImportService } from '../modules/integrations/import.service';
 const arg = (name: string) => { const i = process.argv.indexOf(`--${name}`); return i >= 0 ? process.argv[i + 1] : undefined; };
 
 async function main() {
-  const tenantCode = arg('tenant'); const type = arg('type') as 'PRODUCTS' | 'CUSTOMERS' | 'SUPPLIERS' | 'INVOICES'; const file = arg('file');
-  if (!tenantCode || !type || !file) throw new Error('Cần --tenant, --type (PRODUCTS|CUSTOMERS|SUPPLIERS|INVOICES) và --file');
+  const tenantCode = arg('tenant'); const type = arg('type') as 'PRODUCTS' | 'CUSTOMERS' | 'SUPPLIERS' | 'INVOICES' | 'PRICEBOOKS'; const file = arg('file');
+  if (!tenantCode || !type || !file) throw new Error('Cần --tenant, --type (PRODUCTS|CUSTOMERS|SUPPLIERS|INVOICES|PRICEBOOKS) và --file');
   const options = arg('options') ? JSON.parse(arg('options')!) : {};
   const dryRun = process.argv.includes('--dry-run');
   process.env.OUTBOX_DISABLED = 'true'; // tiến trình API chính đã chạy bộ phát sự kiện
@@ -59,7 +59,7 @@ async function main() {
       const t0 = Date.now();
       // .json = {headers, rows} đã đọc / chia nhỏ sẵn ở máy khác (file lịch sử hóa đơn rất lớn) → bỏ bước đọc Excel trên máy chủ
       const preview = file.endsWith('.json')
-        ? await (async () => { const j = JSON.parse(readFileSync(file, 'utf8')) as { headers: string[]; rows: Array<Record<string, string>> }; return importer.previewRows(user, type, path.basename(file), j.headers, j.rows, options, 'EXCEL'); })()
+        ? await (async () => { const j = JSON.parse(readFileSync(file, 'utf8')) as { headers: string[]; rows: Array<Record<string, string>>; meta?: Record<string, unknown> }; if (type === 'PRICEBOOKS' && j.meta && !options.priceBookMeta) options.priceBookMeta = j.meta; return importer.previewRows(user, type, path.basename(file), j.headers, j.rows, options, 'EXCEL'); })()
         : await importer.preview(user, type, path.basename(file), readFileSync(file), options, 'EXCEL');
       const p = preview as unknown as { jobId: string; rowCount: number; mapping: Record<string, string>; missing: string[]; stockHeaders?: string[]; issues: unknown[] };
       console.error(`[xem trước] ${p.rowCount} dòng, thiếu cột: ${p.missing.join(', ') || 'không'}, cột tồn: ${(p.stockHeaders ?? []).join(' | ')}, cảnh báo: ${p.issues.length}`);

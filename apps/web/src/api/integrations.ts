@@ -3,7 +3,7 @@ import { clean, http } from './client';
 import type { Paginated } from './types';
 
 // ---------------------------------------------------------------- types
-export type ImportType = 'PRODUCTS' | 'CUSTOMERS' | 'SUPPLIERS' | 'INVOICES';
+export type ImportType = 'PRODUCTS' | 'CUSTOMERS' | 'SUPPLIERS' | 'INVOICES' | 'PRICEBOOKS';
 export type ImportSource = 'EXCEL' | 'KIOTVIET_API';
 export type ImportJobStatus = 'PREVIEW' | 'RUNNING' | 'DONE' | 'FAILED';
 
@@ -14,6 +14,8 @@ export interface ImportOptions {
   defaultWarehouseId?: string;
   /** đưa công nợ KH/NCC đã có về đúng số trong file */
   syncDebt?: boolean;
+  /** bảng giá: cập nhật giá bán chung của hàng theo cột "Giá bán" */
+  updateBasePrice?: boolean;
   /** cập nhật bản ghi đã có (mặc định true) */
   updateExisting?: boolean;
   /** nhập tồn kho từ file (mặc định true) */
@@ -33,7 +35,7 @@ export interface ImportPreview {
   mapping: Record<string, string>; unmapped: string[]; missing: string[]; stockHeaders: string[];
   sample: ImportRawRow[]; issues: ImportIssue[]; fields: ImportField[];
 }
-export interface ImportTotals { rows: number; created: number; updated: number; skipped: number; failed: number; stockLines?: number; stockDocuments?: number; units?: number; debtAdjusted?: number }
+export interface ImportTotals { rows: number; created: number; updated: number; skipped: number; failed: number; stockLines?: number; stockDocuments?: number; units?: number; debtAdjusted?: number; priceBooks?: number; items?: number; unknownCodes?: number; unitCodes?: number; basePriceUpdated?: number }
 export interface ImportCommitResult extends ImportTotals { jobId: string; type: ImportType; errors: ImportIssue[] }
 export interface ImportJob {
   id: string; type: ImportType; source: ImportSource; status: ImportJobStatus; fileName: string | null; rowCount: number;

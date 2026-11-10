@@ -4,7 +4,7 @@ import { ArrayMinSize, ArrayUnique, IsArray, IsBoolean, IsIn, IsISO8601, IsObjec
 import { PaginationQueryDto } from '../../../common/pagination';
 import { TrimToUndefined } from '../../../common/validators';
 
-export const IMPORT_TYPES = ['PRODUCTS', 'CUSTOMERS', 'SUPPLIERS', 'INVOICES'] as const;
+export const IMPORT_TYPES = ['PRODUCTS', 'CUSTOMERS', 'SUPPLIERS', 'INVOICES', 'PRICEBOOKS'] as const;
 
 export class StockColumnDto {
   @ApiProperty({ example: 'Tồn kho' }) @IsString() @MinLength(1) @MaxLength(200) header: string;
@@ -19,6 +19,9 @@ export class ImportOptionsDto {
   @ApiPropertyOptional({ description: 'Hóa đơn: tên chi nhánh KiotViet → id chi nhánh' }) @IsOptional() @IsObject() branchMap?: Record<string, string>;
   @ApiPropertyOptional() @IsOptional() @IsUUID() defaultBranchId?: string;
   @ApiPropertyOptional({ description: 'Bỏ qua hóa đơn trước ngày này' }) @IsOptional() @IsISO8601() invoicesFrom?: string;
+  @ApiPropertyOptional({ type: [String], description: 'Bảng giá: chỉ nhập các cột này (mặc định: mọi cột không khớp trường chuẩn)' }) @IsOptional() @IsArray() @IsString({ each: true }) priceBookColumns?: string[];
+  @ApiPropertyOptional({ default: false, description: 'Bảng giá: cập nhật giá bán chung của hàng hóa theo cột "Giá bán"' }) @IsOptional() @IsBoolean() updateBasePrice?: boolean;
+  @ApiPropertyOptional({ description: 'Bảng giá: thông tin thêm theo tên cột { "Tên bảng giá": { status, startsAt, endsAt, customerGroups, priority } }' }) @IsOptional() @IsObject() priceBookMeta?: Record<string, { status?: 'ACTIVE' | 'INACTIVE'; startsAt?: string; endsAt?: string; customerGroups?: string[]; priority?: number }>;
 }
 export class ImportPreviewBodyDto {
   @ApiProperty({ enum: IMPORT_TYPES }) @IsIn(IMPORT_TYPES as unknown as string[]) type: (typeof IMPORT_TYPES)[number];

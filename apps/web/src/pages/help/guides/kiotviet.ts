@@ -43,7 +43,7 @@ export const KIOTVIET: Guide[] = [
     slug: 'kiotviet-nhap-excel',
     title: 'Nhập Excel KiotViet từng loại dữ liệu',
     section: 'kiotviet',
-    when: 'Đã có file xuất từ KiotViet; nhập hàng hóa, khách hàng, nhà cung cấp hoặc hóa đơn lịch sử.',
+    when: 'Đã có file xuất từ KiotViet; nhập hàng hóa, khách hàng, nhà cung cấp, hóa đơn lịch sử hoặc bảng giá.',
     perms: ['Nhập dữ liệu từ KiotViet / Excel, cấu hình kết nối (integration.manage)'],
     keywords: ['import excel', 'ánh xạ cột', 'xem trước', 'kho nhận tồn', 'cập nhật hàng đã có', 'đồng bộ công nợ'],
     steps: [
@@ -51,7 +51,8 @@ export const KIOTVIET: Guide[] = [
       { text: 'Bước 1 – Chọn loại & file: chọn Loại dữ liệu (Hàng hóa / Khách hàng / Nhà cung cấp / Hóa đơn), chọn File Excel (.xlsx), đặt Tùy chọn: Cập nhật hàng (bản ghi) đã có, Nhập tồn kho + Kho nhận tồn kho, Đồng bộ công nợ về đúng số trong file, Chi nhánh mặc định, Bỏ qua hóa đơn trước ngày. Bấm Đọc file & kiểm tra cột.' },
       { text: 'Bước 2 – Kiểm tra cột: xem số dòng, cột đã nhận diện / thiếu / chưa dùng và 10 dòng mẫu. Sửa Ánh xạ cột (Cột hệ thống ← cột trong file) nếu cần; với file nhiều cột tồn, ánh xạ "Cột tồn kho → Kho nhận". Bấm Bắt đầu nhập.' },
       { text: 'Bước 3 – Kết quả: số dòng Tạo mới, Cập nhật, Bỏ qua, Lỗi, Dòng tồn kho, Phiếu điều chỉnh, Công nợ điều chỉnh; bấm Tải lỗi (.csv) để xem từng dòng lỗi, sửa file và nhập lại.' },
-      { text: 'Lặp lại cho loại dữ liệu kế tiếp theo thứ tự Hàng hóa → Khách hàng → Nhà cung cấp → Hóa đơn.' },
+      { text: 'Lặp lại cho loại dữ liệu kế tiếp theo thứ tự Hàng hóa → Khách hàng → Nhà cung cấp → Hóa đơn → Bảng giá.' },
+      { text: 'Bảng giá: trong KiotViet vào Hàng hóa → Thiết lập giá, chọn các bảng giá cần lấy rồi Xuất file; nhập với Loại dữ liệu "Bảng giá". Mỗi cột giá (tiêu đề = tên bảng giá) thành một bảng giá ở Thiết lập giá của hệ thống; chạy lại sẽ thay toàn bộ giá của bảng cùng tên. Bảng giá "tự tính theo %" của KiotViet được lưu thành giá cụ thể – đổi giá bán sau này cần nhập lại hoặc sửa trong Thiết lập giá.' },
     ],
     notes: [
       'Bước xem trước không ghi gì; mỗi lần nhập là một "job" chỉ xác nhận được một lần và lưu trong Lịch sử nhập.',

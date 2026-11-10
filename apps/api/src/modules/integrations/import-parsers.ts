@@ -7,7 +7,7 @@ import { Errors } from '../../common/errors/app-error';
  * common export layouts ("Danh sách hàng hóa", "Danh sách khách hàng", "Nhà cung cấp", "Danh sách hóa đơn") map automatically;
  * the user can still override any column in the preview step.
  */
-export type ImportEntity = 'PRODUCTS' | 'CUSTOMERS' | 'SUPPLIERS' | 'INVOICES';
+export type ImportEntity = 'PRODUCTS' | 'CUSTOMERS' | 'SUPPLIERS' | 'INVOICES' | 'PRICEBOOKS';
 export type RawRow = Record<string, string>;
 export interface ParsedSheet { sheet: string; headers: string[]; rows: RawRow[]; headerRow: number }
 export interface FieldSpec { key: string; label: string; aliases: string[]; required?: boolean }
@@ -89,6 +89,14 @@ export const FIELDS: Record<ImportEntity, FieldSpec[]> = {
     { key: 'linePrice', label: 'Đơn giá', aliases: ['don gia', 'gia ban', 'price'] },
     { key: 'lineDiscount', label: 'Giảm giá (dòng)', aliases: ['giam gia dong', 'ck dong', 'giam gia sp', 'giam gia'] },
     { key: 'lineTotal', label: 'Thành tiền', aliases: ['thanh tien', 'line total'] },
+  ],
+  // bảng giá (Thiết lập giá KiotViet): mỗi cột giá không khớp trường nào ở đây = một bảng giá, tiêu đề cột = tên bảng giá
+  PRICEBOOKS: [
+    { key: 'code', label: 'Mã hàng', aliases: ['ma hang', 'ma hang hoa', 'ma sp', 'ma san pham', 'code', 'sku'], required: true },
+    { key: 'name', label: 'Tên hàng', aliases: ['ten hang', 'ten hang hoa', 'ten san pham', 'name'] },
+    { key: 'basePrice', label: 'Giá bán (bảng giá chung)', aliases: ['gia ban', 'bang gia chung', 'gia ban chung', 'gia chung', 'gia ban le'] },
+    { key: 'costPrice', label: 'Giá vốn (bỏ qua)', aliases: ['gia von', 'cost'] },
+    { key: 'lastPurchasePrice', label: 'Giá nhập cuối (bỏ qua)', aliases: ['gia nhap cuoi', 'gia nhap'] },
   ],
 };
 
