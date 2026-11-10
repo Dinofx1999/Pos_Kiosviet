@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { clean, http } from './client';
-import type { Customer, CustomerDebt, CustomerHistory, CustomerHit, ExchangeResult, Invoice, LedgerEntry, Paginated, PosPrice, ReturnCondition, Returnable, SalesReturn, SalesSummary, Shift } from './types';
+import type { Customer, CustomerDebt, CustomerHistory, CustomerHit, ExchangeResult, Invoice, InvoiceSummary, LedgerEntry, Paginated, PosPrice, ReturnCondition, Returnable, SalesReturn, SalesSummary, Shift } from './types';
 import { uuid } from '../utils/format';
 import type { ApplicablePriceBook, PosPreview } from './promotions';
 
@@ -35,7 +35,7 @@ export const salesApi = {
   openShift: (b: { branchId: string; openingCash?: string; note?: string }) => http.post<Shift>('/shifts/open', b).then((r) => r.data),
   closeShift: (id: string, b: { countedCash: string; note?: string }) => http.post<Shift>(`/shifts/${id}/close`, b).then((r) => r.data),
   // invoices
-  invoices: (q: InvoiceQuery) => http.get<Paginated<Invoice>>('/invoices', { params: clean(q as any) }).then((r) => r.data),
+  invoices: (q: InvoiceQuery) => http.get<Paginated<Invoice> & { summary?: InvoiceSummary }>('/invoices', { params: clean(q as any) }).then((r) => r.data),
   invoice: (id: string) => http.get<Invoice>(`/invoices/${id}`).then((r) => r.data),
   price: (q: { variantId: string; priceBookId?: string; productUnitId?: string; quantity?: string }) => http.get<PosPrice>('/invoices/price', { params: clean(q as any) }).then((r) => r.data),
   hold: (b: InvoiceInput) => http.post<Invoice>('/invoices', b, idem()).then((r) => r.data),

@@ -27,10 +27,10 @@ const invoiceInclude = {
   branch: { select: { id: true, code: true, name: true, address: true, phone: true } },
   warehouse: { select: { id: true, code: true, name: true } },
   shift: { select: { id: true, code: true } },
-  lines: { orderBy: { lineNo: 'asc' as const }, include: { variant: { select: { id: true, sku: true, barcode: true, name: true, product: { select: { id: true, code: true, name: true, type: true, baseUnit: true, trackBatch: true } } } }, batch: { select: { id: true, batchNo: true } } } },
+  lines: { orderBy: { lineNo: 'asc' as const }, include: { variant: { select: { id: true, sku: true, barcode: true, name: true, imageUrl: true, product: { select: { id: true, code: true, name: true, type: true, baseUnit: true, trackBatch: true, imageUrl: true } } } }, batch: { select: { id: true, batchNo: true } } } },
   returns: { select: { id: true, code: true, status: true, returnDate: true, totalRefund: true, refundedAmount: true, exchangeInvoiceId: true }, orderBy: { createdAt: 'asc' as const } },
   promotions: { include: { promotion: { select: { id: true, code: true, name: true, type: true } }, voucher: { select: { id: true, code: true } } } },
-  salesOrder: { select: { id: true, code: true, status: true, depositAmount: true } },
+  salesOrder: { select: { id: true, code: true, status: true, source: true, depositAmount: true } },
   deliveries: { select: { id: true, code: true, status: true, receiverName: true, receiverPhone: true, address: true, carrier: true, trackingCode: true, codAmount: true, codCollected: true }, orderBy: { createdAt: 'desc' as const } },
 } satisfies Prisma.InvoiceInclude;
 
@@ -66,22 +66,41 @@ export class InvoicesService {
       ...(q.search ? { OR: [{ code: { contains: q.search, mode: 'insensitive' } }, { note: { contains: q.search, mode: 'insensitive' } }, { customer: { OR: [{ name: { contains: q.search, mode: 'insensitive' } }, { phone: { contains: q.search } }] } }, { lines: { some: { variant: { OR: [{ sku: { contains: q.search, mode: 'insensitive' } }, { name: { contains: q.search, mode: 'insensitive' } }] } } } }] } : {}),
     };
     const where: Prisma.InvoiceWhereInput = { AND: [this.access.branchWhere(user), filters] };
-    const include = { customer: { select: { id: true, code: true, name: true, phone: true } }, seller: { select: { id: true, fullName: true } }, branch: { select: { id: true, name: true } }, _count: { select: { lines: true } } };
+    const include = {
+      customer: { select: { id: true, code: true, name: true, phone: true } }, seller: { select: { id: true, fullName: true } }, branch: { select: { id: true, name: true } }, _count: { select: { lines: true } },
+      // dòng đầu tiên cho danh sách trên điện thoại ("Tên hàng x1 · +N mặt hàng khác")
+      lines: { take: 1, orderBy: { lineNo: 'asc' as const }, select: { quantity: true, unitName: true, variant: { select: { name: true, product: { select: { baseUnit: true } } } } } },
+    };
     const order = orderBy(q, ['invoiceDate', 'createdAt', 'code', 'totalAmount', 'status'], 'invoiceDate');
-    if (q.unpaid === 'true') {
-      // lọc ngay trong CSDL (không nạp cả lịch sử hóa đơn vào bộ nhớ). Hóa đơn nhập từ KiotViet chỉ là lịch sử:
-      // "khách đã trả" trong file không cập nhật khi khách trả nợ về sau → nợ thật nằm ở công nợ khách (đồng bộ từ KiotViet)
-      const dueWhere: Prisma.InvoiceWhereInput = { AND: [where, { status: 'COMPLETED', imported: false, paidAmount: { lt: this.prisma.raw.invoice.fields.totalAmount } }] };
-      const [due, dueCount] = await Promise.all([this.prisma.db.invoice.findMany({ where: dueWhere, include, ...skipTake(q), orderBy: order }), this.prisma.db.invoice.count({ where: dueWhere })]);
-      return paginated(due.map((r) => this.listView(r, user)), dueCount, q);
-    }
-    const [rows, total] = await Promise.all([this.prisma.db.invoice.findMany({ where, include, ...skipTake(q), orderBy: order }), this.prisma.db.invoice.count({ where })]);
-    return paginated(rows.map((r) => this.listView(r, user)), total, q);
+    // lọc "còn nợ" ngay trong CSDL (không nạp cả lịch sử hóa đơn vào bộ nhớ). Hóa đơn nhập từ KiotViet chỉ là lịch sử:
+    // "khách đã trả" trong file không cập nhật khi khách trả nợ về sau → nợ thật nằm ở công nợ khách (đồng bộ từ KiotViet)
+    const effective: Prisma.InvoiceWhereInput = q.unpaid === 'true' ? { AND: [where, { status: 'COMPLETED', imported: false, paidAmount: { lt: this.prisma.raw.invoice.fields.totalAmount } }] } : where;
+    // tổng của toàn bộ kết quả (không chỉ trang này) – hóa đơn đã hủy không tính trừ khi lọc đúng trạng thái đó
+    const summaryWhere: Prisma.InvoiceWhereInput = q.status ? effective : { AND: [effective, { status: { not: 'CANCELLED' } }] };
+    const [rows, total, agg] = await Promise.all([
+      this.prisma.db.invoice.findMany({ where: effective, include, ...skipTake(q), orderBy: order }),
+      this.prisma.db.invoice.count({ where: effective }),
+      this.prisma.db.invoice.aggregate({ where: summaryWhere, _count: true, _sum: { subtotal: true, totalAmount: true, paidAmount: true, discountAmount: true } }),
+    ]);
+    const methods = await this.paymentMethods(rows.map((r) => r.id));
+    const sum = { subtotal: agg._sum.subtotal ?? ZERO, total: agg._sum.totalAmount ?? ZERO, paid: agg._sum.paidAmount ?? ZERO, discount: agg._sum.discountAmount ?? ZERO };
+    return { ...paginated(rows.map((r) => this.listView(r, user, methods.get(r.id) ?? [])), total, q), summary: { count: agg._count, ...sum, due: D(sum.total).minus(D(sum.paid)) } };
   }
 
-  private listView<T extends { totalAmount: Prisma.Decimal; paidAmount: Prisma.Decimal; costTotal: Prisma.Decimal }>(r: T, user: RequestUser) {
+  /** Hình thức thanh toán đã ghi nhận cho từng hóa đơn của trang (CASH / BANK_TRANSFER / … – nhiều loại = "Kết hợp"). */
+  private async paymentMethods(ids: string[]) {
+    const m = new Map<string, string[]>();
+    if (!ids.length) return m;
+    const allocs = await this.prisma.db.paymentAllocation.findMany({ where: { documentType: 'INVOICE', documentId: { in: ids }, payment: { status: 'POSTED' } }, select: { documentId: true, payment: { select: { method: true } } } });
+    for (const a of allocs) { const arr = m.get(a.documentId) ?? []; if (!arr.includes(a.payment.method)) arr.push(a.payment.method); m.set(a.documentId, arr); }
+    return m;
+  }
+
+  private listView<T extends { totalAmount: Prisma.Decimal; paidAmount: Prisma.Decimal; costTotal: Prisma.Decimal; lines?: { quantity: Prisma.Decimal; unitName: string | null; variant: { name: string; product: { baseUnit: string | null } } }[] }>(r: T, user: RequestUser, paymentMethods: string[] = []) {
     const canCost = user.permissions.has('*') || user.permissions.has('sales.report.view');
-    return { ...r, dueAmount: D(r.totalAmount).minus(D(r.paidAmount)), costTotal: canCost ? r.costTotal : undefined };
+    const { lines, ...rest } = r;
+    const first = lines?.[0];
+    return { ...rest, dueAmount: D(r.totalAmount).minus(D(r.paidAmount)), costTotal: canCost ? r.costTotal : undefined, firstLine: first ? { name: first.variant.name, quantity: first.quantity, unitName: first.unitName ?? first.variant.product.baseUnit } : null, paymentMethods };
   }
 
   async get(user: RequestUser, id: string) {

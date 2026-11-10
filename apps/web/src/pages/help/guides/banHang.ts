@@ -88,11 +88,12 @@ export const BAN_HANG: Guide[] = [
     perms: ['Thanh toán / hoàn thành hóa đơn (invoice.complete)'],
     keywords: ['payment', 'tiền mặt', 'chuyển khoản', 'thẻ', 'ví điện tử', 'kết hợp', 'tiền thừa', 'bán nợ', 'in', 'F9'],
     steps: [
-      { text: 'Trong bảng thanh toán (điện thoại: mở giỏ hàng rồi bấm Thanh toán), chọn phương thức: QR chuyển khoản (khi đã cài SePay), Tiền mặt, Chuyển khoản, Thẻ, Ví điện tử hoặc Kết hợp.', shot: 'pos-cart', note: 'QR chuyển khoản: bấm TẠO MÃ QR, khách quét mã – hóa đơn tự lưu khi tiền về (xem bài "Thu tiền bằng mã QR").' },
-      { text: 'Tiền mặt: nhập "Tiền khách đưa" (hoặc chạm mệnh giá gợi ý) – "Tiền thừa trả khách" hiện ngay. Chuyển khoản / Thẻ / Ví: nhập Số tiền và Tham chiếu (mã GD, 4 số cuối thẻ…).' },
+      { text: 'Mở màn Thanh toán: máy tính là bảng bên phải POS; điện thoại mở giỏ hàng rồi bấm Thanh toán – trang riêng như app KiotViet: Xem hàng trong đơn, Khách hàng, Giao hàng, Tổng tiền hàng, Giảm giá (bấm nhãn để đổi % / VND), Khách cần trả, Khách thanh toán (gõ số tiền khách đưa), dải chọn Tiền mặt · Chuyển khoản · Thẻ · Ví và nút ••• cho Kết hợp / Khác.', shot: 'pos-pay', note: 'Chuyển khoản khi đã cài SePay = mã QR tự xác nhận: bấm Tạo mã QR, khách quét – hóa đơn tự lưu khi tiền về (xem bài "Thu tiền bằng mã QR").' },
+      { text: 'Tiền mặt: nhập "Tiền khách đưa" / "Khách thanh toán" (hoặc chạm mệnh giá gợi ý) – "Tiền thừa trả khách" hiện ngay. Chuyển khoản / Thẻ / Ví: nhập số tiền và Tham chiếu (mã GD, 4 số cuối thẻ…).' },
+      { text: 'Điện thoại – Giao hàng: bấm "Nhập thông tin giao hàng" (tên người nhận, SĐT, địa chỉ, đơn vị vận chuyển, phí ship) → vận đơn được tạo tự động ngay sau khi hóa đơn thanh toán xong, theo dõi ở Khác → Giao hàng.' },
       { text: 'Kết hợp: thêm từng dòng phương thức + số tiền (tối đa 3), bấm Thêm phương thức nếu cần.', shot: 'pos-mixed' },
       { text: 'Nếu tổng thu nhỏ hơn "Khách cần trả", phần thiếu hiện "Còn nợ (ghi vào công nợ khách)" – bắt buộc đã chọn khách hàng và cửa hàng cho phép bán nợ.' },
-      { text: 'Bấm THANH TOÁN (F9). Hộp hóa đơn hiện ra: bấm In hóa đơn (mẫu 80mm) hoặc Đóng (Esc) để bán tiếp.' },
+      { text: 'Bấm Thanh toán (F9). Hộp hóa đơn hiện ra: bấm In hóa đơn (mẫu 80mm) hoặc Đóng (Esc) để bán tiếp.' },
     ],
     notes: [
       'Mỗi phương thức tạo một phiếu thu riêng và được gắn vào ca đang mở; tiền thừa không ghi nhận vào sổ quỹ.',
@@ -110,7 +111,7 @@ export const BAN_HANG: Guide[] = [
     keywords: ['hold', 'draft', 'đơn tạm', 'lưu tạm', 'F7', 'mở lại'],
     steps: [
       { text: 'Khi giỏ đã có hàng, bấm Giữ đơn (F7). Đơn được lưu trên máy chủ dưới dạng hóa đơn nháp với mã HD…; giỏ hiện tại được giải phóng.', shot: 'pos-cart' },
-      { text: 'Để mở lại: bấm nút "Đơn giữ" trên thanh POS (điện thoại: biểu tượng đồng hồ ở góc phải tiêu đề Bán hàng); danh sách "Đơn đang giữ" hiện Mã, Thời gian, Khách, Tổng – bấm Mở lại.', shot: 'pos-held' },
+      { text: 'Để mở lại: bấm nút "Đơn giữ" trên thanh POS (điện thoại: biểu tượng phiếu có đồng hồ ở góc phải tiêu đề Bán hàng, số đỏ trên biểu tượng là số đơn đang giữ của chi nhánh); danh sách "Đơn tạm" hiện Mã, Thời gian, Khách, Tổng – bấm Mở lại.', shot: 'pos-held' },
       { text: 'Đơn giữ cũng xem được ở Đơn hàng → Hóa đơn (trạng thái Giữ đơn) với nút Mở ở POS; đơn nháp không cần nữa thì Xóa.' },
     ],
     notes: [
@@ -127,9 +128,9 @@ export const BAN_HANG: Guide[] = [
     perms: ['Xem hóa đơn (invoice.view)', 'Hủy hóa đơn (invoice.cancel)', 'Lập phiếu thu / chi (payment.create) để thu nợ'],
     keywords: ['invoice', 'HD', 'in lại', 'hủy giao dịch', 'thu nợ', 'lợi nhuận', 'chi tiết hóa đơn'],
     steps: [
-      { text: 'Vào Đơn hàng → Hóa đơn (điện thoại: tab Hóa đơn). Lọc theo Trạng thái (Hoàn thành, Giữ đơn, Đã hủy), Chi nhánh, Thời gian, Khách hàng, Công nợ; tìm theo mã hóa đơn, khách, SĐT, hàng hóa.', shot: 'invoices' },
-      { text: 'Bấm vào một hóa đơn để xem tab Thông tin (khách, nhân viên bán, ca, tổng tiền hàng, giảm giá, khuyến mãi, thuế, đã thanh toán, còn nợ, giá vốn / lợi nhuận), Thanh toán, Trả hàng, Bút toán kho.', shot: 'invoice-detail' },
-      { text: 'Các nút ở cuối chi tiết: In, Trả hàng, Tạo vận đơn, Thu qua QR (khi còn nợ và đã cài SePay – khách quét mã, phiếu thu tự ghi), Thu nợ (khi còn nợ – mở phiếu thu phân bổ vào hóa đơn), Hủy hóa đơn.' },
+      { text: 'Vào Đơn hàng → Hóa đơn (điện thoại: tab Hóa đơn – như app KiotViet: chip Tháng này / Tất cả chi nhánh, nút lọc, dòng tổng "Tổng tiền hàng ▾" đổi được sang Khách cần trả / Đã trả / Còn nợ, danh sách nhóm theo ngày với tên khách, tổng tiền, giờ · mã, hình thức thanh toán, mặt hàng đầu tiên và "+N mặt hàng khác"; nút + mở Bán hàng). Lọc theo Trạng thái (Hoàn thành, Giữ đơn, Đã hủy), Chi nhánh, Thời gian, Khách hàng, Công nợ; tìm theo mã hóa đơn, khách, SĐT, hàng hóa.', shot: 'invoices' },
+      { text: 'Bấm vào một hóa đơn: máy tính mở tab Thông tin (khách, nhân viên bán, ca, tổng tiền hàng, giảm giá, khuyến mãi, thuế, đã thanh toán, còn nợ, giá vốn / lợi nhuận), Thanh toán, Trả hàng, Bút toán kho; điện thoại mở trang chi tiết: mã (bấm để sao chép) + trạng thái, khách, các dòng hàng có ảnh, Tổng tiền hàng / Giảm giá / Khách cần trả / Khách đã trả (bấm ⌄ xem từng phiếu thu), ghi chú, bảng giá – kênh bán – người bán – ca – chi nhánh – kho; thanh dưới có In · Trả hàng · Thu nợ.', shot: 'invoice-detail' },
+      { text: 'Các nút ở cuối chi tiết (điện thoại: menu ⋯ góc phải): In, Trả hàng, Chia sẻ (điện thoại – gửi mã, tổng tiền và liên kết qua Zalo / Messenger), Tạo vận đơn, Thu qua QR (khi còn nợ và đã cài SePay – khách quét mã, phiếu thu tự ghi), Thu nợ (khi còn nợ – mở phiếu thu phân bổ vào hóa đơn), Hủy hóa đơn.' },
       { text: 'Hủy hóa đơn: bấm Hủy hóa đơn, nhập Lý do hủy và xác nhận. Hàng được hoàn tồn, phiếu thu của hóa đơn bị hủy theo, công nợ và điểm được đảo.' },
     ],
     notes: [
@@ -189,7 +190,7 @@ export const BAN_HANG: Guide[] = [
     keywords: ['return', 'exchange', 'TH', 'hoàn tiền', 'đổi hàng', 'hàng hỏng', 'nhập lại kho', 'phí trả hàng'],
     steps: [
       { text: 'Vào Đơn hàng → Trả hàng và bấm nút "+ Trả hàng" (hoặc mở hóa đơn → Trả hàng, hoặc nút Trả hàng trên thanh POS). Bước 1: tìm hóa đơn theo mã, tên hoặc SĐT khách và chọn.', shot: 'sales-returns' },
-      { text: 'Bước 2 – Chọn hàng trả: nhập SL trả cho từng dòng (không vượt "Còn trả được"), chọn Tình trạng: Nhập lại kho hoặc Hàng hỏng (không nhập kho, ghi lỗ). Giá hoàn mặc định = số tiền khách đã trả cho mỗi đơn vị.', shot: 'sales-return-new' },
+      { text: 'Bước 2 – Chọn hàng trả: nhập SL trả cho từng dòng (không vượt "Còn trả được"), chọn Tình trạng: Nhập lại kho hoặc Hàng hỏng (không nhập kho, ghi lỗ). Giá hoàn mặc định = số tiền khách đã trả cho mỗi đơn vị. Điện thoại: mở hóa đơn → ⋯ → Trả hàng ra màn "Trả hàng hóa đơn" như app KiotViet – mỗi dòng có − 0/1 + (số sau dấu / là số còn trả được), bấm tên hàng để đổi tình trạng / giá hoàn / ghi chú; biểu tượng phiếu góc phải để nhập lý do, ngày, phí trả hàng; "Thêm hàng mua" để đổi hàng; nút Thanh toán để hoàn tất.', shot: 'sales-return-new' },
       { text: 'Nhập Lý do trả, Phí trả hàng (trừ vào tiền hoàn) nếu có. Bước 3 – Hoàn tiền: chọn Phương thức và Số tiền hoàn ngay, hoặc "Ghi có công nợ, không hoàn tiền" với khách có hồ sơ.' },
       { text: 'Đổi hàng: bấm Đổi hàng, thêm hàng mới vào "Hàng đổi – hóa đơn mới"; phần Chênh lệch cho biết Khách cần trả thêm hay Hoàn lại khách; chọn phương thức rồi bấm Hoàn tất đổi hàng.' },
       { text: 'Bấm Hoàn thành (F10). Mở phiếu trả để xem Phiếu chi hoàn tiền / cấn trừ, Bút toán kho; nút Hủy phiếu khi cần.', shot: 'sales-return-detail' },

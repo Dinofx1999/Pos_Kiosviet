@@ -1,29 +1,35 @@
-import { App, Button, DatePicker, Descriptions, Empty, Input, Modal, Radio, Tabs, Tag } from 'antd';
+import { Button, DatePicker, Descriptions, Empty, Input, Modal, Radio, Tabs, Tag } from 'antd';
 import Table from '../../components/ResponsiveTable';
 import { CarOutlined, DollarOutlined, PrinterOutlined, ReloadOutlined, RollbackOutlined, SearchOutlined, ShopOutlined, StopOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
-import { InvoiceQuery, SALES_KEYS, salesApi, useInvoice, useInvoices } from '../../api/sales';
-import { useSepayReady } from '../../api/bankTransfers';
+import { InvoiceQuery, SALES_KEYS, useInvoice, useInvoices } from '../../api/sales';
 import { errMsg } from '../../api/client';
+import { useSepayReady } from '../../api/bankTransfers';
 import type { Invoice } from '../../api/types';
 import { CustomerSelect } from '../../components/CustomerSelect';
 import { DocumentQrButton } from '../../components/DocumentQrButton';
 import { FilterCard, FilterPanel } from '../../components/FilterPanel';
 import { PaymentModal } from '../../components/PaymentModal';
+import { useIsMobile } from '../../hooks/useMedia';
 import { useAuthStore, useCan } from '../../store/auth';
 import { INVOICE_STATUS_COLOR, INVOICE_STATUS_LABEL, MOVEMENT_LABEL, PAYMENT_METHOD_LABEL, dt, money, qty, signedQty } from '../../utils/format';
-import { printHtml, receiptHtml } from '../pos/receipt';
+import { useInvoiceActions } from './InvoiceShared';
+import { InvoicesMobile } from './InvoicesMobile';
 import { RETURN_STATUS_COLOR, RETURN_STATUS_LABEL } from './SalesReturnShared';
 import { DELIVERY_FINAL, DELIVERY_STATUS_COLOR, DELIVERY_STATUS_LABEL, DeliveryFormModal } from './DeliveryShared';
 
+/** Hóa đơn: điện thoại → danh sách kiểu app KiotViet (InvoicesMobile); máy tính → bảng + bộ lọc bên trái. */
 export default function InvoicesPage() {
+  return useIsMobile() ? <InvoicesMobile /> : <InvoicesDesktop />;
+}
+
+function InvoicesDesktop() {
   const can = useCan();
   const [sp] = useSearchParams();
   const branchId = useAuthStore((s) => s.currentBranchId);
   const me = useAuthStore((s) => s.me);
-  const [q, setQ] = useState<InvoiceQuery>({ page: 1, pageSize: 20, search: sp.get('search') ?? undefined, status: sp.get('status') ?? undefined, unpaid: sp.get('unpaid') ?? undefined });
+  const [q, setQ] = useState<InvoiceQuery>({ page: 1, pageSize: 20, search: sp.get('search') ?? undefined, status: sp.get('status') ?? undefined, unpaid: sp.get('unpaid') ? 'true' : undefined });
   const [searchText, setSearchText] = useState(q.search ?? '');
   useEffect(() => { const s = sp.get('search'); if (s) { setSearchText(s); setQ((x) => ({ ...x, search: s, page: 1 })); } }, [sp]);
   const { data, isLoading, isFetching, error, refetch } = useInvoices({ ...q, branchId: q.branchId ?? branchId ?? undefined });
@@ -73,10 +79,8 @@ export default function InvoicesPage() {
 export function InvoiceDetail({ id }: { id: string }) {
   const { data: inv, isLoading } = useInvoice(id);
   const can = useCan();
-  const me = useAuthStore((s) => s.me);
   const nav = useNavigate();
-  const qc = useQueryClient();
-  const { message, modal } = App.useApp();
+  const { refresh, cancel, removeDraft, print } = useInvoiceActions(inv);
   const [tab, setTab] = useState('info');
   const [pay, setPay] = useState(false);
   const [ship, setShip] = useState(false);
@@ -86,17 +90,6 @@ export function InvoiceDetail({ id }: { id: string }) {
   // Module 06 relations (salesOrder / deliveries) – the Invoice type lives in api/types.ts which is owned elsewhere
   const ext = inv as Invoice & { salesOrder?: { id: string; code: string; status: string } | null; deliveries?: { id: string; code: string; status: string; carrier?: string | null; trackingCode?: string | null; codAmount?: string; codCollected?: boolean }[] };
   const activeDelivery = (ext.deliveries ?? []).find((d) => !DELIVERY_FINAL.includes(d.status as any));
-  const refresh = () => SALES_KEYS.forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
-  const cancel = () => {
-    let reason = '';
-    modal.confirm({
-      title: `Hủy hóa đơn ${inv.code}?`, okText: 'Hủy hóa đơn', okButtonProps: { danger: true }, cancelText: 'Bỏ qua',
-      content: <div><div className="kv-hint" style={{ marginBottom: 6 }}>Hàng sẽ được nhập lại kho, các phiếu thu của hóa đơn này bị hủy và công nợ khách được hoàn lại.</div><Input placeholder="Lý do hủy" onChange={(e) => (reason = e.target.value)} /></div>,
-      onOk: async () => { if (!reason.trim()) { message.warning('Nhập lý do hủy'); throw new Error('no reason'); } try { await salesApi.cancelInvoice(inv.id, reason.trim()); message.success('Đã hủy hóa đơn'); refresh(); } catch (e) { message.error(errMsg(e)); throw e; } },
-    });
-  };
-  const removeDraft = () => modal.confirm({ title: `Xóa đơn giữ ${inv.code}?`, okText: 'Xóa', okButtonProps: { danger: true }, cancelText: 'Bỏ qua', onOk: async () => { try { await salesApi.deleteInvoice(inv.id); message.success('Đã xóa'); qc.removeQueries({ queryKey: ['invoice', inv.id] }); qc.invalidateQueries({ queryKey: ['invoices'] }); } catch (e) { message.error(errMsg(e)); } } });
-  const print = () => { if (!printHtml(receiptHtml(inv, { storeName: me?.tenant.name }))) message.error('Trình duyệt không cho phép in'); };
   return (
     <div className="kv-expanded">
       <Tabs className="kv-detail-tabs" activeKey={tab} onChange={setTab} items={[

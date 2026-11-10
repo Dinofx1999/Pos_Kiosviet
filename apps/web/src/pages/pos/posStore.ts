@@ -34,6 +34,8 @@ export interface CartLine {
 }
 
 export interface PaymentRow { method: string; amount: number; reference?: string }
+/** Giao hàng nhập ở màn Thanh toán (điện thoại): vận đơn được tạo ngay sau khi hóa đơn hoàn tất. */
+export interface PosDelivery { receiverName: string; receiverPhone?: string; address: string; carrier?: string; shippingFee?: number; note?: string }
 
 export interface CartTab {
   id: string;
@@ -66,6 +68,7 @@ export interface CartTab {
   redeemPoints?: number;
   /** VietQR / SePay code created for this cart (kept until the sale completes or the code is cancelled – money may already be on it) */
   bankRequest?: { id: string; code: string; amount: number };
+  delivery?: PosDelivery;
 }
 
 interface PosState {

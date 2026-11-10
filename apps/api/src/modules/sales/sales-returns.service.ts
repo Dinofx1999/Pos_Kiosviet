@@ -84,7 +84,7 @@ export class SalesReturnsService {
 
   /** Returnable lines of an invoice with the per-unit paid amount (default refund price). */
   async returnableLines(user: RequestUser, invoiceId: string) {
-    const inv = await this.prisma.db.invoice.findFirst({ where: { id: invoiceId, ...this.access.branchWhere(user) }, include: { lines: { orderBy: { lineNo: 'asc' }, include: { variant: { select: { id: true, sku: true, name: true, product: { select: { code: true, name: true, type: true, baseUnit: true } } } } } }, customer: { select: { id: true, code: true, name: true, phone: true } } } });
+    const inv = await this.prisma.db.invoice.findFirst({ where: { id: invoiceId, ...this.access.branchWhere(user) }, include: { lines: { orderBy: { lineNo: 'asc' }, include: { variant: { select: { id: true, sku: true, name: true, imageUrl: true, product: { select: { code: true, name: true, type: true, baseUnit: true, imageUrl: true } } } } } }, customer: { select: { id: true, code: true, name: true, phone: true } } } });
     if (!inv) throw Errors.notFound('Hóa đơn', invoiceId);
     if (inv.status !== 'COMPLETED') throw Errors.conflict('DOCUMENT_NOT_POSTED', 'Chỉ trả hàng cho hóa đơn đã hoàn thành', { status: inv.status });
     const paid = await this.paidPerUnit(this.prisma.db, inv);

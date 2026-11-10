@@ -1,24 +1,36 @@
-import { App, Badge, Button, Drawer, Dropdown, Input, Select, Spin, Tag } from 'antd';
-import { CheckOutlined, ClockCircleOutlined, CloseOutlined, DeleteOutlined, DownOutlined, EllipsisOutlined, FileTextOutlined, FilterOutlined, FormOutlined, HistoryOutlined, MinusOutlined, PlusOutlined, RightOutlined, RollbackOutlined, SearchOutlined, ShopOutlined, ShoppingCartOutlined, ShoppingOutlined, TagOutlined, UnorderedListOutlined, UserOutlined } from '@ant-design/icons';
+import { App, Badge, Button, Drawer, Dropdown, Input, InputNumber, Select, Spin, Tag } from 'antd';
+import Icon, { CheckOutlined, ClockCircleOutlined, CloseOutlined, DeleteOutlined, DownOutlined, EllipsisOutlined, FileTextOutlined, FilterOutlined, FormOutlined, LeftOutlined, MinusOutlined, PlusOutlined, QrcodeOutlined, RightOutlined, RollbackOutlined, SearchOutlined, ShopOutlined, ShoppingCartOutlined, ShoppingOutlined, SwapOutlined, TagOutlined, UnorderedListOutlined, UserOutlined } from '@ant-design/icons';
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { catalogApi, useCategories, useProducts } from '../../api/catalog';
 import { errMsg } from '../../api/client';
+import { useInvoices } from '../../api/sales';
 import type { Category, CustomerHit, Me, Product, SearchHit, Variant, Warehouse } from '../../api/types';
 import { BarcodeScanButton } from '../../components/BarcodeScanner';
 import { CustomerSelect } from '../../components/CustomerSelect';
 import { MoneyInput } from '../../components/Inputs';
 import { MobileTabBar } from '../../components/layout/MobileTabBar';
 import { ProductSearch } from '../../components/ProductSearch';
-import { PRODUCT_TYPE_LABEL, money, qty as fq, toNum } from '../../utils/format';
+import { useAuthStore } from '../../store/auth';
+import { PAYMENT_METHOD_LABEL, PRODUCT_TYPE_LABEL, money, qty as fq, toNum } from '../../utils/format';
 import { ProductFormModal } from '../products/ProductFormModal';
-import type { CartLine, CartTab } from './posStore';
+import type { CartLine, CartTab, PaymentRow, PosDelivery } from './posStore';
 import './pos-mobile.css';
 
 const PAGE = 30;
 const MODE_KEY = 'pos.mode';
 type Mode = 'SALE' | 'ORDER';
-type Sheet = null | 'customer' | 'pricebook' | 'warehouse' | 'category' | 'more' | 'info';
+type Sheet = null | 'customer' | 'pricebook' | 'warehouse' | 'category' | 'more' | 'info' | 'items' | 'delivery';
+const METHOD_SHORT: Record<string, string> = { CASH: 'Tiền mặt', BANK_TRANSFER: 'Chuyển khoản', CARD: 'Thẻ', EWALLET: 'Ví' };
+
+/** Biểu tượng "Đơn tạm": tờ phiếu có đồng hồ (như app KiotViet). */
+const HeldSvg = () => (
+  <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 3H7a2 2 0 0 0-2 2v4.5" /><path d="M13 3h.6a2 2 0 0 1 1.4.6l3.4 3.4a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2h-5" />
+    <path d="M13 3v6h6" /><circle cx="7" cy="16" r="4.6" /><path d="M7 13.6V16l1.7 1.1" />
+  </svg>
+);
+const HeldIcon = () => <Icon component={HeldSvg} />;
 
 /** Những gì màn điện thoại cần từ PosPage (logic giỏ hàng, khuyến mãi, thanh toán nằm ở đó và dùng chung với máy tính). */
 export interface PosMobileCtx {
@@ -38,7 +50,17 @@ export interface PosMobileCtx {
   giftPrompt: ReactNode; batchSelect: (l: CartLine, width?: number | string) => ReactNode; giftMax: (l: CartLine) => number;
   sellers: { id: string; fullName: string }[];
   busy: boolean;
-  hold: () => Promise<void>; placeOrder: (confirm: boolean) => Promise<void>; openPay: () => void; openHeld: () => void;
+  hold: () => Promise<void>; placeOrder: (confirm: boolean) => Promise<void>; openHeld: () => void;
+  /** màn Thanh toán */
+  priceIncludesTax: boolean; setDiscountMode: (m: 'AMOUNT' | 'PCT') => void; promoBlock: ReactNode; loyaltyBlock: ReactNode;
+  pay: {
+    mode: string; setMode: (m: string) => void;
+    cashGiven: number | null; setCashGiven: (v: number | null) => void;
+    single: { amount: number | null; reference: string }; setSingle: (fn: (s: { amount: number | null; reference: string }) => { amount: number | null; reference: string }) => void;
+    mixed: PaymentRow[]; setMixed: (fn: (m: PaymentRow[]) => PaymentRow[]) => void;
+    paid: number; due: number; change: number; sepayReady: boolean; qrBusy: boolean;
+    checkout: () => Promise<void>; startQr: () => Promise<void>; reopenQr: () => Promise<void>; suggest: (total: number) => number[]; methods: string[];
+  };
   shift: { id: string; code: string } | null | undefined; openShift: () => void; closeShift: () => void;
 }
 
@@ -52,9 +74,14 @@ const Img = ({ src, badge }: { src?: string | null; badge?: number }) => (
 export function PosMobile({ ctx, children }: { ctx: PosMobileCtx; children?: ReactNode }) {
   const { message } = App.useApp();
   const nav = useNavigate();
-  const { me, can, tab, tabs, setActive, addTab, warehouses, warehouseId, setWarehouse, addHit, setLine, removeLine, patch, setCustomer, changeUnit, changePriceBook, canPriceBook, priceBookOptions, canPrice, canDiscount, totals, payable, pointsValue, previewing, giftPrompt, batchSelect, giftMax, sellers, busy, hold, placeOrder, openPay, openHeld, shift, openShift, closeShift } = ctx;
+  const { me, can, tab, tabs, setActive, addTab, warehouses, warehouseId, setWarehouse, addHit, setLine, removeLine, patch, setCustomer, changeUnit, changePriceBook, canPriceBook, priceBookOptions, canPrice, canDiscount, totals, payable, pointsValue, previewing, giftPrompt, batchSelect, giftMax, sellers, busy, hold, placeOrder, openHeld, shift, openShift, closeShift, priceIncludesTax, setDiscountMode, promoBlock, loyaltyBlock, pay } = ctx;
   const canOrder = can('order.create');
-  const [view, setView] = useState<'catalog' | 'cart'>('catalog');
+  const branchId = useAuthStore((s) => s.currentBranchId);
+  const [view, setView] = useState<'catalog' | 'cart' | 'pay'>('catalog');
+  const [dlv, setDlv] = useState<PosDelivery>({ receiverName: '', address: '' });
+  // số đơn đang giữ (đơn tạm) của chi nhánh – hiện trên nút Đơn tạm
+  const { data: heldData } = useInvoices({ status: 'DRAFT', branchId: branchId ?? undefined, pageSize: 1 }, !!branchId);
+  const heldCount = heldData?.meta.total ?? 0;
   const [mode, setModeState] = useState<Mode>(() => { try { return localStorage.getItem(MODE_KEY) === 'ORDER' && canOrder ? 'ORDER' : 'SALE'; } catch { return 'SALE'; } });
   const setMode = (m: Mode) => { setModeState(m); try { localStorage.setItem(MODE_KEY, m); } catch { /* ignore */ } };
   const [search, setSearch] = useState('');
@@ -86,7 +113,7 @@ export function PosMobile({ ctx, children }: { ctx: PosMobileCtx; children?: Rea
     return () => io.disconnect();
   }, [isFetching, items.length, total, view]);
   // giỏ trống (sau thanh toán / lưu tạm / bỏ hết dòng) → về danh mục
-  useEffect(() => { if (!tab.lines.length && view === 'cart') setView('catalog'); }, [tab.lines.length]);
+  useEffect(() => { if (!tab.lines.length && view !== 'catalog') setView('catalog'); }, [tab.lines.length]);
   useEffect(() => { if (!canOrder && mode === 'ORDER') setMode('SALE'); }, [canOrder]);
   useEffect(() => { if (editing === undefined && lineKey) setLineKey(null); }, [editing, lineKey]);
 
@@ -134,7 +161,7 @@ export function PosMobile({ ctx, children }: { ctx: PosMobileCtx; children?: Rea
       <div className="ps-top">
         <div className="ps-head">
           <h1>Bán hàng</h1>
-          <button type="button" className="ps-ib" aria-label="Đơn tạm" title="Đơn tạm (đơn đang giữ)" onClick={openHeld}><HistoryOutlined /></button>
+          <button type="button" className="ps-ib ps-held" aria-label="Đơn tạm" title="Đơn tạm (đơn đang giữ)" onClick={openHeld}><Badge count={heldCount} size="small" overflowCount={99}><HeldIcon /></Badge></button>
         </div>
         <div className="ps-search">
           <Input size="large" allowClear prefix={<SearchOutlined />} placeholder="Tên, mã hàng, mã vạch" value={search} onChange={(e) => setSearch(e.target.value)} onPressEnter={() => void onEnter()} />
@@ -230,7 +257,7 @@ export function PosMobile({ ctx, children }: { ctx: PosMobileCtx; children?: Rea
         <div className="ps-btns">
           <Button size="large" loading={busy} onClick={() => void (mode === 'SALE' ? hold() : placeOrder(false))}>Lưu tạm</Button>
           {mode === 'SALE'
-            ? <Button size="large" type="primary" disabled={!can('invoice.complete')} onClick={openPay}>Thanh toán</Button>
+            ? <Button size="large" type="primary" disabled={!can('invoice.complete')} onClick={() => setView('pay')}>Thanh toán</Button>
             : <Button size="large" type="primary" loading={busy} onClick={() => void placeOrder(true)}>Đặt hàng</Button>}
         </div>
         {tab.draftId && <div className="kv-hint" style={{ textAlign: 'center', marginTop: 6 }}>Đang mở đơn tạm {tab.draftCode}</div>}
@@ -238,9 +265,105 @@ export function PosMobile({ ctx, children }: { ctx: PosMobileCtx; children?: Rea
     </>
   );
 
+  // ---------------------------------------------------------------- thanh toán
+  const payAmountInput = pay.mode === 'CASH' ? (pay.cashGiven ?? payable) : (pay.single.amount ?? payable);
+  const setPayAmount = (v: number | string | null) => {
+    const n = v === null || v === undefined || v === '' ? null : toNum(v);
+    if (pay.mode === 'CASH') pay.setCashGiven(n); else pay.setSingle((s) => ({ ...s, amount: n === null ? null : Math.min(n, payable) }));
+  };
+  const isQr = pay.mode === 'QR';
+  const otherMode = pay.mode === 'MIXED' || pay.mode === 'OTHER';
+  const payView = (
+    <>
+      <div className="ps-top ps-pay-top">
+        <div className="ps-head ps-cart-head">
+          <button type="button" className="ps-ib" aria-label="Về giỏ hàng" onClick={() => setView('cart')}><LeftOutlined /></button>
+          <h1>Thanh toán</h1>
+        </div>
+      </div>
+      <div className="ps-pay-scroll">
+        <button type="button" className="ps-pay-card row" onClick={() => setSheet('items')}><span>Xem hàng trong đơn <i className="ps-cnt gray">{fq(lineCount)}</i></span><RightOutlined className="chev" /></button>
+        <div className="ps-pay-card">
+          <div className="ps-pay-cap">KHÁCH HÀNG</div>
+          <button type="button" className={`ps-pay-link ${tab.customerId ? 'set' : ''}`} onClick={() => setSheet('customer')}>{customerName}{tab.customerLabel && tab.customerLabel.includes(' · ') && <small>{tab.customerLabel.split(' · ').slice(1).join(' · ')}</small>}</button>
+        </div>
+        {can('delivery.manage') && (
+          <div className="ps-pay-card">
+            <div className="ps-pay-cap">GIAO HÀNG</div>
+            {tab.delivery
+              ? <button type="button" className="ps-pay-link set" onClick={() => { setDlv(tab.delivery!); setSheet('delivery'); }}>{tab.delivery.receiverName}{tab.delivery.receiverPhone ? ` · ${tab.delivery.receiverPhone}` : ''}<small>{tab.delivery.address}{tab.delivery.carrier ? ` · ${tab.delivery.carrier}` : ''}</small></button>
+              : <button type="button" className="ps-pay-link" onClick={() => { setDlv({ receiverName: customerName === 'Khách lẻ' ? '' : customerName, address: '' }); setSheet('delivery'); }}>Nhập thông tin giao hàng</button>}
+          </div>
+        )}
+        <div className="ps-pay-card ps-pay-tot">
+          <div className="r"><span>Tổng tiền hàng <i className="ps-cnt gray">{fq(lineCount)}</i></span><b>{money(totals.subtotal)}</b></div>
+          {canDiscount && (
+            <div className="r in">
+              <button type="button" className="lbl" onClick={() => setDiscountMode(tab.discountMode === 'PCT' ? 'AMOUNT' : 'PCT')}>Giảm giá ({tab.discountMode === 'PCT' ? '%' : 'VND'}) <SwapOutlined /></button>
+              {tab.discountMode === 'PCT'
+                ? <InputNumber className="ps-uline" variant="borderless" style={{ width: 140 }} min={0} max={100} step={1} value={tab.discountPct ?? 0} inputMode="decimal" onChange={(v) => patch(() => ({ discountPct: Math.max(0, Math.min(toNum(v ?? 0), 100)) }))} onFocus={(e) => e.target.select()} suffix="%" />
+                : <MoneyInput className="ps-uline" variant="borderless" style={{ width: 140 }} value={tab.discount ?? 0} max={totals.subtotal} onChange={(v) => patch(() => ({ discount: Math.min(toNum(v), totals.subtotal) }))} onFocus={(e) => e.target.select()} />}
+            </div>
+          )}
+          {canDiscount && tab.discountMode === 'PCT' && (tab.discount ?? 0) > 0 && <div className="hint">Giảm {toNum(tab.discountPct ?? 0)}% = −{money(tab.discount ?? 0)}</div>}
+          {totals.promo > 0 && <div className="r"><span>Khuyến mãi</span><b className="green">−{money(totals.promo)}</b></div>}
+          {totals.tax > 0 && <div className="r sub"><span>{priceIncludesTax ? 'Trong đó thuế' : 'Thuế'}</span><span>{money(totals.tax)}</span></div>}
+          {pointsValue > 0 && <div className="r"><span>Thanh toán bằng điểm</span><b className="green">−{money(pointsValue)}</b></div>}
+          <div className="r grand"><span>Khách cần trả</span><b className="blue">{previewing && <Spin size="small" style={{ marginRight: 6 }} />}{money(payable)}</b></div>
+          {isQr ? <div className="r"><span>Khách chuyển khoản</span><b>{money(payable)}</b></div>
+            : pay.mode === 'MIXED' ? <div className="r"><span>Khách thanh toán</span><b>{money(pay.paid)}</b></div>
+            : <div className="r in"><span>Khách thanh toán</span><MoneyInput className="ps-uline big" variant="borderless" style={{ width: 160 }} value={payAmountInput} onChange={(v) => setPayAmount(v as number | null)} onFocus={(e) => e.target.select()} /></div>}
+          {pay.mode === 'CASH' && payable > 0 && <div className="ps-suggest">{pay.suggest(payable).map((v) => <button type="button" key={v} className={(pay.cashGiven ?? payable) === v ? 'on' : ''} onClick={() => pay.setCashGiven(v)}>{money(v)}</button>)}</div>}
+          {pay.change > 0 && <div className="r"><span>Tiền thừa trả khách</span><b className="green">{money(pay.change)}</b></div>}
+          {!isQr && pay.mode !== 'CASH' && pay.mode !== 'MIXED' && <Input className="ps-ref" placeholder="Tham chiếu (mã GD, 4 số cuối thẻ…)" value={pay.single.reference} onChange={(e) => pay.setSingle((s) => ({ ...s, reference: e.target.value }))} />}
+          {pay.mode === 'MIXED' && (
+            <div className="ps-mixed">
+              {pay.mixed.map((m, i) => (
+                <div key={i} className="row">
+                  <Select size="large" value={m.method} onChange={(v) => pay.setMixed((ms) => ms.map((x, j) => (j === i ? { ...x, method: v } : x)))} options={[...pay.methods, 'OTHER'].map((x) => ({ value: x, label: PAYMENT_METHOD_LABEL[x] ?? x }))} />
+                  <MoneyInput size="large" value={m.amount} onChange={(v) => pay.setMixed((ms) => ms.map((x, j) => (j === i ? { ...x, amount: toNum(v) } : x)))} onFocus={(e) => e.target.select()} />
+                  <button type="button" className="ps-ib" aria-label="Bỏ dòng" disabled={pay.mixed.length <= 1} onClick={() => pay.setMixed((ms) => ms.filter((_, j) => j !== i))}><DeleteOutlined /></button>
+                </div>
+              ))}
+              {pay.mixed.length < 3 && <Button type="dashed" block icon={<PlusOutlined />} onClick={() => pay.setMixed((ms) => [...ms, { method: 'CARD', amount: 0 }])}>Thêm hình thức</Button>}
+            </div>
+          )}
+          {pay.due > 0 && <div className={`r ${tab.customerId ? 'warn' : 'neg'}`}><span>{tab.customerId ? 'Còn nợ (ghi vào công nợ khách)' : 'Còn thiếu – chọn khách hàng để bán nợ'}</span><b>{money(pay.due)}</b></div>}
+          <div className="ps-methods">
+            <div className="seg">
+              {pay.methods.map((m) => {
+                const qrMode = m === 'BANK_TRANSFER' && pay.sepayReady;
+                const on = qrMode ? pay.mode === 'QR' : pay.mode === m;
+                return <button type="button" key={m} className={on ? 'on' : ''} onClick={() => pay.setMode(qrMode ? 'QR' : m)}>{METHOD_SHORT[m] ?? PAYMENT_METHOD_LABEL[m] ?? m}</button>;
+              })}
+            </div>
+            <Dropdown trigger={['click']} menu={{ items: [{ key: 'MIXED', label: 'Kết hợp nhiều hình thức' }, { key: 'OTHER', label: 'Hình thức khác' }], selectedKeys: [pay.mode], onClick: ({ key }) => pay.setMode(key) }}>
+              <button type="button" className={`more ${otherMode ? 'on' : ''}`} aria-label="Hình thức khác"><EllipsisOutlined /></button>
+            </Dropdown>
+          </div>
+          {otherMode && <div className="hint right">{pay.mode === 'MIXED' ? 'Kết hợp nhiều hình thức' : 'Hình thức khác'}</div>}
+          {isQr && <div className="hint">Bấm <b>Tạo mã QR</b> → khách quét bằng app ngân hàng → hóa đơn <b>tự hoàn tất</b> khi tiền về tài khoản.</div>}
+          {pay.mode === 'BANK_TRANSFER' && !pay.sepayReady && <div className="hint">Bấm <b>Thanh toán</b> để hiện mã QR của cửa hàng, xác nhận khi đã nhận tiền.</div>}
+          {tab.bankRequest && <div className="ps-qr-pending">Giỏ đang gắn mã chuyển khoản <b>{tab.bankRequest.code}</b> ({money(tab.bankRequest.amount)}) <a onClick={() => void pay.reopenQr()}>Mở lại</a></div>}
+        </div>
+        <div className="ps-pay-card ps-pay-promo">{promoBlock}</div>
+        {loyaltyBlock && <div className="ps-pay-card ps-pay-promo">{loyaltyBlock}</div>}
+        <div className="ps-pay-card">
+          <div className="ps-pay-cap">GHI CHÚ</div>
+          <Input.TextArea autoSize={{ minRows: 1, maxRows: 4 }} variant="borderless" className="ps-pay-note" placeholder="Ghi chú đơn hàng…" value={tab.note} onChange={(e) => patch(() => ({ note: e.target.value }))} />
+        </div>
+      </div>
+      <div className="ps-foot ps-pay-foot">
+        {isQr
+          ? <Button size="large" type="primary" block icon={<QrcodeOutlined />} loading={busy || pay.qrBusy} disabled={!can('invoice.complete')} onClick={() => void pay.startQr()}>Tạo mã QR · {money(payable)}</Button>
+          : <Button size="large" type="primary" block icon={pay.mode === 'BANK_TRANSFER' ? <QrcodeOutlined /> : undefined} loading={busy} disabled={!can('invoice.complete')} onClick={() => void pay.checkout()}>Thanh toán</Button>}
+      </div>
+    </>
+  );
+
   return (
-    <div className={`ps ${view === 'cart' ? 'ps-cartview' : ''}`}>
-      {view === 'catalog' ? catalog : cart}
+    <div className={`ps ${view === 'cart' ? 'ps-cartview' : view === 'pay' ? 'ps-payview' : ''}`}>
+      {view === 'catalog' ? catalog : view === 'cart' ? cart : payView}
 
       {sheet === 'customer' && (
         <Drawer className="ps-sheet" placement="bottom" height="auto" open onClose={() => setSheet(null)} title="Khách hàng" styles={{ body: { padding: '12px 14px calc(16px + env(safe-area-inset-bottom))', minHeight: '46dvh' } }}>
@@ -293,6 +416,37 @@ export function PosMobile({ ctx, children }: { ctx: PosMobileCtx; children?: Rea
           <div className="ps-edit-row total"><span>Thành tiền</span><b>{money(editing.isGift ? 0 : Math.max(0, editing.quantity * editing.unitPrice - editing.discount))}</b></div>
           {editing.onHand !== undefined && <div className="kv-hint">Tồn kho: {fq(editing.onHand)} {editing.baseUnit ?? ''}</div>}
           <Button danger size="large" icon={<DeleteOutlined />} onClick={() => { removeLine(editing.key); setLineKey(null); }}>Xóa khỏi giỏ</Button>
+        </Drawer>
+      )}
+      {sheet === 'items' && (
+        <Drawer className="ps-sheet" placement="bottom" height="auto" open onClose={() => setSheet(null)} title="Hàng hoá trong đơn" styles={{ body: { padding: '0 14px calc(12px + env(safe-area-inset-bottom))', maxHeight: '70dvh', overflow: 'auto' } }}>
+          {tab.lines.map((l) => (
+            <div key={l.key} className="ps-item">
+              <Img src={l.imageUrl} />
+              <div className="main">
+                <div className="nm">{l.name}{l.unitName && l.unitName !== l.baseUnit ? <span className="unit"> ({l.unitName})</span> : null}{l.isGift && <Tag color="green" style={{ marginLeft: 6 }}>Hàng tặng</Tag>}</div>
+                <div className="qty">{money(l.isGift ? 0 : l.unitPrice)} x{fq(l.quantity)}{l.discount > 0 && <span className="muted"> · giảm {money(l.discount)}</span>}</div>
+              </div>
+              <b>{money(l.isGift ? 0 : Math.max(0, l.quantity * l.unitPrice - l.discount))}</b>
+            </div>
+          ))}
+        </Drawer>
+      )}
+      {sheet === 'delivery' && (
+        <Drawer className="ps-sheet" placement="bottom" height="auto" open onClose={() => setSheet(null)} title="Thông tin giao hàng" styles={{ body: { padding: '12px 14px calc(16px + env(safe-area-inset-bottom))', display: 'grid', gap: 10 } }}>
+          <Input size="large" placeholder="Tên người nhận *" value={dlv.receiverName} onChange={(e) => setDlv({ ...dlv, receiverName: e.target.value })} />
+          <Input size="large" placeholder="Số điện thoại" inputMode="tel" value={dlv.receiverPhone ?? ''} onChange={(e) => setDlv({ ...dlv, receiverPhone: e.target.value })} />
+          <Input.TextArea autoSize={{ minRows: 2, maxRows: 4 }} placeholder="Địa chỉ giao hàng *" value={dlv.address} onChange={(e) => setDlv({ ...dlv, address: e.target.value })} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <Input size="large" placeholder="Đơn vị vận chuyển" value={dlv.carrier ?? ''} onChange={(e) => setDlv({ ...dlv, carrier: e.target.value })} />
+            <MoneyInput size="large" placeholder="Phí ship thu khách" value={dlv.shippingFee ?? 0} onChange={(v) => setDlv({ ...dlv, shippingFee: toNum(v) })} />
+          </div>
+          <Input size="large" placeholder="Ghi chú giao hàng" value={dlv.note ?? ''} onChange={(e) => setDlv({ ...dlv, note: e.target.value })} />
+          <div className="kv-hint">Vận đơn được tạo ngay sau khi hóa đơn thanh toán xong; theo dõi ở mục Vận đơn (tab Khác → Giao hàng).</div>
+          <div style={{ display: 'grid', gridTemplateColumns: tab.delivery ? '1fr 1fr' : '1fr', gap: 10 }}>
+            {tab.delivery && <Button size="large" danger onClick={() => { patch(() => ({ delivery: undefined })); setSheet(null); }}>Bỏ giao hàng</Button>}
+            <Button size="large" type="primary" disabled={!dlv.receiverName.trim() || !dlv.address.trim()} onClick={() => { patch(() => ({ delivery: { ...dlv, receiverName: dlv.receiverName.trim(), address: dlv.address.trim() } })); setSheet(null); }}>Lưu</Button>
+          </div>
         </Drawer>
       )}
       <ProductFormModal open={newProduct} product={null} onClose={() => setNewProduct(false)} onSaved={() => { setNewProduct(false); setQ((s) => ({ ...s, page: 1 })); void refetch(); }} />

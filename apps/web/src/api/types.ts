@@ -71,7 +71,7 @@ export interface SupplierHistory {
   returns: { id: string; code: string; status: string; returnDate: string; totalAmount: string; refundedAmount: string; receipt?: { code: string } }[];
   payments: { id: string; code: string; status: string; direction: 'IN' | 'OUT'; method: string; paymentDate: string; amount: string; allocated: string }[];
 }
-export interface VariantBrief { id: string; sku: string; barcode?: string | null; name: string; product: { id: string; code: string; name: string; baseUnit?: string | null; trackBatch?: boolean } }
+export interface VariantBrief { id: string; sku: string; barcode?: string | null; name: string; imageUrl?: string | null; product: { id: string; code: string; name: string; baseUnit?: string | null; trackBatch?: boolean; imageUrl?: string | null } }
 export type PurchaseOrderStatus = 'DRAFT' | 'CONFIRMED' | 'PARTIAL' | 'RECEIVED' | 'CANCELLED';
 export type PurchaseDocStatus = 'DRAFT' | 'POSTED' | 'CANCELLED';
 export interface PurchaseOrderLine { id: string; lineNo: number; variantId: string; quantity: string; receivedQuantity: string; remainingQuantity?: string; unitPrice: string; discountAmount: string; taxRate: string; lineTotal: string; note?: string | null; variant: VariantBrief }
@@ -131,7 +131,12 @@ export interface Invoice {
   completedAt?: string | null; cancelledAt?: string | null; cancelReason?: string | null; createdAt: string;
   customer?: { id: string; code: string; name: string; phone?: string | null } | null; seller?: { id: string; username?: string; fullName: string } | null; branch?: { id: string; code?: string; name: string; address?: string | null; phone?: string | null }; warehouse?: { id: string; code?: string; name: string }; shift?: { id: string; code: string } | null;
   lines?: InvoiceLine[]; payments?: { id: string; amount: string; payment: { id: string; code: string; status: string; method: string; paymentDate: string; amount: string; reference?: string | null } }[]; movements?: Movement[]; _count?: { lines: number };
+  /** danh sách: dòng hàng đầu tiên và các hình thức thanh toán đã ghi nhận (điện thoại) */
+  firstLine?: { name: string; quantity: string; unitName?: string | null } | null; paymentMethods?: string[];
+  salesOrder?: { id: string; code: string; status: string; source?: string; depositAmount?: string } | null;
 }
+/** Tổng của toàn bộ kết quả lọc (không chỉ trang hiện tại). */
+export interface InvoiceSummary { count: number; subtotal: string; total: string; paid: string; discount: string; due: string }
 export interface PosPrice { variantId: string; productUnitId: string | null; unitName?: string | null; conversionFactor: string; listPrice: string; source: 'PRODUCT' | 'UNIT' | 'PRICE_BOOK'; taxRate: string }
 export interface SalesSummary {
   from: string | null; to: string | null; groupBy: string;

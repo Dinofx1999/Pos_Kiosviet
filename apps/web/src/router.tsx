@@ -24,6 +24,7 @@ import SupplierDebtPage from './pages/reports/SupplierDebtPage';
 import PosPage from './pages/pos/PosPage';
 import MorePage from './pages/more/MorePage';
 import InvoicesPage from './pages/sales/InvoicesPage';
+import InvoiceDetailPage from './pages/sales/InvoiceDetailPage';
 import CustomersPage from './pages/sales/CustomersPage';
 import ShiftsPage from './pages/sales/ShiftsPage';
 import SalesReportPage from './pages/reports/SalesReportPage';
@@ -111,6 +112,7 @@ export const router = createBrowserRouter([
           { path: '/reports/purchasing', element: <RequirePerm perm="purchase.report.view"><PurchasingReportPage /></RequirePerm> },
           { path: '/reports/supplier-debt', element: <RequirePerm perm="supplier.debt.view"><SupplierDebtPage /></RequirePerm> },
           { path: '/invoices', element: <RequirePerm perm="invoice.view"><InvoicesPage /></RequirePerm> },
+          { path: '/invoices/:id', element: <RequirePerm perm="invoice.view"><InvoiceDetailPage /></RequirePerm> },
           { path: '/customers', element: <RequirePerm perm="customer.view"><CustomersPage /></RequirePerm> },
           { path: '/shifts', element: <RequirePerm perm="shift.view"><ShiftsPage /></RequirePerm> },
           { path: '/reports/sales', element: <RequirePerm perm="sales.report.view"><SalesReportPage /></RequirePerm> },

@@ -146,13 +146,14 @@ const SHOTS = [
     else await click(page, page.locator('.pos-side .ant-select-show-search .ant-select-selection-search-input'), 300);
     await page.keyboard.type('a'); await wait(page, 900);
   }],
-  ['pos-mixed', '/pos', async (page, ctx) => { await addToCart(page, ctx); await openPaySheet(page, ctx); await click(page, page.locator('.pos-chip', { hasText: 'Kết hợp' })); }],
+  ['pos-pay', '/pos', async (page, ctx) => { await addToCart(page, ctx); await openPaySheet(page, ctx); }],
+  ['pos-mixed', '/pos', async (page, ctx) => { await addToCart(page, ctx); await openPaySheet(page, ctx); if (ctx.mobile) { await click(page, page.locator('.ps-methods .more'), 400); await click(page, page.getByRole('menuitem', { name: /Kết hợp/ }), 500); } else await click(page, page.locator('.pos-chip', { hasText: 'Kết hợp' })); }],
   ['pos-held', '/pos', async (page, ctx) => { await click(page, page.locator(ctx.mobile ? '.ps-ib[aria-label="Đơn tạm"]' : '.pos-header button:has(.anticon-file-text)'), 900); }],
   // VietQR / SePay (cần cấu hình SePay đã bật): tạo mã QR tại quầy – mã chờ thanh toán sẽ tự hết hạn
   ['pos-qr', '/pos', async (page, ctx) => {
     await addToCart(page, ctx); await openPaySheet(page, ctx);
-    await click(page, page.locator('.pos-chip-qr'), 400);
-    await click(page, page.locator(ctx.mobile ? '.pos-sheet .pos-pay-btn' : '.pos-side .pos-pay-btn'), 800);
+    await click(page, page.locator(ctx.mobile ? '.ps-methods .seg button:has-text("Chuyển khoản")' : '.pos-chip-qr'), 400);
+    await click(page, page.locator(ctx.mobile ? '.ps-pay-foot .ant-btn' : '.pos-side .pos-pay-btn'), 800);
     await page.locator('.bq-qr-img').first().waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
     await wait(page, 1500);
   }],
@@ -160,7 +161,7 @@ const SHOTS = [
   ['shift-open', '/shifts', async (page) => { await click(page, button(page, /Mở ca/)); }],
   ['shift-detail', '/shifts', async (page) => { await click(page, firstRow(page), 900); }],
   ['invoices', '/invoices'],
-  ['invoice-detail', '/invoices', async (page) => { await click(page, firstRow(page), 900); }],
+  ['invoice-detail', '/invoices', async (page, ctx) => { await click(page, ctx.mobile ? page.locator('.im-row').first() : firstRow(page), 900); }],
   ['orders', '/orders'],
   ['order-new', '/orders/new'],
   ['order-detail', (ctx) => (ctx.ids.order ? `/orders/${ctx.ids.order}` : '/orders')],

@@ -10,6 +10,7 @@ import { useIsMobile } from '../../hooks/useMedia';
 import { useAuthStore } from '../../store/auth';
 import { ChangePasswordModal } from '../ChangePasswordModal';
 import { MobileTabBar } from './MobileTabBar';
+import { useLayoutStore } from './layoutStore';
 
 const soon = (label: string) => ({ label: <Tooltip title="Sắp ra mắt" placement="right"><span style={{ opacity: .55 }}>{label}</span></Tooltip>, key: `soon-${label}`, disabled: true });
 
@@ -24,6 +25,7 @@ export default function AppLayout() {
   const nav = useNavigate();
   const loc = useLocation();
   const isMobile = useIsMobile();
+  const fullscreen = useLayoutStore((s) => s.fullscreen > 0);
   const mainRef = useRef<HTMLElement>(null);
   // phone shell: the page body is the scroll container → reset it on navigation (desktop: the window)
   useEffect(() => { mainRef.current?.scrollTo({ top: 0 }); window.scrollTo({ top: 0 }); }, [loc.pathname]);
@@ -148,7 +150,7 @@ export default function AppLayout() {
   if (!notifyItems.length) notifyItems.push({ key: 'none', label: 'Không có thông báo mới', disabled: true });
 
   return (
-    <div className={`kv-shell${isMobile && loc.pathname === '/more' ? ' kv-shell-nohead' : ''}`}>
+    <div className={`kv-shell${isMobile && (loc.pathname === '/more' || fullscreen) ? ' kv-shell-nohead' : ''}${isMobile && fullscreen ? ' kv-shell-full' : ''}`}>
       <header className="kv-header">
         <Link to="/" className="kv-logo"><span className="dot"><ShopOutlined /></span><span className="kv-logo-name" title={me?.tenant.name}>{me?.tenant.name ?? 'Retail ERP'}</span></Link>
         <div className="kv-menu"><Menu mode="horizontal" items={items} selectedKeys={selected} disabledOverflow={false} /></div>
@@ -166,7 +168,7 @@ export default function AppLayout() {
       <main className="kv-page" ref={mainRef}><Outlet /></main>
 
       {/* ---- phone: bottom tab bar (tab Khác mở trang lưới mục /more) ---- */}
-      {isMobile && <MobileTabBar />}
+      {isMobile && !fullscreen && <MobileTabBar />}
       <ChangePasswordModal open={pwdOpen} onClose={() => setPwdOpen(false)} />
     </div>
   );

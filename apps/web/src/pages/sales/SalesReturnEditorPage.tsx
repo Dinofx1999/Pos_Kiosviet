@@ -16,9 +16,10 @@ import { useAuthStore, useCan } from '../../store/auth';
 import { dt, money, qty, toNum, uuid } from '../../utils/format';
 import { ShiftOpenModal } from '../pos/PosModals';
 import { CONDITION_LABEL, METHOD_OPTIONS, RETURN_STATUS_COLOR, RETURN_STATUS_LABEL, ReturnCompleteModal, SalesReturnDetail, returnErrMsg } from './SalesReturnShared';
+import { ReturnMobile } from './SalesReturnMobile';
 
-interface RLine { invoiceLineId: string; variantId: string; sku: string; name: string; unit: string; productType: string; sold: number; returnable: number; defaultPrice: number; unitPrice: number; quantity: number; condition: ReturnCondition; note?: string; error?: string }
-interface XLine { key: string; variantId: string; productId: string; sku: string; name: string; productType: string; unitName?: string | null; productUnitId?: string; quantity: number; listPrice: number; unitPrice: number; discount: number; taxRate: number; trackBatch: boolean; batchId?: string; batches?: Batch[]; onHand: number; error?: string }
+export interface RLine { invoiceLineId: string; variantId: string; sku: string; name: string; imageUrl?: string | null; unit: string; productType: string; sold: number; returnable: number; defaultPrice: number; unitPrice: number; quantity: number; condition: ReturnCondition; note?: string; error?: string }
+export interface XLine { key: string; variantId: string; productId: string; sku: string; name: string; imageUrl?: string | null; productType: string; unitName?: string | null; productUnitId?: string; quantity: number; listPrice: number; unitPrice: number; discount: number; taxRate: number; trackBatch: boolean; batchId?: string; batches?: Batch[]; onHand: number; error?: string }
 
 /** Mirrors the API's computeInvoice (BR-52) for the live total of the exchange invoice. */
 function invoiceTotals(lines: XLine[], docDiscount: number, priceIncludesTax: boolean) {
@@ -136,7 +137,7 @@ function ReturnEditor({ invoiceId, existing }: { invoiceId: string; existing?: S
 
   useEffect(() => {
     if (!data) return;
-    const base: RLine[] = data.lines.map((l) => ({ invoiceLineId: l.id, variantId: l.variantId, sku: l.variant.sku, name: l.variant.name, unit: l.unitName ?? l.variant.product.baseUnit ?? '', productType: l.variant.product.type ?? 'GOODS', sold: toNum(l.quantity), returnable: toNum(l.returnableQuantity), defaultPrice: toNum(l.refundUnitPrice), unitPrice: toNum(l.refundUnitPrice), quantity: 0, condition: 'RESTOCK' }));
+    const base: RLine[] = data.lines.map((l) => ({ invoiceLineId: l.id, variantId: l.variantId, sku: l.variant.sku, name: l.variant.name, imageUrl: l.variant.imageUrl ?? l.variant.product.imageUrl, unit: l.unitName ?? l.variant.product.baseUnit ?? '', productType: l.variant.product.type ?? 'GOODS', sold: toNum(l.quantity), returnable: toNum(l.returnableQuantity), defaultPrice: toNum(l.refundUnitPrice), unitPrice: toNum(l.refundUnitPrice), quantity: 0, condition: 'RESTOCK' }));
     if (existing) {
       setReturnDate(dayjs(existing.returnDate)); setReason(existing.reason ?? ''); setNote(existing.note ?? ''); setFee(toNum(existing.feeAmount));
       for (const l of existing.lines ?? []) { const b = base.find((x) => x.invoiceLineId === l.invoiceLineId); if (b) { b.quantity = toNum(l.quantity); b.unitPrice = toNum(l.unitPrice); b.condition = l.condition; b.note = l.note ?? undefined; } }
@@ -172,7 +173,7 @@ function ReturnEditor({ invoiceId, existing }: { invoiceId: string; existing?: S
       if (hit.unit) { const product = await catalogApi.product(hit.product.id); productUnitId = product.units?.find((u) => u.unitName === hit.unit!.unitName)?.id; trackBatch = product.trackBatch; }
       const priced = await salesApi.price({ variantId: hit.id, productUnitId, quantity: '1' });
       const batches = trackBatch ? await catalogApi.batches(hit.id).catch(() => [] as Batch[]) : undefined;
-      setXLines((p) => [...p, { key: uuid(), variantId: hit.id, productId: hit.product.id, sku: hit.sku, name: hit.name, productType: hit.product.type, unitName: priced.unitName ?? hit.product.baseUnit, productUnitId, quantity: 1, listPrice: toNum(priced.listPrice), unitPrice: toNum(priced.listPrice), discount: 0, taxRate: toNum(priced.taxRate), trackBatch: !!trackBatch, batches, onHand: toNum(hit.onHand ?? hit.onHandTotal) }]);
+      setXLines((p) => [...p, { key: uuid(), variantId: hit.id, productId: hit.product.id, sku: hit.sku, name: hit.name, imageUrl: hit.imageUrl ?? hit.product.imageUrl, productType: hit.product.type, unitName: priced.unitName ?? hit.product.baseUnit, productUnitId, quantity: 1, listPrice: toNum(priced.listPrice), unitPrice: toNum(priced.listPrice), discount: 0, taxRate: toNum(priced.taxRate), trackBatch: !!trackBatch, batches, onHand: toNum(hit.onHand ?? hit.onHandTotal) }]);
     } catch (e) { message.error(returnErrMsg(e)); }
   };
   const setX = (key: string, patch: Partial<XLine>) => setXLines((p) => p.map((l) => (l.key === key ? { ...l, ...patch, error: undefined } : l)));
@@ -261,6 +262,16 @@ function ReturnEditor({ invoiceId, existing }: { invoiceId: string; existing?: S
     </div>
   );
   const batchSelect = (l: XLine) => <Select style={{ minWidth: 140 }} placeholder="Chọn lô" value={l.batchId} status={l.batchId ? undefined : 'error'} onChange={(batchId) => setX(l.key, { batchId })} options={(l.batches ?? []).map((b) => ({ value: b.id, label: `${b.batchNo}${b.expiryDate ? ` · HSD ${dt(b.expiryDate, 'DD/MM/YY')}` : ''}` }))} />;
+
+  // điện thoại: màn Trả hàng hóa đơn kiểu app KiotViet (logic ở trên dùng chung)
+  if (isMobile) {
+    return (
+      <ReturnMobile ctx={{ inv, existing, lines, upd, active, subtotal, feeApplied, totalRefund, maxRefund, hasCustomer, returnDate, setReturnDate, reason, setReason, note, setNote, fee, setFee, canPriceEdit, canSellPrice, canExchange, canCreate: can('return.create'), canComplete: can('return.complete'), mode, setMode, xLines, addX, setX, removeX, xDiscount, setXDiscount, xNote, setXNote, xTotals, settle, payMethod, setPayMethod, payNow, setPayAmount, refMethod, setRefMethod, refundNow, setRefAmount, refCredit, setRefCredit, saving, saveDraft, openComplete, submitExchange, shift, openShift: () => setOpenShift(true), warehouseName: me?.warehouses.find((w) => w.id === inv.warehouseId)?.name, batchSelect }}>
+        <ReturnCompleteModal open={completing} total={totalRefund} code={existing?.code} hasCustomer={hasCustomer} customerName={inv.customer?.name} loading={saving === 'complete'} onClose={() => setCompleting(false)} onConfirm={complete} />
+        <ShiftOpenModal open={openShift} branchId={inv.branchId} onClose={() => setOpenShift(false)} onOpened={() => qc.invalidateQueries({ queryKey: ['shift-current'] })} />
+      </ReturnMobile>
+    );
+  }
 
   return (
     <div className="sr-editor">

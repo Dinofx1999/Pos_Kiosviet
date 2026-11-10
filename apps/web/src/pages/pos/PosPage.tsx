@@ -1,4 +1,4 @@
-import { Alert, App, Badge, Button, Drawer, Dropdown, Input, InputNumber, Segmented, Select, Space, Spin, Switch, Table, Tag, Tooltip } from 'antd';
+import { Alert, App, Badge, Button, Dropdown, Input, InputNumber, Segmented, Select, Space, Spin, Switch, Table, Tag, Tooltip } from 'antd';
 import { CloseOutlined, ClockCircleOutlined, DeleteOutlined, FileTextOutlined, GiftOutlined, HomeOutlined, MinusOutlined, PlusOutlined, QrcodeOutlined, RollbackOutlined, SaveOutlined, TagOutlined, UserOutlined, WalletOutlined } from '@ant-design/icons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -10,7 +10,7 @@ import { errMsg, normalizeError } from '../../api/client';
 import { orgApi } from '../../api/org';
 import { pts } from '../../api/loyalty';
 import { ApplicablePriceBook, PosPreview, PosPreviewGift, VariantLite, promotionsApi } from '../../api/promotions';
-import { ordersApi } from '../../api/orders';
+import { deliveriesApi, ordersApi } from '../../api/orders';
 import { SALES_KEYS, salesApi, useCurrentShift, type InvoicePaymentInput } from '../../api/sales';
 import type { ApiError, CustomerHit, Invoice, SearchHit } from '../../api/types';
 import { BankQrModal } from '../../components/BankQrModal';
@@ -311,6 +311,11 @@ export default function PosPage() {
       // loyalty: the receipt prints the balance left after this sale
       let pointsBalance: string | undefined;
       if (inv.customerId && (toNum(inv.pointsEarned) > 0 || toNum(inv.pointsRedeemed) > 0)) { try { pointsBalance = (await salesApi.customer(inv.customerId)).points; } catch { /* receipt without the balance */ } }
+      // giao hàng nhập ở màn Thanh toán (điện thoại) → tạo vận đơn cho hóa đơn vừa xong
+      if (t.delivery?.receiverName && t.delivery.address) {
+        try { await deliveriesApi.create({ invoiceId: inv.id, branchId: inv.branchId, receiverName: t.delivery.receiverName, receiverPhone: t.delivery.receiverPhone || undefined, address: t.delivery.address, carrier: t.delivery.carrier || undefined, shippingFee: t.delivery.shippingFee ? String(t.delivery.shippingFee) : undefined, note: t.delivery.note || undefined }); qc.invalidateQueries({ queryKey: ['deliveries'] }); }
+        catch (e) { message.warning(`Đã thanh toán nhưng chưa tạo được vận đơn: ${normalizeError(e).message} – tạo lại ở chi tiết hóa đơn`); }
+      }
       setSheet(false);
       setReceipt({ inv, cashGiven: receiptCash, pointsBalance });
       if (t.draftId) closeTab(t.id); else resetTab(t.id); // a completed held order leaves the POS tab bar
@@ -769,10 +774,9 @@ export default function PosPage() {
 
   if (isMobile && tab) {
     return (
-      <PosMobile ctx={{ me, can, tab, tabs, setActive, addTab: () => addTab(), warehouses, warehouseId, setWarehouse, addHit, setLine, removeLine, patch, setCustomer, changeUnit, changePriceBook: (id) => changePriceBook(id), canPriceBook, priceBookOptions, canPrice, canDiscount, totals, payable, pointsValue, previewing, giftPrompt, batchSelect, giftMax, sellers, busy, hold, placeOrder: (confirm) => placeOrder(tab, confirm), openPay: () => setSheet(true), openHeld: () => setHeld(true), shift, openShift: () => setShiftOpen(true), closeShift: () => setShiftClose(true) }}>
-        <Drawer className="pos-sheet" placement="bottom" height="92%" open={sheet} onClose={() => setSheet(false)} title={`Thanh toán · ${money(payable)}`} destroyOnHidden={false}>
-          {sidePanel}
-        </Drawer>
+      <PosMobile ctx={{ me, can, tab, tabs, setActive, addTab: () => addTab(), warehouses, warehouseId, setWarehouse, addHit, setLine, removeLine, patch, setCustomer, changeUnit, changePriceBook: (id) => changePriceBook(id), canPriceBook, priceBookOptions, canPrice, canDiscount, totals, payable, pointsValue, previewing, giftPrompt, batchSelect, giftMax, sellers, busy, hold, placeOrder: (confirm) => placeOrder(tab, confirm), openHeld: () => setHeld(true), shift, openShift: () => setShiftOpen(true), closeShift: () => setShiftClose(true),
+        priceIncludesTax, setDiscountMode, promoBlock, loyaltyBlock,
+        pay: { mode: payMode, setMode: setPayMode, cashGiven, setCashGiven, single, setSingle, mixed, setMixed, paid, due, change, sepayReady, qrBusy, checkout, startQr, reopenQr, suggest, methods: METHODS as unknown as string[] } }}>
         {modals}
       </PosMobile>
     );
