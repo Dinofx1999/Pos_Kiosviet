@@ -349,4 +349,49 @@ describe('KiotViet migration: Excel importers, API connector, reconciliation (Mo
     expect(rt.body.branchMap).toEqual({ 'Chi nhánh trung tâm': o.warehouseId });
     expect(rt.body.status).toBe('CONFIGURED');
   });
+  it('T-228 price books export (Thiết lập giá): one column per price book, prices per variant, unit codes skipped, unknown codes reported, meta applied, POS prices resolve, re-import replaces', async () => {
+    const headers = ['Mã hàng', 'Tên hàng', 'Giá vốn', 'Giá nhập cuối', 'Bảng giá chung', 'Bảng giá CTV', 'GIÁ SỈ 8%'];
+    const file = await xlsx(headers, [
+      ['SP000101', 'Serum Vitamin C 30ml', '210000', '210000', '350000', '300.000', '322000'],
+      ['SP000102', 'Son lì đỏ', '95000', '', '189000', '150000', ''],
+      ['SP000101-H', 'Serum Vitamin C 30ml (Hộp 6)', '', '', '1950000', '1700000', ''], // unit code → skipped
+      ['ZZZ999', 'Không có trong danh mục', '', '', '10000', '9000', ''], // unknown → error
+    ]);
+    const pv = await preview('PRICEBOOKS', file);
+    expect(pv.status).toBe(201);
+    expect(pv.body.mapping.code).toBe('Mã hàng');
+    expect(pv.body.mapping.basePrice).toBe('Bảng giá chung');
+    expect(pv.body.unmapped).toEqual(expect.arrayContaining(['Bảng giá CTV', 'GIÁ SỈ 8%']));
+    const done = await commit(pv.body.jobId, { options: { priceBookMeta: { 'Bảng giá CTV': { customerGroups: ['CTV'], endsAt: '2030-01-01T00:00:00.000Z' } } } });
+    expect(done.status).toBe(200);
+    expect(done.body.created).toBe(2);
+    expect(done.body.priceBooks).toBe(2);
+    expect(done.body.items).toBe(3);
+    expect(done.body.unitCodes).toBe(1);
+    expect(done.body.failed).toBe(1);
+    expect(done.body.errors[0].code).toBe('ZZZ999');
+    const list = await t.http().get(`${api}/price-books`).set(s.auth);
+    expect(list.status).toBe(200);
+    const ctv = list.body.find((p: { name: string }) => p.name === 'Bảng giá CTV');
+    expect(ctv.customerGroups).toEqual(['CTV']);
+    expect(ctv.status).toBe('ACTIVE');
+    expect(ctv._count.items).toBe(2);
+    const detail = await t.http().get(`${api}/price-books/${ctv.id}`).set(s.auth);
+    const serum = detail.body.items.find((i: { variant: { sku: string } }) => i.variant.sku === 'SP000101');
+    expect(Number(serum.price)).toBe(300000);
+    // POS: price book price wins over the product price
+    const priced = await t.http().get(`${api}/invoices/price`).set(s.auth).query({ variantId: serum.variantId, priceBookId: ctv.id });
+    expect(priced.status).toBe(200);
+    expect(Number(priced.body.listPrice)).toBe(300000);
+    expect(priced.body.source).toBe('PRICE_BOOK');
+    // re-import: same name → replaced (SP000102 dropped, serum changed), no duplicate price book
+    const again = await commit((await preview('PRICEBOOKS', await xlsx(['Mã hàng', 'Tên hàng', 'Bảng giá CTV'], [['SP000101', 'Serum Vitamin C 30ml', '310000']]))).body.jobId);
+    expect(again.status).toBe(200);
+    expect(again.body.created).toBe(0);
+    expect(again.body.updated).toBe(1);
+    expect(again.body.items).toBe(1);
+    const list2 = await t.http().get(`${api}/price-books`).set(s.auth);
+    expect(list2.body.filter((p: { name: string }) => p.name === 'Bảng giá CTV')).toHaveLength(1);
+    expect(list2.body.find((p: { name: string }) => p.name === 'Bảng giá CTV')._count.items).toBe(1);
+  });
 });
