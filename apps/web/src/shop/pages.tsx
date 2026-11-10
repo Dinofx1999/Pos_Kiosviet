@@ -62,6 +62,7 @@ function ProductFeed({ search, categoryId, sort }: { search: string; categoryId:
   if (!loading && total === 0) return <div className="sh-empty">{search ? 'Không tìm thấy sản phẩm phù hợp.' : 'Chưa có sản phẩm.'}</div>;
   return (
     <>
+      {total !== null && total > 0 && <div className="sh-count">{total.toLocaleString('vi-VN')} sản phẩm</div>}
       <div className="sh-grid">
         {items.map((p) => <ProductTile key={p.id} p={p} />)}
         {loading && Array.from({ length: page === 1 ? 8 : 4 }).map((_, i) => <div key={`sk${i}`} className="sh-card sk"><div className="img" /><div className="l1" /><div className="l2" /></div>)}
@@ -73,6 +74,13 @@ function ProductFeed({ search, categoryId, sort }: { search: string; categoryId:
 
 function ProductTile({ p }: { p: ProductCard }) {
   const { cfg } = useShop();
+  const nav = useNavigate();
+  // hàng không có phiên bản → thêm thẳng vào giỏ; có phiên bản → mở trang chi tiết để chọn
+  const quickAdd = (e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    if (p.variantId && p.variantCount === 1) { cart.add({ variantId: p.variantId, productId: p.id, name: p.name, variantName: null, imageUrl: p.imageUrl, price: p.price, flash: p.flash, maxQuantity: p.maxQuantity ?? 999 }, 1); toast('Đã thêm vào giỏ'); }
+    else nav(`/p/${p.id}`);
+  };
   return (
     <Link to={`/p/${p.id}`} className={`sh-card ${p.inStock ? '' : 'oos'}`}>
       <div className="img">
@@ -81,7 +89,10 @@ function ProductTile({ p }: { p: ProductCard }) {
         {!p.inStock && <span className="sh-oos">Hết hàng</span>}
       </div>
       <div className="nm">{p.name}</div>
-      <PriceTag price={p.price} priceMax={p.variantCount > 1 ? p.priceMax : null} flash={p.flash} />
+      <div className="foot">
+        <PriceTag price={p.price} priceMax={p.variantCount > 1 ? p.priceMax : null} flash={p.flash} />
+        {cfg.allowOrder && <button type="button" className="sh-add" aria-label={p.variantCount > 1 ? 'Chọn phiên bản' : 'Thêm vào giỏ'} disabled={!p.inStock} onClick={quickAdd}>{Icon.plus(16)}</button>}
+      </div>
       {cfg.showStock && p.inStock && p.available !== null && p.available <= 10 && <div className="sh-left">Còn {p.available}</div>}
     </Link>
   );

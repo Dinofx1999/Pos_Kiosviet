@@ -246,6 +246,8 @@ export class StorefrontService {
         price: cfg.showPrice ? num(r.min_price) : null, priceMax: cfg.showPrice ? num(r.max_price) : null,
         inStock: avail > 0, available: cfg.showStock ? Math.min(avail, STOCK_CAP) : null,
         flash: fl ? this.flashInfo(fl, regular.get(fl.variantId) ?? ZERO, cfg) : null,
+        // hàng không có phiên bản: web thêm thẳng vào giỏ từ danh sách
+        variantId: own.length === 1 ? own[0].id : null, maxQuantity: Math.min(Math.max(avail, 0), 999),
       };
     });
     return { items, total, page, pageSize: size };
