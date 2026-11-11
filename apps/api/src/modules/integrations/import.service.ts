@@ -811,17 +811,20 @@ export class ImportService {
         const factor = unit?.factor ?? D(1);
         const sysRaw = parseNumber(get(r, 'lineSystem')); const actRaw = parseNumber(get(r, 'lineActual')); const deltaRaw = parseNumber(get(r, 'lineDelta'));
         const system = status === 'DRAFT' ? (onHand.get(v.id) ?? ZERO) : toQty(D(sysRaw ?? '0').times(factor));
-        const counted = actRaw !== null ? toQty(D(actRaw).times(factor)) : deltaRaw !== null && sysRaw !== null ? toQty(D(sysRaw).plus(D(deltaRaw)).times(factor)) : null;
+        const countedRaw = actRaw !== null ? toQty(D(actRaw).times(factor)) : deltaRaw !== null && sysRaw !== null ? toQty(D(sysRaw).plus(D(deltaRaw)).times(factor)) : null;
+        // KiotViet cho phép "thực tế" âm; ở đây số đếm không âm → ghi 0 và giữ số gốc trong ghi chú dòng
+        const counted = countedRaw !== null && countedRaw.isNegative() ? ZERO : countedRaw;
         const delta = counted !== null ? toQty(counted.minus(system)) : ZERO;
         const costRaw = parseNumber(get(r, 'lineCost'));
         const unitCost = money(costRaw !== null && factor.eq(1) ? D(costRaw) : D(v.costPrice));
+        const note = [unit?.unitName ? `ĐVT ${unit.unitName}` : '', countedRaw !== null && countedRaw.isNegative() ? `KiotViet thực tế ${countedRaw.toString()}` : ''].filter(Boolean).join(' · ') || null;
         const prev = out.get(v.id);
         if (prev) { // cùng biến thể xuất hiện nhiều dòng (mã ĐVT khác nhau) → gộp
           const c2 = prev.countedQuantity !== null || counted !== null ? toQty(D(prev.countedQuantity ?? 0).plus(counted ?? ZERO)) : null;
           const s2 = status === 'DRAFT' ? prev.systemQuantity : toQty(prev.systemQuantity.plus(system));
           const d2 = c2 !== null ? toQty(c2.minus(s2)) : ZERO;
           out.set(v.id, { ...prev, systemQuantity: s2, countedQuantity: c2, deltaQuantity: d2, deltaValue: money(d2.times(prev.unitCost)) });
-        } else out.set(v.id, { variantId: v.id, systemQuantity: system, countedQuantity: counted, deltaQuantity: delta, unitCost, deltaValue: money(delta.times(unitCost)), note: unit?.unitName ? `ĐVT ${unit.unitName}` : null });
+        } else out.set(v.id, { variantId: v.id, systemQuantity: system, countedQuantity: counted, deltaQuantity: delta, unitCost, deltaValue: money(delta.times(unitCost)), note });
       });
       return Array.from(out.values());
     };
