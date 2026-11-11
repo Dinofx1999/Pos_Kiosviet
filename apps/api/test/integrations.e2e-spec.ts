@@ -238,6 +238,58 @@ describe('KiotViet migration: Excel importers, API connector, reconciliation (Mo
     expect(rec.body.importedReturns.refund).toBe('350000');
   });
 
+  it('T-230 purchase history: receipts grouped by code, lines matched by product code, landed costs kept, posted / draft statuses, no stock / cost / debt / cash effects, unknown supplier created, re-import skips and promotes drafts', async () => {
+    const p1 = (await t.http().get(`${api}/products`).set(s.auth).query({ search: 'SP000101' })).body.data[0];
+    const variantId = (await t.http().get(`${api}/products/${p1.id}`).set(s.auth)).body.variants[0].id;
+    const before = await balanceOf(t, s, variantId);
+    const supBefore = (await t.http().get(`${api}/suppliers`).set(s.auth).query({ search: 'NCC000301' })).body.data[0];
+    const headers = ['Chi nhánh', 'Mã nhập hàng', 'Thời gian', 'Mã nhà cung cấp', 'Tên nhà cung cấp', 'Người nhập', 'Tổng tiền hàng', 'Giảm giá phiếu nhập', 'Chi phí nhập trả NCC', 'Cần trả NCC', 'Tiền đã trả NCC', 'Chi phí nhập khác', 'Ghi chú', 'Số hóa đơn đầu vào', 'Trạng thái', 'Mã hàng', 'Tên hàng', 'ĐVT', 'Đơn giá', 'Giảm giá %', 'Giảm giá', 'Giá nhập', 'Thành tiền', 'Số lượng'];
+    const pn1 = (code: string, name: string, price: string, total: string, qty: string) => ['Chi nhánh trung tâm', 'PN000901', '20/09/2026 09:00', 'NCC000301', 'Công ty Mỹ phẩm Hoa Sen', 'admin', '1.000.000', '50.000', '30.000', '980.000', '500.000', '20.000', 'Lô tháng 9', 'HD-IN-01', 'Đã nhập hàng', code, name, 'Chai', price, '0', '0', price, total, qty];
+    const pn2 = (status: string) => ['Chi nhánh trung tâm', 'PN000902', '21/09/2026 10:00', 'NCC-MOI', 'NCC chưa có', 'admin', '300.000', '0', '0', '300.000', '0', '0', '', '', status, 'SP000101', 'Serum Vitamin C 30ml', 'Chai', '150.000', '0', '0', '150.000', '300.000', '2'];
+    const buf = await xlsx(headers, [pn1('SP000101', 'Serum Vitamin C 30ml', '200.000', '800.000', '4'), pn1('SP000102', 'Son lì đỏ', '100.000', '200.000', '2'), pn2('Phiếu tạm')]);
+    const pv = await preview('PURCHASES', buf, { defaultBranchId: s.branchId });
+    expect(pv.body.mapping.code).toBe('Mã nhập hàng');
+    expect(pv.body.mapping.discount).toBe('Giảm giá phiếu nhập');
+    expect(pv.body.mapping.lineDiscount).toBe('Giảm giá');
+    expect(pv.body.mapping.linePrice).toBe('Đơn giá');
+    expect(pv.body.mapping.lineCost).toBe('Giá nhập');
+    expect(pv.body.mapping.lineQty).toBe('Số lượng');
+    const done = await commit(pv.body.jobId);
+    expect(done.status).toBe(200);
+    expect(done.body.created).toBe(2);
+    expect(done.body.failed).toBe(0);
+    expect(done.body.suppliers).toBe(1);
+    const list = await t.http().get(`${api}/purchase-receipts`).set(s.auth).query({ search: 'KV-PN000901' });
+    expect(list.body.data).toHaveLength(1);
+    const r = (await t.http().get(`${api}/purchase-receipts/${list.body.data[0].id}`).set(s.auth)).body;
+    expect(r).toMatchObject({ status: 'POSTED', subtotal: '1000000', discountAmount: '50000', landedCostTotal: '50000', totalAmount: '980000', paidAmount: '500000', supplierInvoiceNo: 'HD-IN-01' });
+    expect(r.supplier.code).toBe('NCC000301');
+    expect(r.note).toContain('Nhập từ KiotViet');
+    expect(r.receiptDate).toContain('2026-09-20');
+    expect(r.lines).toHaveLength(2);
+    expect(r.lines[0]).toMatchObject({ quantity: '4', unitPrice: '200000', lineTotal: '800000', unitCost: '200000' });
+    // phiếu tạm → nháp, NCC chưa có được tạo theo mã
+    const draft = (await t.http().get(`${api}/purchase-receipts`).set(s.auth).query({ search: 'KV-PN000902' })).body.data[0];
+    expect(draft.status).toBe('DRAFT');
+    expect(draft.supplier.name).toBe('NCC chưa có');
+    expect((await t.http().get(`${api}/suppliers`).set(s.auth).query({ search: 'NCC-MOI' })).body.data).toHaveLength(1);
+    // lịch sử: không động tồn kho, giá vốn, công nợ NCC
+    const after = await balanceOf(t, s, variantId);
+    expect(after.onHand).toBe(before.onHand);
+    expect(after.costPrice).toBe(before.costPrice);
+    expect((await t.http().get(`${api}/suppliers`).set(s.auth).query({ search: 'NCC000301' })).body.data[0].balance).toBe(supBefore.balance);
+    // chạy lại: mã đã có bỏ qua, phiếu tạm đã nhập hàng ở KiotViet → chuyển POSTED (vẫn không động kho)
+    const again = await commit((await preview('PURCHASES', await xlsx(headers, [pn1('SP000101', 'Serum Vitamin C 30ml', '200.000', '800.000', '4'), pn2('Đã nhập hàng')]), { defaultBranchId: s.branchId })).body.jobId);
+    expect(again.body.created).toBe(0);
+    expect(again.body.skipped).toBe(1);
+    expect(again.body.updated).toBe(1);
+    expect((await t.http().get(`${api}/purchase-receipts/${draft.id}`).set(s.auth)).body.status).toBe('POSTED');
+    expect((await balanceOf(t, s, variantId)).onHand).toBe(before.onHand);
+    const rec = await t.http().get(`${api}/integrations/reconcile`).set(s.auth);
+    expect(rec.body.importedPurchases.count).toBe(2);
+    expect(rec.body.importedPurchases.total).toBe('1280000');
+  });
+
   it('T-223 KiotViet API connector: credentials stored encrypted, test lists branches, import pulls products/customers/suppliers/invoices through the same pipeline, auth failure reported', async () => {
     // a tiny stand-in for id.kiotviet.vn + public.kiotapi.com
     const calls: string[] = [];

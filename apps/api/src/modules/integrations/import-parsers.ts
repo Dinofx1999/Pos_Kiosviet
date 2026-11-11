@@ -7,7 +7,7 @@ import { Errors } from '../../common/errors/app-error';
  * common export layouts ("Danh sách hàng hóa", "Danh sách khách hàng", "Nhà cung cấp", "Danh sách hóa đơn") map automatically;
  * the user can still override any column in the preview step.
  */
-export type ImportEntity = 'PRODUCTS' | 'CUSTOMERS' | 'SUPPLIERS' | 'INVOICES' | 'PRICEBOOKS' | 'RETURNS';
+export type ImportEntity = 'PRODUCTS' | 'CUSTOMERS' | 'SUPPLIERS' | 'INVOICES' | 'PRICEBOOKS' | 'RETURNS' | 'PURCHASES';
 export type RawRow = Record<string, string>;
 export interface ParsedSheet { sheet: string; headers: string[]; rows: RawRow[]; headerRow: number }
 export interface FieldSpec { key: string; label: string; aliases: string[]; required?: boolean }
@@ -114,6 +114,32 @@ export const FIELDS: Record<ImportEntity, FieldSpec[]> = {
     { key: 'lineQty', label: 'Số lượng', aliases: ['so luong', 'sl', 'so luong tra', 'quantity'] },
     { key: 'linePrice', label: 'Giá trả lại', aliases: ['gia tra lai', 'gia tra', 'don gia', 'gia ban', 'price'] },
     { key: 'lineDiscount', label: 'Giảm giá (dòng)', aliases: ['giam gia dong', 'ck dong', 'giam gia sp'] },
+    { key: 'lineTotal', label: 'Thành tiền', aliases: ['thanh tien', 'line total'] },
+  ],
+  // Mua hàng → Nhập hàng → Xuất file → File chi tiết: một dòng = một mặt hàng nhập, thông tin phiếu lặp lại trên từng dòng
+  PURCHASES: [
+    { key: 'code', label: 'Mã nhập hàng', aliases: ['ma nhap hang', 'ma phieu nhap', 'ma phieu nhap hang', 'ma phieu', 'ma nhap', 'purchase code'], required: true },
+    { key: 'date', label: 'Thời gian', aliases: ['thoi gian', 'ngay', 'ngay nhap', 'ngay nhap hang', 'date'] },
+    { key: 'supplierCode', label: 'Mã nhà cung cấp', aliases: ['ma nha cung cap', 'ma ncc'] },
+    { key: 'supplierName', label: 'Nhà cung cấp', aliases: ['ten nha cung cap', 'nha cung cap', 'ten ncc'] },
+    { key: 'branch', label: 'Chi nhánh', aliases: ['chi nhanh', 'branch'] },
+    { key: 'receiver', label: 'Người nhập', aliases: ['nguoi nhap', 'nguoi tao', 'nhan vien'] },
+    { key: 'subtotal', label: 'Tổng tiền hàng', aliases: ['tong tien hang', 'tien hang'] },
+    { key: 'discount', label: 'Giảm giá phiếu nhập', aliases: ['giam gia phieu nhap', 'giam gia phieu', 'giam gia nhap hang'] },
+    { key: 'supplierFee', label: 'Chi phí nhập trả NCC', aliases: ['chi phi nhap tra ncc', 'chi phi tra ncc', 'chi phi nhap'] },
+    { key: 'otherFee', label: 'Chi phí nhập khác', aliases: ['chi phi nhap khac', 'chi phi khac'] },
+    { key: 'total', label: 'Cần trả NCC', aliases: ['can tra ncc', 'can tra nha cung cap', 'tong cong', 'total'] },
+    { key: 'paid', label: 'Tiền đã trả NCC', aliases: ['tien da tra ncc', 'da tra ncc', 'da thanh toan', 'paid'] },
+    { key: 'supplierInvoiceNo', label: 'Số hóa đơn đầu vào', aliases: ['so hoa don dau vao', 'so hoa don', 'hoa don dau vao'] },
+    { key: 'status', label: 'Trạng thái', aliases: ['trang thai', 'status'] },
+    { key: 'note', label: 'Ghi chú', aliases: ['ghi chu', 'note'] },
+    { key: 'lineCode', label: 'Mã hàng (dòng)', aliases: ['ma hang', 'ma hang hoa', 'ma sp'] },
+    { key: 'lineName', label: 'Tên hàng (dòng)', aliases: ['ten hang', 'ten hang hoa'] },
+    { key: 'lineUnit', label: 'ĐVT (dòng)', aliases: ['dvt', 'don vi tinh', 'don vi'] },
+    { key: 'lineQty', label: 'Số lượng', aliases: ['so luong', 'sl', 'quantity'] },
+    { key: 'linePrice', label: 'Đơn giá', aliases: ['don gia', 'gia nhap', 'price'] },
+    { key: 'lineDiscount', label: 'Giảm giá (dòng)', aliases: ['giam gia', 'giam gia dong', 'ck dong'] },
+    { key: 'lineCost', label: 'Giá nhập (sau giảm)', aliases: ['gia nhap', 'gia von'] },
     { key: 'lineTotal', label: 'Thành tiền', aliases: ['thanh tien', 'line total'] },
   ],
   PRICEBOOKS: [

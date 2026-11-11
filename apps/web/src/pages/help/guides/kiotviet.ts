@@ -35,6 +35,7 @@ export const KIOTVIET: Guide[] = [
       { text: 'Nhà cung cấp: vào Mua hàng → Nhà cung cấp, bấm Xuất file. Cột "Nợ cần trả hiện tại" thành công nợ đầu kỳ.' },
       { text: 'Hóa đơn: vào Đơn hàng → Hóa đơn, chọn khoảng thời gian rồi bấm Xuất file (chọn "Xuất file chi tiết" để có dòng hàng hóa).' },
       { text: 'Trả hàng: vào Giao dịch → Trả hàng, chọn khoảng thời gian rồi bấm Xuất file chi tiết. Nhập sau hóa đơn: mỗi phiếu trả gắn vào hóa đơn gốc theo mã và cộng vào số đã trả của hóa đơn (không ghi kho, sổ quỹ, công nợ).' },
+      { text: 'Nhập hàng: vào Mua hàng → Nhập hàng, chọn khoảng thời gian rồi bấm Xuất file → File chi tiết. Nhập sau hàng hóa và nhà cung cấp: phiếu "Đã nhập hàng" thành phiếu nhập lịch sử (không ghi kho, giá vốn, công nợ, sổ quỹ), "Phiếu tạm" thành phiếu nháp để hoàn tất sau.' },
       { text: 'Giữ nguyên dòng tiêu đề của file (.xlsx, tối đa 50 MB) rồi sang bước Nhập từ Excel KiotViet.', shot: 'integrations-excel' },
     ],
     notes: ['Hệ thống nhận diện cột theo tiêu đề tiếng Việt (không phân biệt hoa thường / dấu); nếu KiotViet đổi tên cột, bạn vẫn ánh xạ tay được ở bước Kiểm tra cột.'],

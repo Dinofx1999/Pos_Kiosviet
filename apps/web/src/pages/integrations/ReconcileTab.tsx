@@ -29,6 +29,10 @@ export function ReconcileTiles({ data }: { data: Reconcile }) {
       { label: 'Số phiếu trả', value: qty(data.importedReturns?.count ?? 0) }, { label: 'Tiền trả khách', value: money(data.importedReturns?.refund ?? 0) },
       { label: 'Khoảng ngày', value: data.importedReturns?.first ? `${d(data.importedReturns.first)} → ${d(data.importedReturns.last)}` : '—' },
     ] },
+    { title: 'Nhập hàng lịch sử', hint: 'KiotViet: Mua hàng → Nhập hàng (cùng khoảng ngày)', items: [
+      { label: 'Số phiếu nhập', value: qty(data.importedPurchases?.count ?? 0) }, { label: 'Tiền hàng nhập', value: money(data.importedPurchases?.total ?? 0) },
+      { label: 'Khoảng ngày', value: data.importedPurchases?.first ? `${d(data.importedPurchases.first)} → ${d(data.importedPurchases.last)}` : '—' },
+    ] },
   ];
   return (
     <div className="ig-recon">

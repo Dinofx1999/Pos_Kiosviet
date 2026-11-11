@@ -7,7 +7,7 @@ import { errMsg } from '../../api/client';
 import { useIsMobile } from '../../hooks/useMedia';
 import { downloadBlob, dt, qty } from '../../utils/format';
 
-export const IMPORT_TYPE_LABEL: Record<ImportType, string> = { PRODUCTS: 'Hàng hóa', CUSTOMERS: 'Khách hàng', SUPPLIERS: 'Nhà cung cấp', INVOICES: 'Hóa đơn', PRICEBOOKS: 'Bảng giá', RETURNS: 'Trả hàng' };
+export const IMPORT_TYPE_LABEL: Record<ImportType, string> = { PRODUCTS: 'Hàng hóa', CUSTOMERS: 'Khách hàng', SUPPLIERS: 'Nhà cung cấp', INVOICES: 'Hóa đơn', PRICEBOOKS: 'Bảng giá', RETURNS: 'Trả hàng', PURCHASES: 'Nhập hàng' };
 export const IMPORT_SOURCE_LABEL: Record<ImportSource, string> = { EXCEL: 'Excel', KIOTVIET_API: 'KiotViet API' };
 export const JOB_STATUS_LABEL: Record<ImportJobStatus, string> = { PREVIEW: 'Đang xem trước', RUNNING: 'Đang chạy', DONE: 'Hoàn thành', FAILED: 'Thất bại' };
 export const JOB_STATUS_COLOR: Record<ImportJobStatus, string> = { PREVIEW: 'default', RUNNING: 'processing', DONE: 'green', FAILED: 'red' };
@@ -39,6 +39,8 @@ export function ResultTiles({ totals, type }: { totals: ImportTotals; type?: Imp
   if (type === 'PRODUCTS' || totals.units !== undefined) tiles.push({ key: 'units', label: 'Đơn vị quy đổi', value: totals.units ?? 0, tone: 'muted' });
   if (type === 'CUSTOMERS' || type === 'SUPPLIERS' || totals.debtAdjusted !== undefined) tiles.push({ key: 'debtAdjusted', label: 'Công nợ điều chỉnh', value: totals.debtAdjusted ?? 0, tone: 'info' });
   if (type === 'RETURNS' || totals.missingInvoices !== undefined) tiles.push({ key: 'missingInvoices', label: 'Thiếu hóa đơn gốc', value: totals.missingInvoices ?? 0, tone: totals.missingInvoices ? 'neg' : 'muted' });
+  if (type === 'PURCHASES' || totals.suppliers !== undefined) tiles.push({ key: 'suppliers', label: 'NCC tạo mới', value: totals.suppliers ?? 0, tone: 'muted' });
+  if ((type === 'PURCHASES' || type === 'INVOICES') && totals.placeholders !== undefined) tiles.push({ key: 'placeholders', label: 'Hàng giữ chỗ', value: totals.placeholders ?? 0, tone: 'muted' });
   if (type === 'PRICEBOOKS' || totals.priceBooks !== undefined) tiles.push({ key: 'priceBooks', label: 'Bảng giá', value: totals.priceBooks ?? 0, tone: 'pos' }, { key: 'items', label: 'Dòng giá', value: totals.items ?? 0, tone: 'info' }, { key: 'unitCodes', label: 'Mã ĐVT bỏ qua', value: totals.unitCodes ?? 0, tone: 'muted' });
   return (
     <div className="ig-tiles">
