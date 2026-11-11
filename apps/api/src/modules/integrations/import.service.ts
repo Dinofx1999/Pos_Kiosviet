@@ -49,7 +49,7 @@ interface Totals { rows: number; created: number; updated: number; skipped: numb
 
 const BATCH = 200;
 /** Biến thể khớp với mã hàng trên dòng KiotViet (sku / mã hàng hóa / mã ĐVT quy đổi). */
-type LineVariant = { id: string; sku: string | null; costPrice: Prisma.Decimal; product: { code: string; baseUnit: string | null } };
+type LineVariant = { id: string; sku: string | null; costPrice: Prisma.Decimal; productId: string; product: { code: string; baseUnit: string | null } };
 const err = (e: unknown) => (e as { response?: { message?: string }; message?: string })?.response?.message ?? (e as Error)?.message ?? String(e);
 
 /** Nhập dữ liệu từ Excel KiotViet (BR-130..BR-133): xem trước → xác nhận; idempotent theo mã (chạy lại = cập nhật). */
@@ -402,23 +402,23 @@ export class ImportService {
 
   /** Mã hàng trên dòng KiotViet (đã hạ chữ thường) → biến thể theo sku / mã hàng hóa (vByCode), hoặc đơn vị quy đổi / alias KiotViet có mã riêng (uByCode: hàng gốc + hệ số). */
   private async resolveLineCodes(codes: string[]) {
-    const variants = codes.length ? await this.prisma.db.productVariant.findMany({ where: { OR: [{ sku: { in: Array.from(new Set(codes)), mode: 'insensitive' } }, { product: { code: { in: Array.from(new Set(codes)), mode: 'insensitive' } } }] }, select: { id: true, sku: true, costPrice: true, product: { select: { code: true, baseUnit: true } } } }) : [];
+    const variants = codes.length ? await this.prisma.db.productVariant.findMany({ where: { OR: [{ sku: { in: Array.from(new Set(codes)), mode: 'insensitive' } }, { product: { code: { in: Array.from(new Set(codes)), mode: 'insensitive' } } }] }, select: { id: true, sku: true, costPrice: true, productId: true, product: { select: { code: true, baseUnit: true } } } }) : [];
     const vByCode = new Map<string, LineVariant>();
     for (const v of variants) { vByCode.set(v.product.code.toLowerCase(), v); if (v.sku) vByCode.set(v.sku.toLowerCase(), v); }
     // KiotViet bán theo đơn vị quy đổi bằng mã riêng của ĐVT (1 miếng trong hộp 10, 1 tuýp trong set 3…) → dòng thuộc hàng gốc,
     // số lượng gốc = SL × hệ số quy đổi; không tạo hàng giữ chỗ cho những mã này
     const uniqCodes = Array.from(new Set(codes));
-    const unitRows = uniqCodes.length ? await this.prisma.db.productUnit.findMany({ where: { OR: [{ sku: { in: uniqCodes, mode: 'insensitive' } }, { barcode: { in: uniqCodes, mode: 'insensitive' } }] }, select: { id: true, unitName: true, conversionFactor: true, sku: true, barcode: true, product: { select: { code: true, baseUnit: true, variants: { where: { deletedAt: null }, orderBy: { createdAt: 'asc' }, take: 1, select: { id: true, sku: true, costPrice: true } } } } } }) : [];
+    const unitRows = uniqCodes.length ? await this.prisma.db.productUnit.findMany({ where: { OR: [{ sku: { in: uniqCodes, mode: 'insensitive' } }, { barcode: { in: uniqCodes, mode: 'insensitive' } }] }, select: { id: true, unitName: true, conversionFactor: true, sku: true, barcode: true, product: { select: { code: true, baseUnit: true, variants: { where: { deletedAt: null }, orderBy: { createdAt: 'asc' }, take: 1, select: { id: true, sku: true, costPrice: true, productId: true } } } } } }) : [];
     const uByCode = new Map<string, { unitId: string | null; unitName: string | null; factor: Prisma.Decimal; variant: LineVariant }>();
     for (const u of unitRows) {
       const base = u.product.variants[0];
       if (!base) continue;
-      const entry = { unitId: u.id, unitName: u.unitName, factor: D(u.conversionFactor), variant: { id: base.id, sku: base.sku, costPrice: base.costPrice, product: { code: u.product.code, baseUnit: u.product.baseUnit } } as LineVariant };
+      const entry = { unitId: u.id, unitName: u.unitName, factor: D(u.conversionFactor), variant: { id: base.id, sku: base.sku, costPrice: base.costPrice, productId: base.productId, product: { code: u.product.code, baseUnit: u.product.baseUnit } } as LineVariant };
       if (u.sku) uByCode.set(u.sku.toLowerCase(), entry);
       if (u.barcode) uByCode.set(u.barcode.toLowerCase(), entry);
     }
-    const aliases = uniqCodes.length ? await this.prisma.db.importCodeAlias.findMany({ where: { source: 'KIOTVIET', code: { in: uniqCodes } }, select: { code: true, productUnitId: true, unitName: true, factor: true, variant: { select: { id: true, sku: true, costPrice: true, deletedAt: true, product: { select: { code: true, baseUnit: true } } } } } }) : [];
-    for (const a of aliases) if (!a.variant.deletedAt) uByCode.set(a.code, { unitId: a.productUnitId, unitName: a.unitName, factor: D(a.factor), variant: { id: a.variant.id, sku: a.variant.sku, costPrice: a.variant.costPrice, product: a.variant.product } as LineVariant });
+    const aliases = uniqCodes.length ? await this.prisma.db.importCodeAlias.findMany({ where: { source: 'KIOTVIET', code: { in: uniqCodes } }, select: { code: true, productUnitId: true, unitName: true, factor: true, variant: { select: { id: true, sku: true, costPrice: true, deletedAt: true, productId: true, product: { select: { code: true, baseUnit: true } } } } } }) : [];
+    for (const a of aliases) if (!a.variant.deletedAt) uByCode.set(a.code, { unitId: a.productUnitId, unitName: a.unitName, factor: D(a.factor), variant: { id: a.variant.id, sku: a.variant.sku, costPrice: a.variant.costPrice, productId: a.variant.productId, product: a.variant.product } as LineVariant });
     return { vByCode, uByCode };
   }
 
@@ -452,7 +452,7 @@ export class ImportService {
             const created = await this.products.create(user, dto);
             await this.products.update(user, created.id, plainToInstance(UpdateProductDto, { isActive: false }));
             const v = created.variants[0] as unknown as { id: string; sku: string; costPrice: Prisma.Decimal };
-            vByCode.set(lc, { id: v.id, sku: v.sku, costPrice: D(v.costPrice ?? 0), product: { code: created.code, baseUnit: created.baseUnit ?? null } } as LineVariant);
+            vByCode.set(lc, { id: v.id, sku: v.sku, costPrice: D(v.costPrice ?? 0), productId: created.id, product: { code: created.code, baseUnit: created.baseUnit ?? null } } as LineVariant);
             totals.placeholders = (totals.placeholders ?? 0) + 1;
           } catch (e) { errors.push({ row: 0, code: lc, error: `Không tạo được hàng giữ chỗ: ${err(e)}` }); }
         }
@@ -529,12 +529,12 @@ export class ImportService {
     const groups = new Map<string, RawRow[]>();
     for (const r of rows) { const c = safeCode(get(r, 'code')); if (!c) { totals.skipped++; continue; } (groups.get(c) ?? groups.set(c, []).get(c)!).push(r); }
     const invoiceCodes = Array.from(new Set(Array.from(groups.values()).map((g) => safeCode(get(g[0], 'invoiceCode'))).filter(Boolean)));
-    type InvLine = { id: string; variantId: string; unitName: string | null; quantity: Prisma.Decimal; returnedQuantity: Prisma.Decimal; unitPrice: Prisma.Decimal; unitCost: Prisma.Decimal };
+    type InvLine = { id: string; variantId: string; unitName: string | null; quantity: Prisma.Decimal; returnedQuantity: Prisma.Decimal; unitPrice: Prisma.Decimal; lineTotal: Prisma.Decimal; unitCost: Prisma.Decimal; variant: { productId: string } };
     type Inv = { id: string; code: string; externalRef: string | null; branchId: string; warehouseId: string; customerId: string | null; totalAmount: Prisma.Decimal; returnedAmount: Prisma.Decimal; lines: InvLine[] };
     const invByCode = new Map<string, Inv>();
     for (let i = 0; i < invoiceCodes.length; i += 2000) {
       const chunk = invoiceCodes.slice(i, i + 2000);
-      const found: Inv[] = await this.prisma.db.invoice.findMany({ where: { OR: [{ externalRef: { in: chunk } }, { code: { in: chunk, mode: 'insensitive' } }, { code: { in: chunk.map((c) => `KV-${c}`) } }] }, select: { id: true, code: true, externalRef: true, branchId: true, warehouseId: true, customerId: true, totalAmount: true, returnedAmount: true, lines: { orderBy: { lineNo: 'asc' }, select: { id: true, variantId: true, unitName: true, quantity: true, returnedQuantity: true, unitPrice: true, unitCost: true } } } });
+      const found: Inv[] = await this.prisma.db.invoice.findMany({ where: { OR: [{ externalRef: { in: chunk } }, { code: { in: chunk, mode: 'insensitive' } }, { code: { in: chunk.map((c) => `KV-${c}`) } }] }, select: { id: true, code: true, externalRef: true, branchId: true, warehouseId: true, customerId: true, totalAmount: true, returnedAmount: true, lines: { orderBy: { lineNo: 'asc' }, select: { id: true, variantId: true, unitName: true, quantity: true, returnedQuantity: true, unitPrice: true, lineTotal: true, unitCost: true, variant: { select: { productId: true } } } } } });
       for (const inv of found) { if (inv.externalRef) invByCode.set(inv.externalRef.toLowerCase(), inv); invByCode.set(inv.code.toLowerCase(), inv); if (inv.code.startsWith('KV-')) invByCode.set(inv.code.slice(3).toLowerCase(), inv); }
     }
     const codes = Array.from(groups.values()).flatMap((g) => g.map((r) => safeCode(get(r, 'lineCode')).toLowerCase()).filter(Boolean));
@@ -578,11 +578,14 @@ export class ImportService {
           const wantUnit = unit?.unitName ?? v?.product.baseUnit ?? null;
           const rowNo = r.__row ?? i + 1;
           let candidates = v ? inv.lines.filter((l) => l.variantId === v.id) : [];
+          // cùng hàng hóa nhưng khác biến thể (mã hàng trỏ tới biến thể khác của cùng sản phẩm)
+          if (!candidates.length && v) candidates = inv.lines.filter((l) => l.variant.productId === v.productId && remaining(l).gte(quantity));
           // mã không còn trong danh mục, mã ĐVT quy đổi hoặc hàng giữ chỗ đã sửa lại sang hàng gốc → dòng hóa đơn mang biến thể khác:
-          // khớp theo giá bán còn số lượng chưa trả, hoặc hóa đơn chỉ có một dòng; dòng trả mang biến thể của dòng hóa đơn
+          // khớp theo giá bán (đơn giá hoặc giá sau giảm = thành tiền / SL) còn số lượng chưa trả, hoặc hóa đơn chỉ có một dòng; dòng trả mang biến thể của dòng hóa đơn
           if (!candidates.length) {
             const price = parseNumber(get(r, 'linePrice'));
-            candidates = price !== null ? inv.lines.filter((l) => D(l.unitPrice).eq(money(price)) && remaining(l).gte(quantity)) : [];
+            const effective = (l: InvLine) => (D(l.quantity).gt(0) ? money(D(l.lineTotal).div(D(l.quantity))) : D(l.unitPrice));
+            candidates = price !== null ? inv.lines.filter((l) => (D(l.unitPrice).eq(money(price)) || effective(l).eq(money(price))) && remaining(l).gte(quantity)) : [];
             if (!candidates.length && inv.lines.length === 1) candidates = inv.lines;
           }
           if (!candidates.length) throw new Error(v ? `Dòng ${rowNo}: hàng ${get(r, 'lineCode')} không có trong hóa đơn ${invCode}` : `Dòng ${rowNo}: không tìm thấy hàng ${get(r, 'lineCode') || get(r, 'lineName')} và không khớp được dòng nào của hóa đơn ${invCode}`);
