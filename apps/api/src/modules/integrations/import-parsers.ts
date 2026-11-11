@@ -7,7 +7,7 @@ import { Errors } from '../../common/errors/app-error';
  * common export layouts ("Danh sách hàng hóa", "Danh sách khách hàng", "Nhà cung cấp", "Danh sách hóa đơn") map automatically;
  * the user can still override any column in the preview step.
  */
-export type ImportEntity = 'PRODUCTS' | 'CUSTOMERS' | 'SUPPLIERS' | 'INVOICES' | 'PRICEBOOKS';
+export type ImportEntity = 'PRODUCTS' | 'CUSTOMERS' | 'SUPPLIERS' | 'INVOICES' | 'PRICEBOOKS' | 'RETURNS';
 export type RawRow = Record<string, string>;
 export interface ParsedSheet { sheet: string; headers: string[]; rows: RawRow[]; headerRow: number }
 export interface FieldSpec { key: string; label: string; aliases: string[]; required?: boolean }
@@ -91,6 +91,31 @@ export const FIELDS: Record<ImportEntity, FieldSpec[]> = {
     { key: 'lineTotal', label: 'Thành tiền', aliases: ['thanh tien', 'line total'] },
   ],
   // bảng giá (Thiết lập giá KiotViet): mỗi cột giá không khớp trường nào ở đây = một bảng giá, tiêu đề cột = tên bảng giá
+  // Giao dịch → Trả hàng → Xuất file (chi tiết): một dòng = một mặt hàng trả, thông tin phiếu lặp lại trên từng dòng
+  RETURNS: [
+    { key: 'code', label: 'Mã trả hàng', aliases: ['ma tra hang', 'ma phieu tra', 'ma phieu tra hang', 'ma phieu', 'return code'], required: true },
+    { key: 'date', label: 'Thời gian', aliases: ['thoi gian', 'ngay', 'ngay tra', 'ngay tao', 'date'] },
+    { key: 'invoiceCode', label: 'Mã hóa đơn', aliases: ['ma hoa don', 'ma hd', 'hoa don', 'invoice code'] },
+    { key: 'customerCode', label: 'Mã khách hàng', aliases: ['ma khach hang', 'ma kh'] },
+    { key: 'customerName', label: 'Khách hàng', aliases: ['khach hang', 'ten khach hang', 'ten khach'] },
+    { key: 'branch', label: 'Chi nhánh', aliases: ['chi nhanh', 'branch'] },
+    { key: 'seller', label: 'Người nhận trả', aliases: ['nguoi nhan tra', 'nguoi nhan', 'nguoi tao', 'nhan vien'] },
+    { key: 'subtotal', label: 'Tổng tiền hàng trả', aliases: ['tong tien hang tra', 'tong tien hang', 'tien hang tra', 'tien hang'] },
+    { key: 'discount', label: 'Giảm giá', aliases: ['giam gia phieu tra', 'giam gia'] },
+    { key: 'fee', label: 'Phí trả hàng', aliases: ['phi tra hang', 'phi'] },
+    { key: 'total', label: 'Cần trả khách', aliases: ['can tra khach', 'tong tien tra khach', 'tien tra khach', 'tong cong', 'total'] },
+    { key: 'paid', label: 'Đã trả khách', aliases: ['da tra khach', 'da hoan', 'da thanh toan', 'paid'] },
+    { key: 'method', label: 'Phương thức', aliases: ['phuong thuc', 'phuong thuc thanh toan', 'hinh thuc', 'payment method'] },
+    { key: 'status', label: 'Trạng thái', aliases: ['trang thai', 'status'] },
+    { key: 'reason', label: 'Lý do', aliases: ['ly do', 'ly do tra', 'reason'] },
+    { key: 'note', label: 'Ghi chú', aliases: ['ghi chu', 'note'] },
+    { key: 'lineCode', label: 'Mã hàng (dòng)', aliases: ['ma hang', 'ma hang hoa', 'ma sp'] },
+    { key: 'lineName', label: 'Tên hàng (dòng)', aliases: ['ten hang', 'ten hang hoa'] },
+    { key: 'lineQty', label: 'Số lượng', aliases: ['so luong', 'sl', 'so luong tra', 'quantity'] },
+    { key: 'linePrice', label: 'Giá trả lại', aliases: ['gia tra lai', 'gia tra', 'don gia', 'gia ban', 'price'] },
+    { key: 'lineDiscount', label: 'Giảm giá (dòng)', aliases: ['giam gia dong', 'ck dong', 'giam gia sp'] },
+    { key: 'lineTotal', label: 'Thành tiền', aliases: ['thanh tien', 'line total'] },
+  ],
   PRICEBOOKS: [
     { key: 'code', label: 'Mã hàng', aliases: ['ma hang', 'ma hang hoa', 'ma sp', 'ma san pham', 'code', 'sku'], required: true },
     { key: 'name', label: 'Tên hàng', aliases: ['ten hang', 'ten hang hoa', 'ten san pham', 'name'] },

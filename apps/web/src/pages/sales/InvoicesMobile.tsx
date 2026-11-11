@@ -14,11 +14,11 @@ import { paymentLabel } from './InvoiceShared';
 import './sales-mobile.css';
 
 const PAGE = 30;
-type PeriodKey = 'today' | 'yesterday' | 'week' | 'month' | 'lastMonth' | 'all' | 'custom';
-const PERIOD_LABEL: Record<PeriodKey, string> = { today: 'Hôm nay', yesterday: 'Hôm qua', week: 'Tuần này', month: 'Tháng này', lastMonth: 'Tháng trước', all: 'Toàn thời gian', custom: 'Tùy chọn…' };
-const PERIOD_KEYS: PeriodKey[] = ['today', 'yesterday', 'week', 'month', 'lastMonth', 'all', 'custom'];
+export type PeriodKey = 'today' | 'yesterday' | 'week' | 'month' | 'lastMonth' | 'all' | 'custom';
+export const PERIOD_LABEL: Record<PeriodKey, string> = { today: 'Hôm nay', yesterday: 'Hôm qua', week: 'Tuần này', month: 'Tháng này', lastMonth: 'Tháng trước', all: 'Toàn thời gian', custom: 'Tùy chọn…' };
+export const PERIOD_KEYS: PeriodKey[] = ['today', 'yesterday', 'week', 'month', 'lastMonth', 'all', 'custom'];
 /** Khoảng thời gian của chip lọc (tuần bắt đầu thứ Hai). */
-function periodRange(k: PeriodKey, custom: [Dayjs, Dayjs] | null): { from?: string; to?: string } {
+export function periodRange(k: PeriodKey, custom: [Dayjs, Dayjs] | null): { from?: string; to?: string } {
   const now = dayjs();
   const day = (d: Dayjs) => ({ from: d.startOf('day').toISOString(), to: d.endOf('day').toISOString() });
   switch (k) {
@@ -41,7 +41,7 @@ type Metric = 'subtotal' | 'total' | 'paid' | 'due';
 const METRIC_LABEL: Record<Metric, string> = { subtotal: 'Tổng tiền hàng', total: 'Khách cần trả', paid: 'Khách đã trả', due: 'Còn nợ' };
 const WEEKDAY = ['CHỦ NHẬT', 'THỨ HAI', 'THỨ BA', 'THỨ TƯ', 'THỨ NĂM', 'THỨ SÁU', 'THỨ BẢY'];
 /** "HÔM NAY 10/11/2026" · "HÔM QUA 09/11/2026" · "THỨ HAI 03/11/2026" */
-function dayLabel(d: Dayjs) {
+export function dayLabel(d: Dayjs) {
   const diff = dayjs().startOf('day').diff(d.startOf('day'), 'day');
   return `${diff === 0 ? 'HÔM NAY' : diff === 1 ? 'HÔM QUA' : WEEKDAY[d.day()]} ${d.format('DD/MM/YYYY')}`;
 }

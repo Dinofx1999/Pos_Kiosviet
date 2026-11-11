@@ -25,6 +25,10 @@ export function ReconcileTiles({ data }: { data: Reconcile }) {
       { label: 'Số hóa đơn', value: qty(data.importedInvoices.count) }, { label: 'Doanh thu', value: money(data.importedInvoices.revenue) },
       { label: 'Khoảng ngày', value: data.importedInvoices.first ? `${d(data.importedInvoices.first)} → ${d(data.importedInvoices.last)}` : '—' },
     ] },
+    { title: 'Trả hàng lịch sử', hint: 'KiotViet: Giao dịch → Trả hàng (cùng khoảng ngày)', items: [
+      { label: 'Số phiếu trả', value: qty(data.importedReturns?.count ?? 0) }, { label: 'Tiền trả khách', value: money(data.importedReturns?.refund ?? 0) },
+      { label: 'Khoảng ngày', value: data.importedReturns?.first ? `${d(data.importedReturns.first)} → ${d(data.importedReturns.last)}` : '—' },
+    ] },
   ];
   return (
     <div className="ig-recon">

@@ -19,8 +19,8 @@ import { ImportService } from '../modules/integrations/import.service';
 const arg = (name: string) => { const i = process.argv.indexOf(`--${name}`); return i >= 0 ? process.argv[i + 1] : undefined; };
 
 async function main() {
-  const tenantCode = arg('tenant'); const type = arg('type') as 'PRODUCTS' | 'CUSTOMERS' | 'SUPPLIERS' | 'INVOICES' | 'PRICEBOOKS'; const file = arg('file');
-  if (!tenantCode || !type || !file) throw new Error('Cần --tenant, --type (PRODUCTS|CUSTOMERS|SUPPLIERS|INVOICES|PRICEBOOKS) và --file');
+  const tenantCode = arg('tenant'); const type = arg('type') as 'PRODUCTS' | 'CUSTOMERS' | 'SUPPLIERS' | 'INVOICES' | 'PRICEBOOKS' | 'RETURNS'; const file = arg('file');
+  if (!tenantCode || !type || !file) throw new Error('Cần --tenant, --type (PRODUCTS|CUSTOMERS|SUPPLIERS|INVOICES|PRICEBOOKS|RETURNS) và --file');
   const options = arg('options') ? JSON.parse(arg('options')!) : {};
   const dryRun = process.argv.includes('--dry-run');
   process.env.OUTBOX_DISABLED = 'true'; // tiến trình API chính đã chạy bộ phát sự kiện

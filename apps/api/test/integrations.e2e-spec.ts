@@ -184,6 +184,60 @@ describe('KiotViet migration: Excel importers, API connector, reconciliation (Mo
     expect(Number(rec.body.stock.value)).toBeGreaterThan(0);
   });
 
+  it('T-229 returns history: linked to the imported invoice, lines matched by product code, returned quantity updated, no stock / cash effects, cancelled kept, missing invoice reported, idempotent', async () => {
+    const inv = (await t.http().get(`${api}/invoices`).set(s.auth).query({ search: 'KV-HD004501' })).body.data[0];
+    const detail = (await t.http().get(`${api}/invoices/${inv.id}`).set(s.auth)).body;
+    const onHandBefore = (await balanceOf(t, s, detail.lines[0].variantId)).onHand;
+    const ret = await xlsx(['Mã trả hàng', 'Thời gian', 'Mã hóa đơn', 'Khách hàng', 'Chi nhánh', 'Tổng tiền hàng trả', 'Phí trả hàng', 'Cần trả khách', 'Đã trả khách', 'Phương thức', 'Trạng thái', 'Mã hàng', 'Tên hàng', 'Số lượng', 'Giá trả lại', 'Thành tiền'], [
+      ['TH000901', '25/09/2026 10:00', 'HD004501', 'Nguyễn Thị Hoa', 'Chi nhánh trung tâm', '350.000', '0', '350.000', '350.000', 'Tiền mặt', 'Hoàn thành', 'SP000101', 'Serum Vitamin C 30ml', '1', '350.000', '350.000'],
+      ['TH000902', '26/09/2026 11:00', 'HD004501', 'Nguyễn Thị Hoa', 'Chi nhánh trung tâm', '189.000', '0', '189.000', '0', '', 'Đã hủy', 'SP000102', 'Son lì đỏ', '1', '189.000', '189.000'],
+      ['TH000903', '27/09/2026 09:00', 'HD-KHONG-CO', 'Khách lẻ', 'Chi nhánh trung tâm', '99.000', '0', '99.000', '99.000', 'Tiền mặt', 'Hoàn thành', 'SP000101', 'Serum Vitamin C 30ml', '1', '99.000', '99.000'],
+    ]);
+    const pv = await preview('RETURNS', ret, { defaultBranchId: s.branchId });
+    expect(pv.body.mapping.code).toBe('Mã trả hàng');
+    expect(pv.body.mapping.invoiceCode).toBe('Mã hóa đơn');
+    expect(pv.body.mapping.linePrice).toBe('Giá trả lại');
+    const done = await commit(pv.body.jobId);
+    expect(done.status).toBe(200);
+    expect(done.body.created).toBe(2);
+    expect(done.body.failed).toBe(1);
+    expect(done.body.missingInvoices).toBe(1);
+    expect(done.body.errors[0].error).toContain('HD-KHONG-CO');
+    const list = await t.http().get(`${api}/sales-returns`).set(s.auth).query({ search: 'KV-TH000901' });
+    expect(list.body.data).toHaveLength(1);
+    const r = list.body.data[0];
+    expect(r).toMatchObject({ status: 'COMPLETED', totalRefund: '350000', refundedAmount: '350000', dueRefund: '0' });
+    expect(r.invoice.code).toBe('KV-HD004501');
+    expect(r.customer.code).toBe('KH000501');
+    expect(r.firstLine.name).toContain('Serum');
+    expect(r.returnDate).toContain('2026-09-25');
+    expect(list.body.summary).toMatchObject({ count: 1, refund: '350000', refunded: '350000', due: '0' });
+    const rd = await t.http().get(`${api}/sales-returns/${r.id}`).set(s.auth);
+    expect(rd.body.lines).toHaveLength(1);
+    expect(rd.body.lines[0].quantity).toBe('1');
+    expect(rd.body.movements).toEqual([]);
+    expect(rd.body.refunds).toEqual([]);
+    expect(rd.body.note).toContain('Tiền mặt');
+    // phiếu hủy vẫn được giữ để tra cứu, không tính vào số đã trả
+    expect((await t.http().get(`${api}/sales-returns`).set(s.auth).query({ search: 'KV-TH000902', status: 'CANCELLED' })).body.data).toHaveLength(1);
+    // hóa đơn gốc: serum đã trả 1/2, son còn nguyên 1 → số còn được trả đúng như KiotViet
+    const able = (await t.http().get(`${api}/sales-returns/returnable/${inv.id}`).set(s.auth)).body;
+    expect(able.invoice.returnedAmount).toBe('350000');
+    const q = Object.fromEntries(able.lines.map((l: { quantity: string; returnableQuantity: string }) => [l.quantity, l.returnableQuantity]));
+    expect(q['2']).toBe('1');
+    expect(q['1']).toBe('1');
+    // lịch sử không động tồn kho
+    expect((await balanceOf(t, s, detail.lines[0].variantId)).onHand).toBe(onHandBefore);
+    // chạy lại: bỏ qua mã đã có, dòng thiếu hóa đơn vẫn báo lỗi
+    const again = await commit((await preview('RETURNS', ret, { defaultBranchId: s.branchId })).body.jobId);
+    expect(again.body.created).toBe(0);
+    expect(again.body.skipped).toBe(2);
+    expect(again.body.failed).toBe(1);
+    const rec = await t.http().get(`${api}/integrations/reconcile`).set(s.auth);
+    expect(rec.body.importedReturns.count).toBe(2);
+    expect(rec.body.importedReturns.refund).toBe('350000');
+  });
+
   it('T-223 KiotViet API connector: credentials stored encrypted, test lists branches, import pulls products/customers/suppliers/invoices through the same pipeline, auth failure reported', async () => {
     // a tiny stand-in for id.kiotviet.vn + public.kiotapi.com
     const calls: string[] = [];

@@ -12,9 +12,15 @@ import { useIsMobile } from '../../hooks/useMedia';
 import { useAuthStore, useCan } from '../../store/auth';
 import { dt, money, toNum } from '../../utils/format';
 import { RETURN_STATUS_COLOR, RETURN_STATUS_LABEL, SalesReturnDetail } from './SalesReturnShared';
+import { SalesReturnsMobile } from './SalesReturnsMobile';
+
+/** Trả hàng: điện thoại → danh sách kiểu app KiotViet (SalesReturnsMobile); máy tính → bảng + bộ lọc bên trái. */
+export default function SalesReturnsPage() {
+  return useIsMobile() ? <SalesReturnsMobile /> : <SalesReturnsDesktop />;
+}
 
 /** KiotViet "Trả hàng": list of sales returns / exchanges with filters, summary strip and expandable detail. */
-export default function SalesReturnsPage() {
+function SalesReturnsDesktop() {
   const can = useCan();
   const nav = useNavigate();
   const [sp] = useSearchParams();

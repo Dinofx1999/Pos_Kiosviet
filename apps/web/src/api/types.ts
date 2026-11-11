@@ -163,7 +163,10 @@ export interface SalesReturn {
   customer?: { id: string; code: string; name: string; phone?: string | null } | null; invoice?: { id: string; code: string; invoiceDate?: string; totalAmount?: string; customerId?: string | null } | null;
   exchangeInvoice?: { id: string; code: string; totalAmount?: string; paidAmount?: string; status?: string } | null; branch?: { id: string; code?: string; name: string }; warehouse?: { id: string; code?: string; name: string };
   lines?: SalesReturnLine[]; refunds?: SalesReturnRefund[]; movements?: Movement[]; _count?: { lines: number };
+  /** danh sách: dòng đầu tiên + phương thức hoàn tiền (phiếu chi đã ghi sổ) */
+  firstLine?: { name: string; quantity: string; unitName?: string | null } | null; paymentMethods?: string[];
 }
+export interface ReturnSummary { count: number; subtotal: string; refund: string; refunded: string; due: string }
 export interface ReturnableLine extends InvoiceLine { returnableQuantity: string; refundUnitPrice: string }
 export interface Returnable { invoice: { id: string; code: string; invoiceDate: string; totalAmount: string; returnedAmount: string; customer?: { id: string; code: string; name: string; phone?: string | null } | null; branchId: string; warehouseId: string }; lines: ReturnableLine[]; maxRefund: string }
 export interface ExchangeSettlement { returnValue: string; newTotal: string; offset: string; customerPays: string; refundDue: string }

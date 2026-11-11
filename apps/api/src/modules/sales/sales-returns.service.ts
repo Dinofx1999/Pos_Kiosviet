@@ -55,12 +55,29 @@ export class SalesReturnsService {
       ...(q.search ? { OR: [{ code: { contains: q.search, mode: 'insensitive' } }, { invoice: { code: { contains: q.search, mode: 'insensitive' } } }, { customer: { OR: [{ name: { contains: q.search, mode: 'insensitive' } }, { phone: { contains: q.search } }] } }] } : {}),
     };
     const where: Prisma.SalesReturnWhereInput = { AND: [this.access.branchWhere(user), filters] };
-    const [rows, total] = await Promise.all([
-      this.prisma.db.salesReturn.findMany({ where, include: { customer: { select: { id: true, code: true, name: true } }, invoice: { select: { id: true, code: true } }, exchangeInvoice: { select: { id: true, code: true } }, branch: { select: { id: true, name: true } }, _count: { select: { lines: true } } }, ...skipTake(q), orderBy: orderBy(q, ['returnDate', 'createdAt', 'code', 'totalRefund', 'status'], 'returnDate') }),
+    // tổng theo kết quả lọc (bỏ phiếu đã hủy trừ khi lọc đúng trạng thái đó) – app điện thoại hiện "Tổng tiền hàng / Cần trả khách / Đã trả / Còn phải trả"
+    const summaryWhere: Prisma.SalesReturnWhereInput = q.status ? where : { AND: [where, { status: { not: 'CANCELLED' } }] };
+    const [rows, total, agg] = await Promise.all([
+      this.prisma.db.salesReturn.findMany({ where, include: { customer: { select: { id: true, code: true, name: true } }, invoice: { select: { id: true, code: true } }, exchangeInvoice: { select: { id: true, code: true } }, branch: { select: { id: true, name: true } }, _count: { select: { lines: true } }, lines: { take: 1, orderBy: { lineNo: 'asc' }, select: { quantity: true, unitName: true, variant: { select: { name: true, product: { select: { baseUnit: true } } } } } } }, ...skipTake(q), orderBy: orderBy(q, ['returnDate', 'createdAt', 'code', 'totalRefund', 'status'], 'returnDate') }),
       this.prisma.db.salesReturn.count({ where }),
+      this.prisma.db.salesReturn.aggregate({ where: summaryWhere, _count: true, _sum: { subtotal: true, totalRefund: true, refundedAmount: true } }),
     ]);
+    const methods = await this.refundMethods(rows.map((r) => r.id));
     const canCost = user.permissions.has('*') || user.permissions.has('sales.report.view');
-    return paginated(rows.map((r) => ({ ...r, dueRefund: D(r.totalRefund).minus(D(r.refundedAmount)), restockValue: canCost ? r.restockValue : undefined, damagedValue: canCost ? r.damagedValue : undefined })), total, q);
+    const sum = { subtotal: agg._sum.subtotal ?? ZERO, refund: agg._sum.totalRefund ?? ZERO, refunded: agg._sum.refundedAmount ?? ZERO };
+    return {
+      ...paginated(rows.map((r) => { const { lines, ...rest } = r; const first = lines[0]; return { ...rest, dueRefund: D(r.totalRefund).minus(D(r.refundedAmount)), restockValue: canCost ? r.restockValue : undefined, damagedValue: canCost ? r.damagedValue : undefined, firstLine: first ? { name: first.variant.name, quantity: first.quantity, unitName: first.unitName ?? first.variant.product.baseUnit } : null, paymentMethods: methods.get(r.id) ?? [] }; }), total, q),
+      summary: { count: agg._count, ...sum, due: D(sum.refund).minus(D(sum.refunded)) },
+    };
+  }
+
+  /** Phương thức hoàn tiền của từng phiếu (phiếu chi đã ghi sổ phân bổ vào phiếu trả) – hiện trên danh sách điện thoại. */
+  private async refundMethods(ids: string[]) {
+    const m = new Map<string, string[]>();
+    if (!ids.length) return m;
+    const allocs = await this.prisma.db.paymentAllocation.findMany({ where: { documentType: 'SALES_RETURN', documentId: { in: ids }, payment: { status: 'POSTED' } }, select: { documentId: true, payment: { select: { method: true } } } });
+    for (const a of allocs) { const arr = m.get(a.documentId) ?? []; if (!arr.includes(a.payment.method)) arr.push(a.payment.method); m.set(a.documentId, arr); }
+    return m;
   }
 
   async get(user: RequestUser, id: string) {

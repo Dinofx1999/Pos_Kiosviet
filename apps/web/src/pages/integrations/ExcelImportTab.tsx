@@ -1,6 +1,6 @@
 import { Alert, App, Button, Card, DatePicker, Empty, Select, Spin, Steps, Switch, Tag, Upload } from 'antd';
 import Table from '../../components/ResponsiveTable';
-import { ArrowLeftOutlined, CheckCircleOutlined, FileExcelOutlined, InboxOutlined, ReloadOutlined, ShopOutlined, SolutionOutlined, TagsOutlined, TeamOutlined, UploadOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, CheckCircleOutlined, FileExcelOutlined, InboxOutlined, ReloadOutlined, RollbackOutlined, ShopOutlined, SolutionOutlined, TagsOutlined, TeamOutlined, UploadOutlined } from '@ant-design/icons';
 import type { Dayjs } from 'dayjs';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
@@ -19,6 +19,7 @@ const TYPE_META: Record<ImportType, TypeMeta> = {
   SUPPLIERS: { icon: <SolutionOutlined />, path: 'Đối tác → Nhà cung cấp → Xuất file', hint: 'Trong KiotViet vào Đối tác → Nhà cung cấp, bấm Xuất file. Cột "Nợ cần trả hiện tại" sẽ được đưa vào công nợ đầu kỳ.' },
   INVOICES: { icon: <FileExcelOutlined />, path: 'Giao dịch → Hóa đơn → Xuất file', hint: 'Trong KiotViet vào Giao dịch → Hóa đơn, chọn khoảng thời gian rồi bấm Xuất file (chọn "Xuất file chi tiết" để có dòng hàng hóa). Hãy nhập Hàng hóa và Khách hàng trước.' },
   PRICEBOOKS: { icon: <TagsOutlined />, path: 'Hàng hóa → Thiết lập giá → Xuất file', hint: 'Trong KiotViet vào Hàng hóa → Thiết lập giá, chọn các bảng giá cần lấy rồi bấm Xuất file. Mỗi cột giá trong file (tiêu đề = tên bảng giá) thành một bảng giá ở đây; chạy lại sẽ thay toàn bộ giá của bảng đó. Bảng giá "tự tính theo %" được lưu thành giá cụ thể. Hãy nhập Hàng hóa trước.' },
+  RETURNS: { icon: <RollbackOutlined />, path: 'Giao dịch → Trả hàng → Xuất file', hint: 'Trong KiotViet vào Giao dịch → Trả hàng, chọn khoảng thời gian rồi bấm Xuất file (chọn "Xuất file chi tiết" để có dòng hàng hóa). Nhập lịch sử hóa đơn trước: mỗi phiếu trả được gắn vào hóa đơn gốc theo mã, cộng vào số lượng đã trả của hóa đơn; không ghi kho, sổ quỹ hay công nợ.' },
 };
 /** Which mapped fields a phone preview card shows. */
 const CARD_FIELDS: Record<ImportType, string[]> = {
@@ -27,6 +28,7 @@ const CARD_FIELDS: Record<ImportType, string[]> = {
   SUPPLIERS: ['code', 'name', 'phone', 'debt'],
   INVOICES: ['code', 'date', 'customerName', 'total', 'lineCode', 'lineQty'],
   PRICEBOOKS: ['code', 'name', 'basePrice'],
+  RETURNS: ['code', 'date', 'invoiceCode', 'customerName', 'total', 'lineCode', 'lineQty'],
 };
 const TYPES = Object.keys(TYPE_META) as ImportType[];
 
@@ -60,7 +62,7 @@ export function ExcelImportTab() {
   const file = fileList[0]?.originFileObj as File | undefined;
   const baseOptions = (): ImportOptions => {
     if (type === 'PRODUCTS') return { defaultWarehouseId: opts.defaultWarehouseId, importStock: opts.importStock, updateExisting: opts.updateExisting };
-    if (type === 'INVOICES') return { defaultBranchId: opts.defaultBranchId, invoicesFrom: opts.invoicesFrom ? opts.invoicesFrom.startOf('day').toISOString() : undefined, updateExisting: opts.updateExisting };
+    if (type === 'INVOICES' || type === 'RETURNS') return { defaultBranchId: opts.defaultBranchId, invoicesFrom: opts.invoicesFrom ? opts.invoicesFrom.startOf('day').toISOString() : undefined, updateExisting: opts.updateExisting };
     if (type === 'PRICEBOOKS') return { updateExisting: opts.updateExisting, updateBasePrice: !!opts.updateBasePrice };
     return { syncDebt: opts.syncDebt, updateExisting: opts.updateExisting };
   };
@@ -162,12 +164,12 @@ export function ExcelImportTab() {
                   </OptRow>
                 </>
               )}
-              {type === 'INVOICES' && (
+              {(type === 'INVOICES' || type === 'RETURNS') && (
                 <>
                   <OptRow label="Chi nhánh mặc định" hint="Dùng khi file không có cột Chi nhánh hoặc tên không khớp.">
                     <Select value={opts.defaultBranchId} onChange={(v) => setOpts({ ...opts, defaultBranchId: v })} options={branches.map((b) => ({ value: b.id, label: b.name }))} placeholder="Chọn chi nhánh" style={{ width: '100%' }} />
                   </OptRow>
-                  <OptRow label="Bỏ qua hóa đơn trước ngày" hint="Để trống để nhập toàn bộ.">
+                  <OptRow label={type === 'RETURNS' ? 'Bỏ qua phiếu trả trước ngày' : 'Bỏ qua hóa đơn trước ngày'} hint="Để trống để nhập toàn bộ.">
                     <DatePicker value={opts.invoicesFrom ?? null} onChange={(v) => setOpts({ ...opts, invoicesFrom: v })} format="DD/MM/YYYY" style={{ width: '100%' }} placeholder="Không giới hạn" allowClear />
                   </OptRow>
                 </>

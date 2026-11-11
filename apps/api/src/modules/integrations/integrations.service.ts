@@ -13,7 +13,7 @@ const keyOf = () => createHash('sha256').update(process.env.APP_ENCRYPTION_KEY ?
 export const encryptSecret = (plain: string) => { const iv = randomBytes(12); const c = createCipheriv('aes-256-gcm', keyOf(), iv); const enc = Buffer.concat([c.update(plain, 'utf8'), c.final()]); return [iv, c.getAuthTag(), enc].map((b) => b.toString('base64')).join(':'); };
 export const decryptSecret = (packed: string) => { const [iv, tag, enc] = packed.split(':').map((s) => Buffer.from(s, 'base64')); const d = createDecipheriv('aes-256-gcm', keyOf(), iv); d.setAuthTag(tag); return Buffer.concat([d.update(enc), d.final()]).toString('utf8'); };
 
-export interface KiotVietImportRequest { entities: Array<'PRODUCTS' | 'CUSTOMERS' | 'SUPPLIERS' | 'INVOICES' | 'PRICEBOOKS'>; branchMap?: Record<string, string>; defaultWarehouseId?: string; defaultBranchId?: string; syncDebt?: boolean; updateExisting?: boolean; importStock?: boolean; invoicesFrom?: string; invoicesTo?: string }
+export interface KiotVietImportRequest { entities: Array<'PRODUCTS' | 'CUSTOMERS' | 'SUPPLIERS' | 'INVOICES' | 'PRICEBOOKS' | 'RETURNS'>; branchMap?: Record<string, string>; defaultWarehouseId?: string; defaultBranchId?: string; syncDebt?: boolean; updateExisting?: boolean; importStock?: boolean; invoicesFrom?: string; invoicesTo?: string }
 
 /** Kết nối KiotViet Public API (BR-134): thông tin kết nối do người dùng nhập, secret mã hóa; nhập dữ liệu qua cùng pipeline với Excel. */
 @Injectable()
@@ -89,6 +89,7 @@ export class IntegrationsService {
     const branchMap = req.branchMap ?? {};
     const common: ImportOptions = { syncDebt: req.syncDebt, updateExisting: req.updateExisting, importStock: req.importStock, defaultWarehouseId: req.defaultWarehouseId, defaultBranchId: req.defaultBranchId, invoicesFrom: req.invoicesFrom };
     if (req.entities.includes('PRICEBOOKS')) throw Errors.validation('Bảng giá chưa lấy được qua KiotViet Public API – xuất file ở Hàng hóa → Thiết lập giá rồi nhập ở mục Excel (loại Bảng giá)');
+    if (req.entities.includes('RETURNS')) throw Errors.validation('Trả hàng chưa lấy được qua KiotViet Public API – xuất file ở Giao dịch → Trả hàng rồi nhập ở tab Excel');
     const order: Array<'PRODUCTS' | 'CUSTOMERS' | 'SUPPLIERS' | 'INVOICES'> = ['PRODUCTS', 'CUSTOMERS', 'SUPPLIERS', 'INVOICES'];
     try {
       for (const entity of order.filter((e) => req.entities.includes(e))) {

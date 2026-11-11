@@ -3,7 +3,7 @@ import { clean, http } from './client';
 import type { Paginated } from './types';
 
 // ---------------------------------------------------------------- types
-export type ImportType = 'PRODUCTS' | 'CUSTOMERS' | 'SUPPLIERS' | 'INVOICES' | 'PRICEBOOKS';
+export type ImportType = 'PRODUCTS' | 'CUSTOMERS' | 'SUPPLIERS' | 'INVOICES' | 'PRICEBOOKS' | 'RETURNS';
 export type ImportSource = 'EXCEL' | 'KIOTVIET_API';
 export type ImportJobStatus = 'PREVIEW' | 'RUNNING' | 'DONE' | 'FAILED';
 
@@ -35,7 +35,7 @@ export interface ImportPreview {
   mapping: Record<string, string>; unmapped: string[]; missing: string[]; stockHeaders: string[];
   sample: ImportRawRow[]; issues: ImportIssue[]; fields: ImportField[];
 }
-export interface ImportTotals { rows: number; created: number; updated: number; skipped: number; failed: number; stockLines?: number; stockDocuments?: number; units?: number; debtAdjusted?: number; priceBooks?: number; items?: number; unknownCodes?: number; unitCodes?: number; basePriceUpdated?: number }
+export interface ImportTotals { rows: number; created: number; updated: number; skipped: number; failed: number; missingInvoices?: number; stockLines?: number; stockDocuments?: number; units?: number; debtAdjusted?: number; priceBooks?: number; items?: number; unknownCodes?: number; unitCodes?: number; basePriceUpdated?: number }
 export interface ImportCommitResult extends ImportTotals { jobId: string; type: ImportType; errors: ImportIssue[] }
 export interface ImportJob {
   id: string; type: ImportType; source: ImportSource; status: ImportJobStatus; fileName: string | null; rowCount: number;
@@ -52,6 +52,7 @@ export interface Reconcile {
   customers: { count: number; debtors: number; receivable: string | number; credit: string | number };
   suppliers: { count: number; creditors: number; payable: string | number };
   importedInvoices: { count: number; revenue: string | number; first: string | null; last: string | null };
+  importedReturns: { count: number; refund: string | number; first: string | null; last: string | null };
   recentJobs: Array<{ id: string; type: ImportType; source: ImportSource; totals: ImportTotals | null; finishedAt: string | null }>;
 }
 export type KiotVietStatus = 'DISCONNECTED' | 'CONFIGURED' | 'CONNECTED' | 'ERROR';

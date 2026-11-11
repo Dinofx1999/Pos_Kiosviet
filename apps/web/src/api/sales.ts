@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { clean, http } from './client';
-import type { Customer, CustomerDebt, CustomerHistory, CustomerHit, ExchangeResult, Invoice, InvoiceSummary, LedgerEntry, Paginated, PosPrice, ReturnCondition, Returnable, SalesReturn, SalesSummary, Shift } from './types';
+import type { Customer, CustomerDebt, CustomerHistory, CustomerHit, ExchangeResult, Invoice, InvoiceSummary, LedgerEntry, Paginated, PosPrice, ReturnCondition, Returnable, ReturnSummary, SalesReturn, SalesSummary, Shift } from './types';
 import { uuid } from '../utils/format';
 import type { ApplicablePriceBook, PosPreview } from './promotions';
 
@@ -45,7 +45,7 @@ export const salesApi = {
   complete: (id: string, payments: InvoicePaymentInput[], version?: number) => http.post<Invoice>(`/invoices/${id}/complete`, { payments, version }, idem()).then((r) => r.data),
   cancelInvoice: (id: string, reason: string) => http.post<Invoice>(`/invoices/${id}/cancel`, { reason }, idem()).then((r) => r.data),
   // sales returns / exchanges (Module 07)
-  returns: (q: SalesReturnQuery) => http.get<Paginated<SalesReturn>>('/sales-returns', { params: clean(q as any) }).then((r) => r.data),
+  returns: (q: SalesReturnQuery) => http.get<Paginated<SalesReturn> & { summary?: ReturnSummary }>('/sales-returns', { params: clean(q as any) }).then((r) => r.data),
   return: (id: string) => http.get<SalesReturn>(`/sales-returns/${id}`).then((r) => r.data),
   returnable: (invoiceId: string) => http.get<Returnable>(`/sales-returns/returnable/${invoiceId}`).then((r) => r.data),
   createReturn: (b: ReturnInput) => http.post<SalesReturn>('/sales-returns', b, idem()).then((r) => r.data),
