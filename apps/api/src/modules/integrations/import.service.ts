@@ -592,7 +592,7 @@ export class ImportService {
     const users = await this.prisma.db.user.findMany({ select: { id: true, fullName: true, username: true } });
     const userOf = (name: string) => users.find((u) => u.fullName.toLowerCase() === name.toLowerCase() || u.username.toLowerCase() === name.toLowerCase())?.id ?? null;
     const warehouses = await this.prisma.db.warehouse.findMany({ select: { id: true, branchId: true, isDefault: true } });
-    const sourceOf = (channel: string) => { const n = normalize(channel); if (!n || /truc tiep|tai quay|pos/.test(n)) return 'POS'; if (/dien thoai|phone/.test(n)) return 'PHONE'; if (/facebook/.test(n)) return 'FACEBOOK'; if (/zalo/.test(n)) return 'ZALO'; if (/shopee/.test(n)) return 'SHOPEE'; if (/web|online|lazada|tiktok/.test(n)) return 'ONLINE'; return 'OTHER'; };
+    const sourceOf = (channel: string) => { const n = normalize(channel); if (!n || /truc tiep|tai quay|pos/.test(n)) return 'POS'; if (/dien thoai|phone/.test(n)) return 'PHONE'; if (/face ?book|\bfb\b/.test(n)) return 'FACEBOOK'; if (/zalo/.test(n)) return 'ZALO'; if (/shopee/.test(n)) return 'SHOPEE'; if (/web|online|lazada|tiktok|tik tok/.test(n)) return 'ONLINE'; return 'OTHER'; };
     for (const [code, g] of groups) {
       const head = g[0]; const row = Number(head.__row);
       try {
