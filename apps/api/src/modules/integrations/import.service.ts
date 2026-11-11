@@ -32,6 +32,8 @@ export interface ImportOptions {
   importStock?: boolean;
   /** invoice history: branch name → branchId */
   branchMap?: Record<string, string>;
+  /** kiểm kho lịch sử: tên chi nhánh / kho KiotViet → warehouseId (mặc định: kho cùng tên, rồi kho mặc định của chi nhánh) */
+  warehouseMap?: Record<string, string>;
   defaultBranchId?: string;
   /** skip invoices older than this date */
   invoicesFrom?: string;
@@ -124,6 +126,9 @@ export class ImportService {
         if (!get(r, 'code')) continue; // dòng tổng / quỹ đầu kỳ của file KiotViet không có mã → bỏ qua
         if (get(r, 'amount') && parseNumber(get(r, 'amount')) === null) out.push({ row, code: get(r, 'code'), error: `Số tiền không hợp lệ: ${get(r, 'amount')}` });
         if (get(r, 'date') && !parseDate(get(r, 'date'))) out.push({ row, code: get(r, 'code'), error: `Ngày không hợp lệ: ${get(r, 'date')}` });
+      } else if (type === 'STOCKTAKES') {
+        if (!get(r, 'code')) out.push({ row, error: 'Thiếu mã kiểm kho' });
+        if (get(r, 'date') && !parseDate(get(r, 'date'))) out.push({ row, code: get(r, 'code'), error: `Ngày không hợp lệ: ${get(r, 'date')}` });
       }
     }
     return out;
@@ -150,7 +155,8 @@ export class ImportService {
                 : type === 'PURCHASES' ? await this.importPurchases(user, rows, mapping, options)
                   : type === 'ORDERS' ? await this.importOrders(user, rows, mapping, options)
                     : type === 'CASHBOOK' ? await this.importCashBook(user, rows, mapping, options)
-                      : await this.importInvoices(user, rows, mapping, options);
+                      : type === 'STOCKTAKES' ? await this.importStocktakes(user, rows, mapping, options)
+                        : await this.importInvoices(user, rows, mapping, options);
       await this.prisma.db.importJob.update({ where: { id: jobId }, data: { status: 'DONE', finishedAt: new Date(), totals: result.totals as unknown as Prisma.InputJsonValue, errors: result.errors.slice(0, 500) as unknown as Prisma.InputJsonValue, payload: Prisma.DbNull } });
       await this.audit.log(this.prisma.db as never, { action: 'import.commit', entityType: 'ImportJob', entityId: jobId, after: { type, ...result.totals } });
       return { jobId, type, ...result.totals, errors: result.errors.slice(0, 200) };
@@ -749,6 +755,119 @@ export class ImportService {
     return { totals, errors };
   }
 
+  // ---------------------------------------------------------------- lịch sử kiểm kho (KiotViet Kho hàng → Kiểm kho; phiếu đã cân bằng không ghi kho lại)
+  /**
+   * Mỗi phiếu kiểm KiotViet thành phiếu kiểm kho mã KV-<mã> ở kho theo tên chi nhánh / kho (`warehouseMap`, kho cùng tên, rồi kho mặc định của chi
+   * nhánh). "Đã cân bằng" → COMPLETED với tồn hệ thống / thực tế / lệch / giá vốn đúng như KiotViet lúc đó, KHÔNG ghi biến động kho (tồn đã lấy theo
+   * số hiện tại); "Đã hủy" → CANCELLED; "Phiếu tạm" → DRAFT với tồn hệ thống = tồn hiện tại ở đây để hoàn tất sau sẽ cân bằng kho như phiếu thường.
+   * Dòng khớp theo mã hàng (sku / mã hàng hóa / mã ĐVT quy đổi → quy về đơn vị gốc); mã không còn trong danh mục → hàng giữ chỗ. Chạy lại bỏ qua mã
+   * đã có, phiếu còn DRAFT mà KiotViet đã cân bằng / hủy thì đổi trạng thái (không động kho).
+   */
+  async importStocktakes(user: RequestUser, rows: RawRow[], mapping: Record<string, string>, options: ImportOptions) {
+    const get = (r: RawRow, f: string) => (mapping[f] ? (r[mapping[f]] ?? '').trim() : '');
+    const totals: Totals = { rows: rows.length, created: 0, updated: 0, skipped: 0, failed: 0, open: 0, items: 0 };
+    const errors: RowError[] = [];
+    const branches = await this.prisma.db.branch.findMany({ select: { id: true, name: true, code: true } });
+    const defaultBranchId = options.defaultBranchId ?? (branches.find((b) => (user.branchIds ?? []).includes(b.id))?.id ?? branches[0]?.id);
+    const branchOf = (name: string) => options.branchMap?.[name] ?? branches.find((b) => b.name.toLowerCase() === name.toLowerCase() || b.code.toLowerCase() === name.toLowerCase())?.id ?? defaultBranchId;
+    const warehouses = await this.prisma.db.warehouse.findMany({ select: { id: true, branchId: true, name: true, code: true, isDefault: true } });
+    const warehouseOf = (name: string) => {
+      const mapped = options.warehouseMap?.[name];
+      if (mapped) return warehouses.find((w) => w.id === mapped);
+      const byName = name ? warehouses.find((w) => w.name.toLowerCase() === name.toLowerCase() || w.code.toLowerCase() === name.toLowerCase()) : undefined;
+      if (byName) return byName;
+      const branchId = branchOf(name);
+      return warehouses.find((w) => w.branchId === branchId && w.isDefault) ?? warehouses.find((w) => w.branchId === branchId);
+    };
+    const since = options.invoicesFrom ? new Date(options.invoicesFrom) : null;
+    const groups = new Map<string, RawRow[]>();
+    for (const r of rows) { const c = get(r, 'code'); if (!c) { totals.skipped++; continue; } (groups.get(c) ?? groups.set(c, []).get(c)!).push(r); }
+    const codes = Array.from(groups.values()).flatMap((g) => g.map((r) => safeCode(get(r, 'lineCode')).toLowerCase()).filter(Boolean));
+    const { vByCode, uByCode } = await this.resolveLineCodes(codes);
+    if (options.createMissingProducts !== false) await this.createPlaceholderProducts(user, groups, get, vByCode, uByCode, totals, errors, 'Tạo tự động khi nhập lịch sử kiểm kho KiotViet (mã không còn trong danh mục)');
+    const groupCodes = Array.from(groups.keys());
+    const existing = new Map<string, { id: string; status: string }>();
+    for (let i = 0; i < groupCodes.length; i += 5000) {
+      const found = await this.prisma.db.stocktake.findMany({ where: { code: { in: groupCodes.slice(i, i + 5000).map((c) => `KV-${c}`) } }, select: { id: true, code: true, status: true } });
+      for (const f of found) existing.set(f.code.slice(3), { id: f.id, status: f.status });
+    }
+    const users = await this.prisma.db.user.findMany({ select: { id: true, fullName: true, username: true } });
+    const userOf = (name: string) => users.find((u) => u.fullName.toLowerCase() === name.toLowerCase() || u.username.toLowerCase() === name.toLowerCase())?.id ?? user.id;
+    const statusOf = (raw: string): 'DRAFT' | 'COMPLETED' | 'CANCELLED' => { const n = normalize(raw); return n.includes('huy') || n === 'cancelled' ? 'CANCELLED' : n.includes('can bang') || n.includes('hoan thanh') || n === 'completed' ? 'COMPLETED' : 'DRAFT'; };
+    type Line = { variantId: string; systemQuantity: Prisma.Decimal; countedQuantity: Prisma.Decimal | null; deltaQuantity: Prisma.Decimal; unitCost: Prisma.Decimal; deltaValue: Prisma.Decimal; note: string | null };
+    const buildLines = async (g: RawRow[], status: 'DRAFT' | 'COMPLETED' | 'CANCELLED', warehouseId: string): Promise<Line[]> => {
+      const out = new Map<string, Line>();
+      const lines = g.filter((r) => get(r, 'lineCode') || get(r, 'lineName'));
+      const onHand = new Map<string, Prisma.Decimal>();
+      if (status === 'DRAFT') {
+        const ids = Array.from(new Set(lines.map((r) => { const lc = safeCode(get(r, 'lineCode')).toLowerCase(); return (uByCode.get(lc)?.variant ?? vByCode.get(lc))?.id; }).filter((x): x is string => !!x)));
+        for (const b of await this.prisma.db.stockBalance.findMany({ where: { warehouseId, variantId: { in: ids }, batchKey: '' }, select: { variantId: true, onHand: true } })) onHand.set(b.variantId, D(b.onHand));
+      }
+      lines.forEach((r, i) => {
+        const lc = safeCode(get(r, 'lineCode')).toLowerCase();
+        const unit = uByCode.get(lc);
+        const v = unit?.variant ?? vByCode.get(lc);
+        if (!v) throw new Error(`Dòng ${r.__row ?? i + 1}: không tìm thấy hàng ${get(r, 'lineCode') || get(r, 'lineName')} (nhập hàng hóa trước)`);
+        const factor = unit?.factor ?? D(1);
+        const sysRaw = parseNumber(get(r, 'lineSystem')); const actRaw = parseNumber(get(r, 'lineActual')); const deltaRaw = parseNumber(get(r, 'lineDelta'));
+        const system = status === 'DRAFT' ? (onHand.get(v.id) ?? ZERO) : toQty(D(sysRaw ?? '0').times(factor));
+        const counted = actRaw !== null ? toQty(D(actRaw).times(factor)) : deltaRaw !== null && sysRaw !== null ? toQty(D(sysRaw).plus(D(deltaRaw)).times(factor)) : null;
+        const delta = counted !== null ? toQty(counted.minus(system)) : ZERO;
+        const costRaw = parseNumber(get(r, 'lineCost'));
+        const unitCost = money(costRaw !== null && factor.eq(1) ? D(costRaw) : D(v.costPrice));
+        const prev = out.get(v.id);
+        if (prev) { // cùng biến thể xuất hiện nhiều dòng (mã ĐVT khác nhau) → gộp
+          const c2 = prev.countedQuantity !== null || counted !== null ? toQty(D(prev.countedQuantity ?? 0).plus(counted ?? ZERO)) : null;
+          const s2 = status === 'DRAFT' ? prev.systemQuantity : toQty(prev.systemQuantity.plus(system));
+          const d2 = c2 !== null ? toQty(c2.minus(s2)) : ZERO;
+          out.set(v.id, { ...prev, systemQuantity: s2, countedQuantity: c2, deltaQuantity: d2, deltaValue: money(d2.times(prev.unitCost)) });
+        } else out.set(v.id, { variantId: v.id, systemQuantity: system, countedQuantity: counted, deltaQuantity: delta, unitCost, deltaValue: money(delta.times(unitCost)), note: unit?.unitName ? `ĐVT ${unit.unitName}` : null });
+      });
+      return Array.from(out.values());
+    };
+    const sums = (lines: Line[]) => lines.reduce((s, l) => { if (l.deltaQuantity.isNegative()) { s.decQ = s.decQ.plus(l.deltaQuantity.abs()); s.decV = s.decV.plus(l.deltaValue.abs()); } else { s.incQ = s.incQ.plus(l.deltaQuantity); s.incV = s.incV.plus(l.deltaValue); } return s; }, { incQ: ZERO, decQ: ZERO, incV: ZERO, decV: ZERO });
+    for (const [code, g] of groups) {
+      const head = g[0]; const row = Number(head.__row);
+      try {
+        const date = parseDate(get(head, 'date')) ?? parseDate(get(head, 'createdAt')) ?? new Date();
+        if (since && date < since) { totals.skipped++; continue; }
+        const status = statusOf(get(head, 'status'));
+        const prev = existing.get(code);
+        const wh = warehouseOf(get(head, 'branch'));
+        if (!wh) throw new Error('Không xác định được kho');
+        this.access.assertBranch(user, wh.branchId);
+        if (prev) {
+          if (prev.status === 'DRAFT' && status !== 'DRAFT') {
+            const lines = status === 'COMPLETED' ? await buildLines(g, status, wh.id) : [];
+            await this.prisma.tx(async (tx) => {
+              if (status === 'COMPLETED') {
+                const byVariant = new Map(lines.map((l) => [l.variantId, l]));
+                for (const l of await tx.stocktakeLine.findMany({ where: { stocktakeId: prev.id }, select: { id: true, variantId: true } })) {
+                  const n = byVariant.get(l.variantId);
+                  if (n) await tx.stocktakeLine.update({ where: { id: l.id }, data: { systemQuantity: n.systemQuantity, countedQuantity: n.countedQuantity, deltaQuantity: n.deltaQuantity, unitCost: n.unitCost, deltaValue: n.deltaValue, countedById: userOf(get(head, 'balancer') || get(head, 'creator')), countedAt: date } });
+                }
+                const s = sums(lines);
+                await tx.stocktake.update({ where: { id: prev.id }, data: { status, completedAt: date, completedById: userOf(get(head, 'balancer') || get(head, 'creator')), uncountedAs: 'SKIP', increaseQuantity: s.incQ, decreaseQuantity: s.decQ, increaseValue: s.incV, decreaseValue: s.decV, countedLines: lines.filter((l) => l.countedQuantity !== null).length, version: { increment: 1 } } });
+              } else await tx.stocktake.update({ where: { id: prev.id }, data: { status, cancelledAt: date, cancelledById: user.id, cancelReason: 'Đã hủy ở KiotViet', version: { increment: 1 } } });
+            });
+            totals.updated++;
+          } else totals.skipped++;
+          continue;
+        }
+        const lines = await buildLines(g, status, wh.id);
+        if (!lines.length) throw new Error('Phiếu không có dòng hàng');
+        const s = sums(lines);
+        const by = userOf(get(head, 'creator') || get(head, 'balancer'));
+        const doneBy = userOf(get(head, 'balancer') || get(head, 'creator'));
+        await this.prisma.db.stocktake.create({ data: { tenantId: user.tenantId, branchId: wh.branchId, warehouseId: wh.id, code: `KV-${code}`, status, scope: 'SELECTED', note: ['Nhập từ KiotViet', get(head, 'note')].filter(Boolean).join(' · ').slice(0, 1000), snapshotAt: date, totalLines: lines.length, countedLines: lines.filter((l) => l.countedQuantity !== null).length, increaseQuantity: status === 'COMPLETED' ? s.incQ : ZERO, decreaseQuantity: status === 'COMPLETED' ? s.decQ : ZERO, increaseValue: status === 'COMPLETED' ? s.incV : ZERO, decreaseValue: status === 'COMPLETED' ? s.decV : ZERO, uncountedAs: status === 'COMPLETED' ? 'SKIP' : null, completedAt: status === 'COMPLETED' ? date : null, completedById: status === 'COMPLETED' ? doneBy : null, cancelledAt: status === 'CANCELLED' ? date : null, cancelledById: status === 'CANCELLED' ? doneBy : null, cancelReason: status === 'CANCELLED' ? 'Đã hủy ở KiotViet' : null, createdById: by, createdAt: date, lines: { create: lines.map((l) => ({ tenantId: user.tenantId, ...l, countedById: l.countedQuantity !== null ? doneBy : null, countedAt: l.countedQuantity !== null ? date : null })) } } });
+        totals.items! += lines.length;
+        if (status === 'DRAFT') totals.open!++;
+        totals.created++;
+      } catch (e) { totals.failed++; errors.push({ row, code, error: err(e) }); }
+    }
+    return { totals, errors };
+  }
+
   // ---------------------------------------------------------------- invoice history (no stock / ledger / cash effects)
   async importInvoices(user: RequestUser, rows: RawRow[], mapping: Record<string, string>, options: ImportOptions) {
     const get = (r: RawRow, f: string) => (mapping[f] ? (r[mapping[f]] ?? '').trim() : '');
@@ -1019,7 +1138,7 @@ export class ImportService {
 
   async reconcile(user: RequestUser) {
     const tenant = user.tenantId;
-    const [products, variants, customers, suppliers, stock, debt, imported, importedRet, importedPur, importedOrd, importedCash] = await Promise.all([
+    const [products, variants, customers, suppliers, stock, debt, imported, importedRet, importedPur, importedOrd, importedCash, importedStk] = await Promise.all([
       this.prisma.db.product.count({ where: { deletedAt: null } }),
       this.prisma.db.productVariant.count({ where: { deletedAt: null } }),
       this.prisma.db.customer.count(),
@@ -1031,6 +1150,7 @@ export class ImportService {
       this.prisma.raw.$queryRaw<{ n: bigint; total: Prisma.Decimal; first: Date | null; last: Date | null }[]>`SELECT count(*)::bigint AS n, COALESCE(SUM(total_amount) FILTER (WHERE status = 'POSTED'),0) AS total, MIN(receipt_date) AS first, MAX(receipt_date) AS last FROM purchase_receipts WHERE tenant_id = ${tenant}::uuid AND code LIKE 'KV-%'`,
       this.prisma.raw.$queryRaw<{ n: bigint; total: Prisma.Decimal; open: bigint; first: Date | null; last: Date | null }[]>`SELECT count(*)::bigint AS n, COALESCE(SUM(total_amount) FILTER (WHERE status = 'COMPLETED'),0) AS total, count(*) FILTER (WHERE status IN ('DRAFT','CONFIRMED'))::bigint AS open, MIN(order_date) AS first, MAX(order_date) AS last FROM sales_orders WHERE tenant_id = ${tenant}::uuid AND code LIKE 'KV-%'`,
       this.prisma.raw.$queryRaw<{ n: bigint; income: Prisma.Decimal; expense: Prisma.Decimal; first: Date | null; last: Date | null }[]>`SELECT count(*)::bigint AS n, COALESCE(SUM(amount) FILTER (WHERE direction = 'IN' AND status = 'POSTED'),0) AS income, COALESCE(SUM(amount) FILTER (WHERE direction = 'OUT' AND status = 'POSTED'),0) AS expense, MIN(payment_date) AS first, MAX(payment_date) AS last FROM payments WHERE tenant_id = ${tenant}::uuid AND code LIKE 'KV-%'`,
+      this.prisma.raw.$queryRaw<{ n: bigint; lines: bigint; open: bigint; first: Date | null; last: Date | null }[]>`SELECT count(*)::bigint AS n, COALESCE(SUM(total_lines),0)::bigint AS lines, count(*) FILTER (WHERE status = 'DRAFT')::bigint AS open, MIN(snapshot_at) AS first, MAX(snapshot_at) AS last FROM stocktakes WHERE tenant_id = ${tenant}::uuid AND code LIKE 'KV-%'`,
     ]);
     const byParty = (t: string) => debt.find((d) => d.party_type === t);
     const jobs = await this.prisma.db.importJob.findMany({ where: { status: 'DONE' }, select: { id: true, type: true, source: true, totals: true, finishedAt: true }, orderBy: { finishedAt: 'desc' }, take: 20 });
@@ -1044,6 +1164,7 @@ export class ImportService {
       importedPurchases: { count: Number(importedPur[0]?.n ?? 0), total: D(importedPur[0]?.total ?? 0), first: importedPur[0]?.first ?? null, last: importedPur[0]?.last ?? null },
       importedOrders: { count: Number(importedOrd[0]?.n ?? 0), total: D(importedOrd[0]?.total ?? 0), open: Number(importedOrd[0]?.open ?? 0), first: importedOrd[0]?.first ?? null, last: importedOrd[0]?.last ?? null },
       importedCash: { count: Number(importedCash[0]?.n ?? 0), income: D(importedCash[0]?.income ?? 0), expense: D(importedCash[0]?.expense ?? 0), first: importedCash[0]?.first ?? null, last: importedCash[0]?.last ?? null },
+      importedStocktakes: { count: Number(importedStk[0]?.n ?? 0), lines: Number(importedStk[0]?.lines ?? 0), open: Number(importedStk[0]?.open ?? 0), first: importedStk[0]?.first ?? null, last: importedStk[0]?.last ?? null },
       recentJobs: jobs,
     };
   }

@@ -3,7 +3,7 @@ import { clean, http } from './client';
 import type { Paginated } from './types';
 
 // ---------------------------------------------------------------- types
-export type ImportType = 'PRODUCTS' | 'CUSTOMERS' | 'SUPPLIERS' | 'INVOICES' | 'PRICEBOOKS' | 'RETURNS' | 'PURCHASES' | 'ORDERS' | 'CASHBOOK';
+export type ImportType = 'PRODUCTS' | 'CUSTOMERS' | 'SUPPLIERS' | 'INVOICES' | 'PRICEBOOKS' | 'RETURNS' | 'PURCHASES' | 'ORDERS' | 'CASHBOOK' | 'STOCKTAKES';
 export type ImportSource = 'EXCEL' | 'KIOTVIET_API';
 export type ImportJobStatus = 'PREVIEW' | 'RUNNING' | 'DONE' | 'FAILED';
 
@@ -56,6 +56,7 @@ export interface Reconcile {
   importedPurchases?: { count: number; total: string | number; first: string | null; last: string | null };
   importedOrders?: { count: number; total: string | number; open: number; first: string | null; last: string | null };
   importedCash?: { count: number; income: string | number; expense: string | number; first: string | null; last: string | null };
+  importedStocktakes?: { count: number; lines: number; open: number; first: string | null; last: string | null };
   recentJobs: Array<{ id: string; type: ImportType; source: ImportSource; totals: ImportTotals | null; finishedAt: string | null }>;
 }
 export type KiotVietStatus = 'DISCONNECTED' | 'CONFIGURED' | 'CONNECTED' | 'ERROR';

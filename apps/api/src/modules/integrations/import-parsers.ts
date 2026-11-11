@@ -7,7 +7,7 @@ import { Errors } from '../../common/errors/app-error';
  * common export layouts ("Danh sách hàng hóa", "Danh sách khách hàng", "Nhà cung cấp", "Danh sách hóa đơn") map automatically;
  * the user can still override any column in the preview step.
  */
-export type ImportEntity = 'PRODUCTS' | 'CUSTOMERS' | 'SUPPLIERS' | 'INVOICES' | 'PRICEBOOKS' | 'RETURNS' | 'PURCHASES' | 'ORDERS' | 'CASHBOOK';
+export type ImportEntity = 'PRODUCTS' | 'CUSTOMERS' | 'SUPPLIERS' | 'INVOICES' | 'PRICEBOOKS' | 'RETURNS' | 'PURCHASES' | 'ORDERS' | 'CASHBOOK' | 'STOCKTAKES';
 export type RawRow = Record<string, string>;
 export interface ParsedSheet { sheet: string; headers: string[]; rows: RawRow[]; headerRow: number }
 export interface FieldSpec { key: string; label: string; aliases: string[]; required?: boolean }
@@ -191,6 +191,23 @@ export const FIELDS: Record<ImportEntity, FieldSpec[]> = {
     { key: 'note', label: 'Ghi chú', aliases: ['ghi chu', 'dien giai', 'note'] },
     { key: 'branch', label: 'Chi nhánh', aliases: ['chi nhanh', 'branch'] },
     { key: 'creator', label: 'Người tạo', aliases: ['nguoi tao', 'nhan vien', 'nguoi lap'] },
+  ],
+  // Kho hàng → Kiểm kho (file chi tiết hoặc JSON từ API nội bộ): một dòng = một mặt hàng kiểm, thông tin phiếu lặp lại trên từng dòng
+  STOCKTAKES: [
+    { key: 'code', label: 'Mã kiểm kho', aliases: ['ma kiem kho', 'ma phieu kiem', 'ma phieu kiem kho', 'ma phieu', 'stocktake code'], required: true },
+    { key: 'date', label: 'Thời gian', aliases: ['thoi gian', 'ngay can bang', 'ngay kiem', 'ngay', 'date'] },
+    { key: 'createdAt', label: 'Ngày tạo', aliases: ['ngay tao', 'thoi gian tao'] },
+    { key: 'branch', label: 'Chi nhánh', aliases: ['chi nhanh', 'kho', 'branch'] },
+    { key: 'creator', label: 'Người tạo', aliases: ['nguoi tao', 'nguoi kiem', 'nhan vien'] },
+    { key: 'balancer', label: 'Người cân bằng', aliases: ['nguoi can bang', 'nguoi hoan thanh'] },
+    { key: 'status', label: 'Trạng thái', aliases: ['trang thai', 'status'] },
+    { key: 'note', label: 'Ghi chú', aliases: ['ghi chu', 'note'] },
+    { key: 'lineCode', label: 'Mã hàng (dòng)', aliases: ['ma hang', 'ma hang hoa', 'ma sp'] },
+    { key: 'lineName', label: 'Tên hàng (dòng)', aliases: ['ten hang', 'ten hang hoa'] },
+    { key: 'lineSystem', label: 'Tồn kho (hệ thống)', aliases: ['ton kho', 'ton he thong', 'he thong', 'system'] },
+    { key: 'lineActual', label: 'Thực tế', aliases: ['thuc te', 'so luong thuc te', 'sl thuc te', 'actual'] },
+    { key: 'lineDelta', label: 'SL lệch', aliases: ['sl lech', 'so luong lech', 'lech', 'chenh lech'] },
+    { key: 'lineCost', label: 'Giá vốn', aliases: ['gia von', 'cost'] },
   ],
   PRICEBOOKS: [
     { key: 'code', label: 'Mã hàng', aliases: ['ma hang', 'ma hang hoa', 'ma sp', 'ma san pham', 'code', 'sku'], required: true },

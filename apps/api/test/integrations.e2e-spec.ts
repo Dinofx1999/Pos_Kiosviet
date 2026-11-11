@@ -397,6 +397,56 @@ describe('KiotViet migration: Excel importers, API connector, reconciliation (Mo
     expect(rec.body.importedCash).toMatchObject({ count: 6, income: '739000', expense: '878000' });
   });
 
+  it('T-233 stocktake history: sheets grouped by code, lines by product code with KiotViet system / actual / delta / cost, balanced sheet completed without stock movements, draft keeps current stock as system quantity, cancelled kept, re-import skips and promotes drafts', async () => {
+    const p1 = (await t.http().get(`${api}/products`).set(s.auth).query({ search: 'SP000101' })).body.data[0];
+    const variantId = (await t.http().get(`${api}/products/${p1.id}`).set(s.auth)).body.variants[0].id;
+    const before = await balanceOf(t, s, variantId);
+    const headers = ['Mã kiểm kho', 'Thời gian', 'Chi nhánh', 'Người tạo', 'Người cân bằng', 'Trạng thái', 'Ghi chú', 'Mã hàng', 'Tên hàng', 'Tồn kho', 'Thực tế', 'SL lệch', 'Giá vốn'];
+    const rows = [
+      ['KK000901', '22/09/2026 08:00', 'Chi nhánh trung tâm', 'admin', 'admin', 'Đã cân bằng', 'Kiểm cuối tháng', 'SP000101', 'Serum Vitamin C 30ml', '30', '28', '-2', '200.000'],
+      ['KK000901', '22/09/2026 08:00', 'Chi nhánh trung tâm', 'admin', 'admin', 'Đã cân bằng', 'Kiểm cuối tháng', 'SP000102', 'Son lì đỏ', '5', '6', '1', '120.000'],
+      ['KK000902', '23/09/2026 09:00', 'Chi nhánh trung tâm', 'admin', '', 'Phiếu tạm', '', 'SP000101', 'Serum Vitamin C 30ml', '', '', '', ''],
+      ['KK000903', '24/09/2026 09:00', 'Chi nhánh trung tâm', 'admin', 'admin', 'Đã hủy', '', 'SP000101', 'Serum Vitamin C 30ml', '10', '10', '0', '200.000'],
+    ];
+    const pv = await preview('STOCKTAKES', await xlsx(headers, rows), { defaultBranchId: s.branchId });
+    expect(pv.body.mapping.code).toBe('Mã kiểm kho');
+    expect(pv.body.mapping.lineSystem).toBe('Tồn kho');
+    expect(pv.body.mapping.lineActual).toBe('Thực tế');
+    expect(pv.body.mapping.lineDelta).toBe('SL lệch');
+    expect(pv.body.mapping.lineCost).toBe('Giá vốn');
+    const done = await commit(pv.body.jobId);
+    expect(done.status).toBe(200);
+    expect(done.body).toMatchObject({ created: 3, failed: 0, open: 1, items: 4 });
+    const st = async (code: string) => t.prisma.raw.stocktake.findFirstOrThrow({ where: { tenantId: s.tenantId, code }, include: { lines: true } });
+    const k1 = await st('KV-KK000901');
+    expect(k1.status).toBe('COMPLETED');
+    expect(k1.completedAt).not.toBeNull();
+    expect(k1.note).toContain('Kiểm cuối tháng');
+    expect([k1.totalLines, k1.countedLines]).toEqual([2, 2]);
+    expect([k1.increaseQuantity.toString(), k1.decreaseQuantity.toString(), k1.increaseValue.toString(), k1.decreaseValue.toString()]).toEqual(['1', '2', '120000', '400000']);
+    const l1 = k1.lines.find((l) => l.variantId === variantId)!;
+    expect([l1.systemQuantity.toString(), l1.countedQuantity?.toString(), l1.deltaQuantity.toString(), l1.unitCost.toString(), l1.deltaValue.toString()]).toEqual(['30', '28', '-2', '200000', '-400000']);
+    // lịch sử: không ghi biến động kho
+    expect(await t.prisma.raw.stockMovement.count({ where: { tenantId: s.tenantId, documentType: 'STOCKTAKE', documentId: k1.id } })).toBe(0);
+    expect(await balanceOf(t, s, variantId)).toEqual(before);
+    // phiếu tạm: tồn hệ thống = tồn hiện tại ở đây, chưa đếm; mở được chi tiết
+    const k2 = await st('KV-KK000902');
+    expect(k2.status).toBe('DRAFT');
+    expect(k2.lines[0].systemQuantity.toString()).toBe(before.onHand);
+    expect(k2.lines[0].countedQuantity).toBeNull();
+    expect((await t.http().get(`${api}/stocktakes/${k2.id}`).set(s.auth)).status).toBe(200);
+    expect((await st('KV-KK000903')).status).toBe('CANCELLED');
+    // chạy lại: mã đã có bỏ qua; phiếu tạm đã cân bằng ở KiotViet → hoàn thành ở đây (vẫn không động kho)
+    const again = await commit((await preview('STOCKTAKES', await xlsx(headers, [rows[0], rows[1], ['KK000902', '23/09/2026 09:00', 'Chi nhánh trung tâm', 'admin', 'admin', 'Đã cân bằng', '', 'SP000101', 'Serum Vitamin C 30ml', before.onHand, before.onHand, '0', '200.000']]), { defaultBranchId: s.branchId })).body.jobId);
+    expect(again.body).toMatchObject({ created: 0, skipped: 1, updated: 1 });
+    const k2b = await st('KV-KK000902');
+    expect(k2b.status).toBe('COMPLETED');
+    expect(k2b.lines[0].countedQuantity?.toString()).toBe(before.onHand);
+    expect(await balanceOf(t, s, variantId)).toEqual(before);
+    const rec = await t.http().get(`${api}/integrations/reconcile`).set(s.auth);
+    expect(rec.body.importedStocktakes).toMatchObject({ count: 3, open: 0, lines: 4 });
+  });
+
   it('T-223 KiotViet API connector: credentials stored encrypted, test lists branches, import pulls products/customers/suppliers/invoices through the same pipeline, auth failure reported', async () => {
     // a tiny stand-in for id.kiotviet.vn + public.kiotapi.com
     const calls: string[] = [];

@@ -1,6 +1,6 @@
 import { Alert, App, Button, Card, DatePicker, Empty, Select, Spin, Steps, Switch, Tag, Upload } from 'antd';
 import Table from '../../components/ResponsiveTable';
-import { ArrowLeftOutlined, CheckCircleOutlined, FileExcelOutlined, ImportOutlined, InboxOutlined, ReloadOutlined, RollbackOutlined, ShopOutlined, ShoppingOutlined, SolutionOutlined, TagsOutlined, TeamOutlined, UploadOutlined, WalletOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, AuditOutlined, CheckCircleOutlined, FileExcelOutlined, ImportOutlined, InboxOutlined, ReloadOutlined, RollbackOutlined, ShopOutlined, ShoppingOutlined, SolutionOutlined, TagsOutlined, TeamOutlined, UploadOutlined, WalletOutlined } from '@ant-design/icons';
 import type { Dayjs } from 'dayjs';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
@@ -23,6 +23,7 @@ const TYPE_META: Record<ImportType, TypeMeta> = {
   PURCHASES: { icon: <ImportOutlined />, path: 'Mua hàng → Nhập hàng → Xuất file → File chi tiết', hint: 'Trong KiotViet vào Mua hàng → Nhập hàng, chọn khoảng thời gian rồi bấm Xuất file → File chi tiết. Nhập Hàng hóa và Nhà cung cấp trước. Phiếu "Đã nhập hàng" thành phiếu nhập lịch sử (không ghi kho, giá vốn, công nợ hay sổ quỹ – tồn và nợ đã lấy theo số hiện tại), "Phiếu tạm" thành phiếu nháp để hoàn tất sau ở đây.' },
   ORDERS: { icon: <ShoppingOutlined />, path: 'Đơn hàng → Đặt hàng → Xuất file → File chi tiết', hint: 'Trong KiotViet vào Đơn hàng → Đặt hàng, chọn khoảng thời gian rồi bấm Xuất file → File chi tiết. Nhập sau Hàng hóa, Khách hàng và Hóa đơn: đơn "Hoàn thành" gắn vào hóa đơn theo mã, "Phiếu tạm" thành đơn nháp, "Đang xử lý" thành đơn đã xác nhận nhưng không giữ tồn; tiền cọc ghi trên đơn, không tạo phiếu thu.' },
   CASHBOOK: { icon: <WalletOutlined />, path: 'Sổ quỹ → Xuất file', hint: 'Trong KiotViet vào Sổ quỹ, chọn khoảng thời gian rồi bấm Xuất file. Nhập sau cùng (sau hóa đơn, trả hàng, đặt hàng, nhập hàng): mỗi phiếu thu/chi gắn vào chứng từ gốc theo mã (TTHD… → hóa đơn, TTTH… → phiếu trả, TTDH… → đơn đặt, TTPN… → phiếu nhập), không ghi công nợ và không cộng vào số dư quỹ. Sau khi nhập, đặt lại quỹ đầu kỳ = tồn quỹ KiotViet − tổng phiếu đã nhập.' },
+  STOCKTAKES: { icon: <AuditOutlined />, path: 'Kho hàng → Kiểm kho → Xuất file → File chi tiết', hint: 'Trong KiotViet vào Kho hàng → Kiểm kho, chọn khoảng thời gian rồi bấm Xuất file → File chi tiết. Nhập sau Hàng hóa: phiếu "Đã cân bằng" thành phiếu kiểm kho đã hoàn thành với tồn hệ thống / thực tế / lệch đúng như KiotViet lúc đó nhưng không ghi kho lại (tồn đã lấy theo số hiện tại); "Phiếu tạm" thành phiếu kiểm nháp với tồn hệ thống hiện tại để đếm tiếp và cân bằng ở đây.' },
 };
 /** Which mapped fields a phone preview card shows. */
 const CARD_FIELDS: Record<ImportType, string[]> = {
@@ -35,6 +36,7 @@ const CARD_FIELDS: Record<ImportType, string[]> = {
   PURCHASES: ['code', 'date', 'supplierName', 'total', 'status', 'lineCode', 'lineQty'],
   ORDERS: ['code', 'date', 'customerName', 'total', 'paid', 'status', 'lineCode', 'lineQty'],
   CASHBOOK: ['code', 'date', 'kind', 'partyName', 'amount', 'method'],
+  STOCKTAKES: ['code', 'date', 'status', 'lineCode', 'lineSystem', 'lineActual'],
 };
 const TYPES = Object.keys(TYPE_META) as ImportType[];
 
@@ -68,7 +70,7 @@ export function ExcelImportTab() {
   const file = fileList[0]?.originFileObj as File | undefined;
   const baseOptions = (): ImportOptions => {
     if (type === 'PRODUCTS') return { defaultWarehouseId: opts.defaultWarehouseId, importStock: opts.importStock, updateExisting: opts.updateExisting };
-    if (type === 'INVOICES' || type === 'RETURNS' || type === 'PURCHASES' || type === 'ORDERS' || type === 'CASHBOOK') return { defaultBranchId: opts.defaultBranchId, invoicesFrom: opts.invoicesFrom ? opts.invoicesFrom.startOf('day').toISOString() : undefined, updateExisting: opts.updateExisting };
+    if (type === 'INVOICES' || type === 'RETURNS' || type === 'PURCHASES' || type === 'ORDERS' || type === 'CASHBOOK' || type === 'STOCKTAKES') return { defaultBranchId: opts.defaultBranchId, invoicesFrom: opts.invoicesFrom ? opts.invoicesFrom.startOf('day').toISOString() : undefined, updateExisting: opts.updateExisting };
     if (type === 'PRICEBOOKS') return { updateExisting: opts.updateExisting, updateBasePrice: !!opts.updateBasePrice };
     return { syncDebt: opts.syncDebt, updateExisting: opts.updateExisting };
   };
@@ -170,12 +172,12 @@ export function ExcelImportTab() {
                   </OptRow>
                 </>
               )}
-              {(type === 'INVOICES' || type === 'RETURNS' || type === 'PURCHASES' || type === 'ORDERS' || type === 'CASHBOOK') && (
+              {(type === 'INVOICES' || type === 'RETURNS' || type === 'PURCHASES' || type === 'ORDERS' || type === 'CASHBOOK' || type === 'STOCKTAKES') && (
                 <>
                   <OptRow label="Chi nhánh mặc định" hint="Dùng khi file không có cột Chi nhánh hoặc tên không khớp.">
                     <Select value={opts.defaultBranchId} onChange={(v) => setOpts({ ...opts, defaultBranchId: v })} options={branches.map((b) => ({ value: b.id, label: b.name }))} placeholder="Chọn chi nhánh" style={{ width: '100%' }} />
                   </OptRow>
-                  <OptRow label={type === 'RETURNS' ? 'Bỏ qua phiếu trả trước ngày' : type === 'PURCHASES' ? 'Bỏ qua phiếu nhập trước ngày' : type === 'ORDERS' ? 'Bỏ qua đơn trước ngày' : type === 'CASHBOOK' ? 'Bỏ qua phiếu trước ngày' : 'Bỏ qua hóa đơn trước ngày'} hint="Để trống để nhập toàn bộ.">
+                  <OptRow label={type === 'RETURNS' ? 'Bỏ qua phiếu trả trước ngày' : type === 'PURCHASES' ? 'Bỏ qua phiếu nhập trước ngày' : type === 'ORDERS' ? 'Bỏ qua đơn trước ngày' : type === 'CASHBOOK' || type === 'STOCKTAKES' ? 'Bỏ qua phiếu trước ngày' : 'Bỏ qua hóa đơn trước ngày'} hint="Để trống để nhập toàn bộ.">
                     <DatePicker value={opts.invoicesFrom ?? null} onChange={(v) => setOpts({ ...opts, invoicesFrom: v })} format="DD/MM/YYYY" style={{ width: '100%' }} placeholder="Không giới hạn" allowClear />
                   </OptRow>
                 </>

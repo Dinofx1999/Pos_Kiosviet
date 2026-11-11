@@ -41,6 +41,10 @@ export function ReconcileTiles({ data }: { data: Reconcile }) {
       { label: 'Số phiếu', value: qty(data.importedCash?.count ?? 0) }, { label: 'Tổng thu', value: money(data.importedCash?.income ?? 0) }, { label: 'Tổng chi', value: money(data.importedCash?.expense ?? 0) },
       { label: 'Khoảng ngày', value: data.importedCash?.first ? `${d(data.importedCash.first)} → ${d(data.importedCash.last)}` : '—' },
     ] },
+    { title: 'Kiểm kho lịch sử', hint: 'KiotViet: Kho hàng → Kiểm kho (cùng khoảng ngày)', items: [
+      { label: 'Số phiếu kiểm', value: qty(data.importedStocktakes?.count ?? 0) }, { label: 'Dòng kiểm', value: qty(data.importedStocktakes?.lines ?? 0) }, { label: 'Phiếu tạm', value: qty(data.importedStocktakes?.open ?? 0) },
+      { label: 'Khoảng ngày', value: data.importedStocktakes?.first ? `${d(data.importedStocktakes.first)} → ${d(data.importedStocktakes.last)}` : '—' },
+    ] },
   ];
   return (
     <div className="ig-recon">

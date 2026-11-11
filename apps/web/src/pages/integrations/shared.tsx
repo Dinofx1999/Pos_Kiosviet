@@ -7,7 +7,7 @@ import { errMsg } from '../../api/client';
 import { useIsMobile } from '../../hooks/useMedia';
 import { downloadBlob, dt, qty } from '../../utils/format';
 
-export const IMPORT_TYPE_LABEL: Record<ImportType, string> = { PRODUCTS: 'Hàng hóa', CUSTOMERS: 'Khách hàng', SUPPLIERS: 'Nhà cung cấp', INVOICES: 'Hóa đơn', PRICEBOOKS: 'Bảng giá', RETURNS: 'Trả hàng', PURCHASES: 'Nhập hàng', ORDERS: 'Đặt hàng', CASHBOOK: 'Sổ quỹ' };
+export const IMPORT_TYPE_LABEL: Record<ImportType, string> = { PRODUCTS: 'Hàng hóa', CUSTOMERS: 'Khách hàng', SUPPLIERS: 'Nhà cung cấp', INVOICES: 'Hóa đơn', PRICEBOOKS: 'Bảng giá', RETURNS: 'Trả hàng', PURCHASES: 'Nhập hàng', ORDERS: 'Đặt hàng', CASHBOOK: 'Sổ quỹ', STOCKTAKES: 'Kiểm kho' };
 export const IMPORT_SOURCE_LABEL: Record<ImportSource, string> = { EXCEL: 'Excel', KIOTVIET_API: 'KiotViet API' };
 export const JOB_STATUS_LABEL: Record<ImportJobStatus, string> = { PREVIEW: 'Đang xem trước', RUNNING: 'Đang chạy', DONE: 'Hoàn thành', FAILED: 'Thất bại' };
 export const JOB_STATUS_COLOR: Record<ImportJobStatus, string> = { PREVIEW: 'default', RUNNING: 'processing', DONE: 'green', FAILED: 'red' };
@@ -41,7 +41,8 @@ export function ResultTiles({ totals, type }: { totals: ImportTotals; type?: Imp
   if (type === 'RETURNS' || totals.missingInvoices !== undefined) tiles.push({ key: 'missingInvoices', label: 'Thiếu hóa đơn gốc', value: totals.missingInvoices ?? 0, tone: totals.missingInvoices ? 'neg' : 'muted' });
   if (type === 'PURCHASES' || totals.suppliers !== undefined) tiles.push({ key: 'suppliers', label: 'NCC tạo mới', value: totals.suppliers ?? 0, tone: 'muted' });
   if ((type === 'PURCHASES' || type === 'INVOICES' || type === 'ORDERS') && totals.placeholders !== undefined) tiles.push({ key: 'placeholders', label: 'Hàng giữ chỗ', value: totals.placeholders ?? 0, tone: 'muted' });
-  if (type === 'ORDERS' || totals.open !== undefined) tiles.push({ key: 'open', label: 'Đơn còn mở', value: totals.open ?? 0, tone: 'info' }, { key: 'linked', label: 'Gắn hóa đơn', value: totals.linked ?? 0, tone: 'muted' });
+  if (type === 'ORDERS' || (totals.open !== undefined && totals.linked !== undefined)) tiles.push({ key: 'open', label: 'Đơn còn mở', value: totals.open ?? 0, tone: 'info' }, { key: 'linked', label: 'Gắn hóa đơn', value: totals.linked ?? 0, tone: 'muted' });
+  if (type === 'STOCKTAKES' || (totals.open !== undefined && totals.linked === undefined)) tiles.push({ key: 'items', label: 'Dòng kiểm', value: totals.items ?? 0, tone: 'info' }, { key: 'open', label: 'Phiếu tạm', value: totals.open ?? 0, tone: 'muted' });
   if (type === 'CASHBOOK' || totals.categories !== undefined) tiles.push({ key: 'linked', label: 'Gắn chứng từ', value: totals.linked ?? 0, tone: 'info' }, { key: 'categories', label: 'Loại thu chi mới', value: totals.categories ?? 0, tone: 'muted' }, { key: 'cancelled', label: 'Phiếu đã hủy', value: totals.cancelled ?? 0, tone: 'muted' });
   if (type === 'PRICEBOOKS' || totals.priceBooks !== undefined) tiles.push({ key: 'priceBooks', label: 'Bảng giá', value: totals.priceBooks ?? 0, tone: 'pos' }, { key: 'items', label: 'Dòng giá', value: totals.items ?? 0, tone: 'info' }, { key: 'unitCodes', label: 'Mã ĐVT bỏ qua', value: totals.unitCodes ?? 0, tone: 'muted' });
   return (

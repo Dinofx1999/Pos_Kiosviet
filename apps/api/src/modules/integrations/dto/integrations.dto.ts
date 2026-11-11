@@ -4,7 +4,7 @@ import { ArrayMinSize, ArrayUnique, IsArray, IsBoolean, IsIn, IsISO8601, IsObjec
 import { PaginationQueryDto } from '../../../common/pagination';
 import { TrimToUndefined } from '../../../common/validators';
 
-export const IMPORT_TYPES = ['PRODUCTS', 'CUSTOMERS', 'SUPPLIERS', 'INVOICES', 'PRICEBOOKS', 'RETURNS', 'PURCHASES', 'ORDERS', 'CASHBOOK'] as const;
+export const IMPORT_TYPES = ['PRODUCTS', 'CUSTOMERS', 'SUPPLIERS', 'INVOICES', 'PRICEBOOKS', 'RETURNS', 'PURCHASES', 'ORDERS', 'CASHBOOK', 'STOCKTAKES'] as const;
 
 export class StockColumnDto {
   @ApiProperty({ example: 'Tồn kho' }) @IsString() @MinLength(1) @MaxLength(200) header: string;
@@ -17,6 +17,7 @@ export class ImportOptionsDto {
   @ApiPropertyOptional({ default: true }) @IsOptional() @IsBoolean() updateExisting?: boolean;
   @ApiPropertyOptional({ default: true }) @IsOptional() @IsBoolean() importStock?: boolean;
   @ApiPropertyOptional({ description: 'Hóa đơn: tên chi nhánh KiotViet → id chi nhánh' }) @IsOptional() @IsObject() branchMap?: Record<string, string>;
+  @ApiPropertyOptional({ description: 'Kiểm kho: tên chi nhánh / kho KiotViet → id kho' }) @IsOptional() @IsObject() warehouseMap?: Record<string, string>;
   @ApiPropertyOptional() @IsOptional() @IsUUID() defaultBranchId?: string;
   @ApiPropertyOptional({ description: 'Bỏ qua hóa đơn trước ngày này' }) @IsOptional() @IsISO8601() invoicesFrom?: string;
   @ApiPropertyOptional({ type: [String], description: 'Bảng giá: chỉ nhập các cột này (mặc định: mọi cột không khớp trường chuẩn)' }) @IsOptional() @IsArray() @IsString({ each: true }) priceBookColumns?: string[];
