@@ -47,7 +47,7 @@ export interface ImportOptions {
   priceBookMeta?: Record<string, { status?: 'ACTIVE' | 'INACTIVE'; startsAt?: string; endsAt?: string; customerGroups?: string[]; priority?: number }>;
 }
 interface RowError { row: number; code?: string; error: string }
-interface Totals { rows: number; created: number; updated: number; skipped: number; failed: number; stockLines?: number; stockDocuments?: number; debtAdjusted?: number; units?: number; products?: number; negativeStock?: number; pointsAdjusted?: number; placeholders?: number; missingInvoices?: number; priceBooks?: number; items?: number; unknownCodes?: number; unitCodes?: number; basePriceUpdated?: number; suppliers?: number; linked?: number; categories?: number; cancelled?: number; open?: number }
+interface Totals { rows: number; created: number; updated: number; skipped: number; failed: number; stockLines?: number; stockDocuments?: number; debtAdjusted?: number; units?: number; products?: number; negativeStock?: number; pointsAdjusted?: number; placeholders?: number; missingInvoices?: number; priceBooks?: number; items?: number; unknownCodes?: number; unitCodes?: number; basePriceUpdated?: number; suppliers?: number; linked?: number; categories?: number; cancelled?: number; open?: number; missingReceipts?: number }
 
 const BATCH = 200;
 /** Biến thể khớp với mã hàng trên dòng KiotViet (sku / mã hàng hóa / mã ĐVT quy đổi). */
@@ -129,6 +129,9 @@ export class ImportService {
       } else if (type === 'STOCKTAKES') {
         if (!get(r, 'code')) out.push({ row, error: 'Thiếu mã kiểm kho' });
         if (get(r, 'date') && !parseDate(get(r, 'date'))) out.push({ row, code: get(r, 'code'), error: `Ngày không hợp lệ: ${get(r, 'date')}` });
+      } else if (type === 'PURCHASE_RETURNS' || type === 'DAMAGES') {
+        if (!get(r, 'code')) out.push({ row, error: type === 'DAMAGES' ? 'Thiếu mã xuất hủy' : 'Thiếu mã trả hàng nhập' });
+        if (get(r, 'date') && !parseDate(get(r, 'date'))) out.push({ row, code: get(r, 'code'), error: `Ngày không hợp lệ: ${get(r, 'date')}` });
       }
     }
     return out;
@@ -156,7 +159,9 @@ export class ImportService {
                   : type === 'ORDERS' ? await this.importOrders(user, rows, mapping, options)
                     : type === 'CASHBOOK' ? await this.importCashBook(user, rows, mapping, options)
                       : type === 'STOCKTAKES' ? await this.importStocktakes(user, rows, mapping, options)
-                        : await this.importInvoices(user, rows, mapping, options);
+                        : type === 'PURCHASE_RETURNS' ? await this.importPurchaseReturns(user, rows, mapping, options)
+                          : type === 'DAMAGES' ? await this.importDamages(user, rows, mapping, options)
+                            : await this.importInvoices(user, rows, mapping, options);
       await this.prisma.db.importJob.update({ where: { id: jobId }, data: { status: 'DONE', finishedAt: new Date(), totals: result.totals as unknown as Prisma.InputJsonValue, errors: result.errors.slice(0, 500) as unknown as Prisma.InputJsonValue, payload: Prisma.DbNull } });
       await this.audit.log(this.prisma.db as never, { action: 'import.commit', entityType: 'ImportJob', entityId: jobId, after: { type, ...result.totals } });
       return { jobId, type, ...result.totals, errors: result.errors.slice(0, 200) };
@@ -871,6 +876,142 @@ export class ImportService {
     return { totals, errors };
   }
 
+  // ---------------------------------------------------------------- lịch sử trả hàng nhập (KiotViet Mua hàng → Trả hàng nhập; không động kho / công nợ / quỹ)
+  /**
+   * Mỗi phiếu trả hàng nhập KiotViet gắn vào phiếu nhập gốc KV-<mã nhập hàng> (bắt buộc – mô hình trả hàng nhập theo phiếu nhập), dòng khớp
+   * dòng phiếu nhập theo biến thể; "Đã trả hàng" → POSTED và cộng số lượng / tiền đã trả của phiếu nhập; "Đã hủy" → CANCELLED; còn lại → DRAFT.
+   * Không ghi kho, công nợ hay sổ quỹ (đã lấy số hiện tại). Mã KV-<mã>, chạy lại bỏ qua mã đã có; thiếu phiếu nhập → báo lỗi.
+   */
+  async importPurchaseReturns(user: RequestUser, rows: RawRow[], mapping: Record<string, string>, options: ImportOptions) {
+    const get = (r: RawRow, f: string) => (mapping[f] ? (r[mapping[f]] ?? '').trim() : '');
+    const totals: Totals = { rows: rows.length, created: 0, updated: 0, skipped: 0, failed: 0, missingReceipts: 0, items: 0 };
+    const errors: RowError[] = [];
+    const since = options.invoicesFrom ? new Date(options.invoicesFrom) : null;
+    const groups = new Map<string, RawRow[]>();
+    for (const r of rows) { const c = get(r, 'code'); if (!c) { totals.skipped++; continue; } (groups.get(c) ?? groups.set(c, []).get(c)!).push(r); }
+    const codes = Array.from(groups.values()).flatMap((g) => g.map((r) => safeCode(get(r, 'lineCode')).toLowerCase()).filter(Boolean));
+    const { vByCode, uByCode } = await this.resolveLineCodes(codes);
+    const receiptCodes = Array.from(new Set(Array.from(groups.values()).map((g) => safeCode(get(g[0], 'receiptCode'))).filter(Boolean)));
+    const receipts = receiptCodes.length ? await this.prisma.db.purchaseReceipt.findMany({ where: { OR: [{ code: { in: receiptCodes.map((c) => `KV-${c}`) } }, { code: { in: receiptCodes } }] }, select: { id: true, code: true, branchId: true, warehouseId: true, supplierId: true, totalAmount: true, returnedAmount: true, lines: { select: { id: true, variantId: true, quantity: true, returnedQuantity: true, unitPrice: true } } } }) : [];
+    const rByCode = new Map<string, (typeof receipts)[number]>();
+    for (const r of receipts) { rByCode.set(r.code.toLowerCase(), r); if (r.code.startsWith('KV-')) rByCode.set(r.code.slice(3).toLowerCase(), r); }
+    const existing = new Set((await this.prisma.db.purchaseReturn.findMany({ where: { code: { in: Array.from(groups.keys()).map((c) => `KV-${c}`) } }, select: { code: true } })).map((x) => x.code.slice(3)));
+    const users = await this.prisma.db.user.findMany({ select: { id: true, fullName: true, username: true } });
+    const userOf = (name: string) => users.find((u) => u.fullName.toLowerCase() === name.toLowerCase() || u.username.toLowerCase() === name.toLowerCase())?.id ?? user.id;
+    for (const [code, g] of groups) {
+      const head = g[0]; const row = Number(head.__row);
+      try {
+        if (existing.has(code)) { totals.skipped++; continue; }
+        const date = parseDate(get(head, 'date')) ?? new Date();
+        if (since && date < since) { totals.skipped++; continue; }
+        const statusRaw = normalize(get(head, 'status'));
+        const status: 'DRAFT' | 'POSTED' | 'CANCELLED' = statusRaw.includes('huy') || statusRaw === 'cancelled' ? 'CANCELLED' : statusRaw.includes('tam') || statusRaw === 'draft' ? 'DRAFT' : 'POSTED';
+        const rc = safeCode(get(head, 'receiptCode'));
+        const receipt = rc ? rByCode.get(rc.toLowerCase()) : undefined;
+        if (!receipt) { totals.missingReceipts!++; throw new Error(rc ? `Không tìm thấy phiếu nhập ${rc} (nhập lịch sử nhập hàng trước)` : 'Phiếu trả không gắn phiếu nhập nào – không nhập được'); }
+        this.access.assertBranch(user, receipt.branchId);
+        const lines = g.filter((r) => get(r, 'lineCode') || get(r, 'lineName')).map((r, i) => {
+          const lc = safeCode(get(r, 'lineCode')).toLowerCase();
+          const unit = uByCode.get(lc);
+          const v = unit?.variant ?? vByCode.get(lc);
+          if (!v) throw new Error(`Dòng ${r.__row ?? i + 1}: không tìm thấy hàng ${get(r, 'lineCode') || get(r, 'lineName')}`);
+          const factor = unit?.factor ?? D(1);
+          const quantity = toQty(toQty(parseNumber(get(r, 'lineQty')) ?? '1').times(factor));
+          const candidates = receipt.lines.filter((l) => l.variantId === v.id);
+          const rl = candidates.find((l) => D(l.quantity).minus(D(l.returnedQuantity)).gte(quantity)) ?? candidates[0];
+          if (!rl) throw new Error(`Dòng ${r.__row ?? i + 1}: hàng ${get(r, 'lineCode')} không có trong phiếu nhập ${receipt.code}`);
+          const priceRaw = money(parseNumber(get(r, 'linePrice')) ?? rl.unitPrice.toString());
+          const unitPrice = factor.eq(1) ? priceRaw : money(priceRaw.div(factor));
+          const lineTotal = parseNumber(get(r, 'lineTotal')) !== null ? money(parseNumber(get(r, 'lineTotal'))!) : money(quantity.times(unitPrice));
+          return { lineNo: i + 1, receiptLineId: rl.id, variantId: v.id, quantity, unitPrice, lineTotal, note: unit?.unitName ? `ĐVT ${unit.unitName}` : null };
+        });
+        if (!lines.length) throw new Error('Phiếu không có dòng hàng');
+        const total = Prisma.Decimal.max(parseNumber(get(head, 'total')) !== null ? money(parseNumber(get(head, 'total'))!) : lines.reduce((s, l) => s.plus(l.lineTotal), ZERO), ZERO);
+        const refunded = Prisma.Decimal.min(Prisma.Decimal.max(money(parseNumber(get(head, 'refunded')) ?? '0'), ZERO), total);
+        const by = userOf(get(head, 'receiver'));
+        await this.prisma.tx(async (tx) => {
+          await tx.purchaseReturn.create({ data: { tenantId: user.tenantId, branchId: receipt.branchId, warehouseId: receipt.warehouseId, supplierId: receipt.supplierId, receiptId: receipt.id, code: `KV-${code}`, status, returnDate: date, reason: 'Nhập từ KiotViet', note: ['Nhập từ KiotViet', get(head, 'note')].filter(Boolean).join(' · ').slice(0, 1000), totalAmount: total, refundedAmount: refunded, postedAt: status === 'POSTED' ? date : null, postedById: status === 'POSTED' ? by : null, cancelledAt: status === 'CANCELLED' ? date : null, cancelReason: status === 'CANCELLED' ? 'Đã hủy ở KiotViet' : null, createdById: by, lines: { create: lines.map((l) => ({ tenantId: user.tenantId, ...l })) } } });
+          if (status === 'POSTED') {
+            for (const l of lines) {
+              const rl = receipt.lines.find((x) => x.id === l.receiptLineId)!;
+              const inc = Prisma.Decimal.min(l.quantity, Prisma.Decimal.max(D(rl.quantity).minus(D(rl.returnedQuantity)), ZERO));
+              if (inc.gt(0)) { await tx.purchaseReceiptLine.update({ where: { id: rl.id }, data: { returnedQuantity: { increment: inc } } }); rl.returnedQuantity = D(rl.returnedQuantity).plus(inc); }
+            }
+            const incAmt = Prisma.Decimal.min(total, Prisma.Decimal.max(D(receipt.totalAmount).minus(D(receipt.returnedAmount)), ZERO));
+            if (incAmt.gt(0)) { await tx.purchaseReceipt.update({ where: { id: receipt.id }, data: { returnedAmount: { increment: incAmt } } }); receipt.returnedAmount = D(receipt.returnedAmount).plus(incAmt); }
+          }
+        });
+        totals.items! += lines.length;
+        totals.created++;
+      } catch (e) { totals.failed++; errors.push({ row, code, error: err(e) }); }
+    }
+    return { totals, errors };
+  }
+
+  // ---------------------------------------------------------------- lịch sử xuất hủy (KiotViet Kho hàng → Xuất hủy; không ghi biến động kho)
+  /**
+   * Mỗi phiếu xuất hủy KiotViet thành phiếu xuất kho (ISSUE, lý do DAMAGE) mã KV-<mã> ở kho theo `warehouseMap` / tên / chi nhánh: "Đã xuất hủy"
+   * → POSTED nhưng không ghi biến động kho (tồn đã lấy theo số hiện tại), "Đã hủy" → CANCELLED, "Phiếu tạm" → DRAFT (ghi sổ sau sẽ trừ kho như
+   * phiếu thường). Dòng theo mã hàng (mã ĐVT quy đổi → đơn vị gốc), mã không còn trong danh mục → hàng giữ chỗ; lý do từng dòng vào ghi chú dòng.
+   */
+  async importDamages(user: RequestUser, rows: RawRow[], mapping: Record<string, string>, options: ImportOptions) {
+    const get = (r: RawRow, f: string) => (mapping[f] ? (r[mapping[f]] ?? '').trim() : '');
+    const totals: Totals = { rows: rows.length, created: 0, updated: 0, skipped: 0, failed: 0, open: 0, items: 0 };
+    const errors: RowError[] = [];
+    const branches = await this.prisma.db.branch.findMany({ select: { id: true, name: true, code: true } });
+    const defaultBranchId = options.defaultBranchId ?? (branches.find((b) => (user.branchIds ?? []).includes(b.id))?.id ?? branches[0]?.id);
+    const branchOf = (name: string) => options.branchMap?.[name] ?? branches.find((b) => b.name.toLowerCase() === name.toLowerCase() || b.code.toLowerCase() === name.toLowerCase())?.id ?? defaultBranchId;
+    const warehouses = await this.prisma.db.warehouse.findMany({ select: { id: true, branchId: true, name: true, code: true, isDefault: true } });
+    const warehouseOf = (name: string) => {
+      const mapped = options.warehouseMap?.[name];
+      if (mapped) return warehouses.find((w) => w.id === mapped);
+      const byName = name ? warehouses.find((w) => w.name.toLowerCase() === name.toLowerCase() || w.code.toLowerCase() === name.toLowerCase()) : undefined;
+      if (byName) return byName;
+      const branchId = branchOf(name);
+      return warehouses.find((w) => w.branchId === branchId && w.isDefault) ?? warehouses.find((w) => w.branchId === branchId);
+    };
+    const since = options.invoicesFrom ? new Date(options.invoicesFrom) : null;
+    const groups = new Map<string, RawRow[]>();
+    for (const r of rows) { const c = get(r, 'code'); if (!c) { totals.skipped++; continue; } (groups.get(c) ?? groups.set(c, []).get(c)!).push(r); }
+    const codes = Array.from(groups.values()).flatMap((g) => g.map((r) => safeCode(get(r, 'lineCode')).toLowerCase()).filter(Boolean));
+    const { vByCode, uByCode } = await this.resolveLineCodes(codes);
+    if (options.createMissingProducts !== false) await this.createPlaceholderProducts(user, groups, get, vByCode, uByCode, totals, errors, 'Tạo tự động khi nhập lịch sử xuất hủy KiotViet (mã không còn trong danh mục)');
+    const existing = new Set((await this.prisma.db.inventoryDocument.findMany({ where: { code: { in: Array.from(groups.keys()).map((c) => `KV-${c}`) } }, select: { code: true } })).map((x) => x.code.slice(3)));
+    const users = await this.prisma.db.user.findMany({ select: { id: true, fullName: true, username: true } });
+    const userOf = (name: string) => users.find((u) => u.fullName.toLowerCase() === name.toLowerCase() || u.username.toLowerCase() === name.toLowerCase())?.id ?? user.id;
+    for (const [code, g] of groups) {
+      const head = g[0]; const row = Number(head.__row);
+      try {
+        if (existing.has(code)) { totals.skipped++; continue; }
+        const date = parseDate(get(head, 'date')) ?? new Date();
+        if (since && date < since) { totals.skipped++; continue; }
+        const n = normalize(get(head, 'status'));
+        const status: 'DRAFT' | 'POSTED' | 'CANCELLED' = n.includes('xuat huy') || n.includes('hoan thanh') || n === 'posted' || !n ? 'POSTED' : n.includes('huy') || n === 'cancelled' ? 'CANCELLED' : 'DRAFT';
+        const wh = warehouseOf(get(head, 'branch'));
+        if (!wh) throw new Error('Không xác định được kho');
+        this.access.assertBranch(user, wh.branchId);
+        const lines = g.filter((r) => get(r, 'lineCode') || get(r, 'lineName')).map((r, i) => {
+          const lc = safeCode(get(r, 'lineCode')).toLowerCase();
+          const unit = uByCode.get(lc);
+          const v = unit?.variant ?? vByCode.get(lc);
+          if (!v) throw new Error(`Dòng ${r.__row ?? i + 1}: không tìm thấy hàng ${get(r, 'lineCode') || get(r, 'lineName')}`);
+          const factor = unit?.factor ?? D(1);
+          const quantity = toQty(toQty(parseNumber(get(r, 'lineQty')) ?? '1').times(factor));
+          const costRaw = parseNumber(get(r, 'lineCost'));
+          const unitCost = money(costRaw !== null ? (factor.eq(1) ? D(costRaw) : D(costRaw).div(factor)) : D(v.costPrice));
+          return { lineNo: i + 1, variantId: v.id, quantity, unitCost, totalCost: money(quantity.times(unitCost)), note: [unit?.unitName ? `ĐVT ${unit.unitName}` : '', get(r, 'lineReason')].filter(Boolean).join(' · ').slice(0, 500) || null };
+        });
+        if (!lines.length) throw new Error('Phiếu không có dòng hàng');
+        const by = userOf(get(head, 'creator'));
+        await this.prisma.db.inventoryDocument.create({ data: { tenantId: user.tenantId, branchId: wh.branchId, warehouseId: wh.id, code: `KV-${code}`, type: 'ISSUE', status, reason: 'DAMAGE', note: ['Nhập từ KiotViet', get(head, 'note')].filter(Boolean).join(' · ').slice(0, 1000), totalQuantity: lines.reduce((s, l) => s.plus(l.quantity), ZERO), totalCost: lines.reduce((s, l) => s.plus(l.totalCost), ZERO), postedAt: status === 'POSTED' ? date : null, postedById: status === 'POSTED' ? by : null, cancelledAt: status === 'CANCELLED' ? date : null, cancelledById: status === 'CANCELLED' ? by : null, cancelReason: status === 'CANCELLED' ? 'Đã hủy ở KiotViet' : null, createdById: by, createdAt: date, lines: { create: lines.map((l) => ({ tenantId: user.tenantId, ...l })) } } });
+        totals.items! += lines.length;
+        if (status === 'DRAFT') totals.open!++;
+        totals.created++;
+      } catch (e) { totals.failed++; errors.push({ row, code, error: err(e) }); }
+    }
+    return { totals, errors };
+  }
+
   // ---------------------------------------------------------------- invoice history (no stock / ledger / cash effects)
   async importInvoices(user: RequestUser, rows: RawRow[], mapping: Record<string, string>, options: ImportOptions) {
     const get = (r: RawRow, f: string) => (mapping[f] ? (r[mapping[f]] ?? '').trim() : '');
@@ -1141,7 +1282,7 @@ export class ImportService {
 
   async reconcile(user: RequestUser) {
     const tenant = user.tenantId;
-    const [products, variants, customers, suppliers, stock, debt, imported, importedRet, importedPur, importedOrd, importedCash, importedStk] = await Promise.all([
+    const [products, variants, customers, suppliers, stock, debt, imported, importedRet, importedPur, importedOrd, importedCash, importedStk, importedPRet, importedDmg] = await Promise.all([
       this.prisma.db.product.count({ where: { deletedAt: null } }),
       this.prisma.db.productVariant.count({ where: { deletedAt: null } }),
       this.prisma.db.customer.count(),
@@ -1154,6 +1295,8 @@ export class ImportService {
       this.prisma.raw.$queryRaw<{ n: bigint; total: Prisma.Decimal; open: bigint; first: Date | null; last: Date | null }[]>`SELECT count(*)::bigint AS n, COALESCE(SUM(total_amount) FILTER (WHERE status = 'COMPLETED'),0) AS total, count(*) FILTER (WHERE status IN ('DRAFT','CONFIRMED'))::bigint AS open, MIN(order_date) AS first, MAX(order_date) AS last FROM sales_orders WHERE tenant_id = ${tenant}::uuid AND code LIKE 'KV-%'`,
       this.prisma.raw.$queryRaw<{ n: bigint; income: Prisma.Decimal; expense: Prisma.Decimal; first: Date | null; last: Date | null }[]>`SELECT count(*)::bigint AS n, COALESCE(SUM(amount) FILTER (WHERE direction = 'IN' AND status = 'POSTED'),0) AS income, COALESCE(SUM(amount) FILTER (WHERE direction = 'OUT' AND status = 'POSTED'),0) AS expense, MIN(payment_date) AS first, MAX(payment_date) AS last FROM payments WHERE tenant_id = ${tenant}::uuid AND code LIKE 'KV-%'`,
       this.prisma.raw.$queryRaw<{ n: bigint; lines: bigint; open: bigint; first: Date | null; last: Date | null }[]>`SELECT count(*)::bigint AS n, COALESCE(SUM(total_lines),0)::bigint AS lines, count(*) FILTER (WHERE status = 'DRAFT')::bigint AS open, MIN(snapshot_at) AS first, MAX(snapshot_at) AS last FROM stocktakes WHERE tenant_id = ${tenant}::uuid AND code LIKE 'KV-%'`,
+      this.prisma.raw.$queryRaw<{ n: bigint; total: Prisma.Decimal }[]>`SELECT count(*)::bigint AS n, COALESCE(SUM(total_amount) FILTER (WHERE status = 'POSTED'),0) AS total FROM purchase_returns WHERE tenant_id = ${tenant}::uuid AND code LIKE 'KV-%'`,
+      this.prisma.raw.$queryRaw<{ n: bigint; qty: Prisma.Decimal; cost: Prisma.Decimal }[]>`SELECT count(*)::bigint AS n, COALESCE(SUM(total_quantity) FILTER (WHERE status = 'POSTED'),0) AS qty, COALESCE(SUM(total_cost) FILTER (WHERE status = 'POSTED'),0) AS cost FROM inventory_documents WHERE tenant_id = ${tenant}::uuid AND code LIKE 'KV-%' AND reason = 'DAMAGE'`,
     ]);
     const byParty = (t: string) => debt.find((d) => d.party_type === t);
     const jobs = await this.prisma.db.importJob.findMany({ where: { status: 'DONE' }, select: { id: true, type: true, source: true, totals: true, finishedAt: true }, orderBy: { finishedAt: 'desc' }, take: 20 });
@@ -1168,6 +1311,8 @@ export class ImportService {
       importedOrders: { count: Number(importedOrd[0]?.n ?? 0), total: D(importedOrd[0]?.total ?? 0), open: Number(importedOrd[0]?.open ?? 0), first: importedOrd[0]?.first ?? null, last: importedOrd[0]?.last ?? null },
       importedCash: { count: Number(importedCash[0]?.n ?? 0), income: D(importedCash[0]?.income ?? 0), expense: D(importedCash[0]?.expense ?? 0), first: importedCash[0]?.first ?? null, last: importedCash[0]?.last ?? null },
       importedStocktakes: { count: Number(importedStk[0]?.n ?? 0), lines: Number(importedStk[0]?.lines ?? 0), open: Number(importedStk[0]?.open ?? 0), first: importedStk[0]?.first ?? null, last: importedStk[0]?.last ?? null },
+      importedPurchaseReturns: { count: Number(importedPRet[0]?.n ?? 0), total: D(importedPRet[0]?.total ?? 0) },
+      importedDamages: { count: Number(importedDmg[0]?.n ?? 0), quantity: D(importedDmg[0]?.qty ?? 0), cost: D(importedDmg[0]?.cost ?? 0) },
       recentJobs: jobs,
     };
   }

@@ -39,6 +39,7 @@ export const KIOTVIET: Guide[] = [
       { text: 'Đặt hàng: vào Đơn hàng → Đặt hàng, chọn khoảng thời gian rồi bấm Xuất file → File chi tiết. Nhập sau hóa đơn: đơn hoàn thành gắn vào hóa đơn theo mã, phiếu tạm thành đơn nháp, đơn đang xử lý thành đơn đã xác nhận (không giữ tồn); tiền cọc ghi trên đơn.' },
       { text: 'Sổ quỹ: vào Sổ quỹ, chọn khoảng thời gian rồi bấm Xuất file. Nhập sau cùng: mỗi phiếu thu/chi gắn vào chứng từ gốc theo mã, không ghi công nợ, không cộng số dư quỹ; sau đó đặt quỹ đầu kỳ = tồn quỹ KiotViet − tổng phiếu đã nhập.' },
       { text: 'Kiểm kho: vào Kho hàng → Kiểm kho, chọn khoảng thời gian rồi bấm Xuất file → File chi tiết. Phiếu đã cân bằng thành phiếu kiểm hoàn thành (không ghi kho lại), phiếu tạm thành phiếu kiểm nháp với tồn hiện tại để đếm tiếp.' },
+      { text: 'Trả hàng nhập và Xuất hủy: xuất file chi tiết ở Mua hàng → Trả hàng nhập và Kho hàng → Xuất hủy. Phiếu trả gắn vào phiếu nhập gốc theo mã nhập hàng (nhập sau lịch sử nhập hàng); phiếu xuất hủy thành phiếu xuất kho lý do hủy hàng, cả hai không trừ kho lại.' },
       { text: 'Giữ nguyên dòng tiêu đề của file (.xlsx, tối đa 50 MB) rồi sang bước Nhập từ Excel KiotViet.', shot: 'integrations-excel' },
     ],
     notes: ['Hệ thống nhận diện cột theo tiêu đề tiếng Việt (không phân biệt hoa thường / dấu); nếu KiotViet đổi tên cột, bạn vẫn ánh xạ tay được ở bước Kiểm tra cột.'],

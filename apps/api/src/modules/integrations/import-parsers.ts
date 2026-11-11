@@ -7,7 +7,7 @@ import { Errors } from '../../common/errors/app-error';
  * common export layouts ("Danh sách hàng hóa", "Danh sách khách hàng", "Nhà cung cấp", "Danh sách hóa đơn") map automatically;
  * the user can still override any column in the preview step.
  */
-export type ImportEntity = 'PRODUCTS' | 'CUSTOMERS' | 'SUPPLIERS' | 'INVOICES' | 'PRICEBOOKS' | 'RETURNS' | 'PURCHASES' | 'ORDERS' | 'CASHBOOK' | 'STOCKTAKES';
+export type ImportEntity = 'PRODUCTS' | 'CUSTOMERS' | 'SUPPLIERS' | 'INVOICES' | 'PRICEBOOKS' | 'RETURNS' | 'PURCHASES' | 'ORDERS' | 'CASHBOOK' | 'STOCKTAKES' | 'PURCHASE_RETURNS' | 'DAMAGES';
 export type RawRow = Record<string, string>;
 export interface ParsedSheet { sheet: string; headers: string[]; rows: RawRow[]; headerRow: number }
 export interface FieldSpec { key: string; label: string; aliases: string[]; required?: boolean }
@@ -208,6 +208,38 @@ export const FIELDS: Record<ImportEntity, FieldSpec[]> = {
     { key: 'lineActual', label: 'Thực tế', aliases: ['thuc te', 'so luong thuc te', 'sl thuc te', 'actual'] },
     { key: 'lineDelta', label: 'SL lệch', aliases: ['sl lech', 'so luong lech', 'lech', 'chenh lech'] },
     { key: 'lineCost', label: 'Giá vốn', aliases: ['gia von', 'cost'] },
+  ],
+  // Mua hàng → Trả hàng nhập: một dòng = một mặt hàng trả, gắn vào phiếu nhập gốc theo mã
+  PURCHASE_RETURNS: [
+    { key: 'code', label: 'Mã trả hàng nhập', aliases: ['ma tra hang nhap', 'ma phieu tra nhap', 'ma phieu tra', 'ma phieu', 'ma tra hang'], required: true },
+    { key: 'date', label: 'Thời gian', aliases: ['thoi gian', 'ngay tra', 'ngay', 'date'] },
+    { key: 'receiptCode', label: 'Mã nhập hàng', aliases: ['ma nhap hang', 'ma phieu nhap', 'ma phieu nhap hang'] },
+    { key: 'supplierCode', label: 'Mã nhà cung cấp', aliases: ['ma nha cung cap', 'ma ncc'] },
+    { key: 'branch', label: 'Chi nhánh', aliases: ['chi nhanh', 'branch'] },
+    { key: 'receiver', label: 'Người nhận', aliases: ['nguoi nhan', 'nguoi tra', 'nguoi tao', 'nhan vien'] },
+    { key: 'status', label: 'Trạng thái', aliases: ['trang thai', 'status'] },
+    { key: 'note', label: 'Ghi chú', aliases: ['ghi chu', 'note'] },
+    { key: 'total', label: 'Tổng tiền trả', aliases: ['tong tien tra', 'ncc can tra', 'tong tien', 'total'] },
+    { key: 'refunded', label: 'Đã nhận lại', aliases: ['da nhan lai', 'ncc da tra', 'da hoan', 'da thanh toan'] },
+    { key: 'lineCode', label: 'Mã hàng (dòng)', aliases: ['ma hang', 'ma hang hoa', 'ma sp'] },
+    { key: 'lineName', label: 'Tên hàng (dòng)', aliases: ['ten hang', 'ten hang hoa'] },
+    { key: 'lineQty', label: 'Số lượng', aliases: ['so luong', 'sl', 'quantity'] },
+    { key: 'linePrice', label: 'Giá trả', aliases: ['gia tra', 'gia tra lai', 'don gia', 'gia nhap', 'price'] },
+    { key: 'lineTotal', label: 'Thành tiền', aliases: ['thanh tien', 'line total'] },
+  ],
+  // Kho hàng → Xuất hủy: một dòng = một mặt hàng hủy
+  DAMAGES: [
+    { key: 'code', label: 'Mã xuất hủy', aliases: ['ma xuat huy', 'ma phieu xuat huy', 'ma phieu huy', 'ma phieu'], required: true },
+    { key: 'date', label: 'Thời gian', aliases: ['thoi gian', 'ngay xuat', 'ngay', 'date'] },
+    { key: 'branch', label: 'Chi nhánh', aliases: ['chi nhanh', 'kho', 'branch'] },
+    { key: 'creator', label: 'Người tạo', aliases: ['nguoi tao', 'nguoi xuat', 'nhan vien'] },
+    { key: 'status', label: 'Trạng thái', aliases: ['trang thai', 'status'] },
+    { key: 'note', label: 'Ghi chú', aliases: ['ghi chu', 'note'] },
+    { key: 'lineCode', label: 'Mã hàng (dòng)', aliases: ['ma hang', 'ma hang hoa', 'ma sp'] },
+    { key: 'lineName', label: 'Tên hàng (dòng)', aliases: ['ten hang', 'ten hang hoa'] },
+    { key: 'lineQty', label: 'Số lượng', aliases: ['so luong', 'sl', 'quantity'] },
+    { key: 'lineCost', label: 'Giá vốn', aliases: ['gia von', 'gia tri', 'cost'] },
+    { key: 'lineReason', label: 'Lý do', aliases: ['ly do', 'ghi chu hang hoa', 'reason'] },
   ],
   PRICEBOOKS: [
     { key: 'code', label: 'Mã hàng', aliases: ['ma hang', 'ma hang hoa', 'ma sp', 'ma san pham', 'code', 'sku'], required: true },

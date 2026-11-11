@@ -447,6 +447,67 @@ describe('KiotViet migration: Excel importers, API connector, reconciliation (Mo
     expect(rec.body.importedStocktakes).toMatchObject({ count: 3, open: 0, lines: 4 });
   });
 
+  it('T-234 purchase return and damage history: return linked to the imported receipt line and counted on it, missing receipt reported, damage becomes a posted issue document with reason DAMAGE, no stock movements, idempotent', async () => {
+    const p1 = (await t.http().get(`${api}/products`).set(s.auth).query({ search: 'SP000101' })).body.data[0];
+    const variantId = (await t.http().get(`${api}/products/${p1.id}`).set(s.auth)).body.variants[0].id;
+    const before = await balanceOf(t, s, variantId);
+    const receipt = await t.prisma.raw.purchaseReceipt.findFirstOrThrow({ where: { tenantId: s.tenantId, code: 'KV-PN000901' }, include: { lines: true } });
+    const supBefore = (await t.http().get(`${api}/suppliers`).set(s.auth).query({ search: 'NCC000301' })).body.data[0].balance;
+    const prHeaders = ['Mã trả hàng nhập', 'Thời gian', 'Mã nhập hàng', 'Mã nhà cung cấp', 'Chi nhánh', 'Người nhận', 'Trạng thái', 'Ghi chú', 'Tổng tiền trả', 'Đã nhận lại', 'Mã hàng', 'Số lượng', 'Giá trả', 'Thành tiền'];
+    const prRows = [
+      ['THN000901', '25/09/2026 09:00', 'PN000901', 'NCC000301', 'Chi nhánh trung tâm', 'admin', 'Đã trả hàng', 'Hàng lỗi', '200.000', '0', 'SP000101', '1', '200.000', '200.000'],
+      ['THN000902', '26/09/2026 09:00', 'PN-KHONG-CO', 'NCC000301', 'Chi nhánh trung tâm', 'admin', 'Đã trả hàng', '', '100.000', '0', 'SP000101', '1', '100.000', '100.000'],
+    ];
+    const pv = await preview('PURCHASE_RETURNS', await xlsx(prHeaders, prRows), { defaultBranchId: s.branchId });
+    expect(pv.body.mapping.code).toBe('Mã trả hàng nhập');
+    expect(pv.body.mapping.receiptCode).toBe('Mã nhập hàng');
+    expect(pv.body.mapping.linePrice).toBe('Giá trả');
+    const done = await commit(pv.body.jobId);
+    expect(done.status).toBe(200);
+    expect(done.body).toMatchObject({ created: 1, failed: 1, missingReceipts: 1 });
+    const ret = await t.prisma.raw.purchaseReturn.findFirstOrThrow({ where: { tenantId: s.tenantId, code: 'KV-THN000901' }, include: { lines: true } });
+    expect(ret.status).toBe('POSTED');
+    expect(ret.receiptId).toBe(receipt.id);
+    expect(ret.totalAmount.toString()).toBe('200000');
+    expect(ret.note).toContain('Hàng lỗi');
+    const rl = receipt.lines.find((l) => l.variantId === variantId)!;
+    expect(ret.lines[0].receiptLineId).toBe(rl.id);
+    const rlAfter = await t.prisma.raw.purchaseReceiptLine.findUniqueOrThrow({ where: { id: rl.id } });
+    expect(rlAfter.returnedQuantity.toString()).toBe('1');
+    expect((await t.prisma.raw.purchaseReceipt.findUniqueOrThrow({ where: { id: receipt.id } })).returnedAmount.toString()).toBe('200000');
+    expect((await t.http().get(`${api}/purchase-returns/${ret.id}`).set(s.auth)).status).toBe(200);
+    // xuất hủy
+    const dmHeaders = ['Mã xuất hủy', 'Thời gian', 'Chi nhánh', 'Người tạo', 'Trạng thái', 'Ghi chú', 'Mã hàng', 'Tên hàng', 'Số lượng', 'Giá vốn', 'Lý do'];
+    const dmRows = [
+      ['XH000901', '27/09/2026 10:00', 'Chi nhánh trung tâm', 'admin', 'Đã xuất hủy', 'Hủy hàng hết hạn', 'SP000101', 'Serum Vitamin C 30ml', '2', '100.000', 'Hết HSD'],
+      ['XH000901', '27/09/2026 10:00', 'Chi nhánh trung tâm', 'admin', 'Đã xuất hủy', 'Hủy hàng hết hạn', 'XOA000901', 'Hàng đã xóa', '1', '50.000', 'Vỡ'],
+      ['XH000902', '28/09/2026 10:00', 'Chi nhánh trung tâm', 'admin', 'Đã hủy', '', 'SP000101', 'Serum Vitamin C 30ml', '1', '100.000', ''],
+    ];
+    const dpv = await preview('DAMAGES', await xlsx(dmHeaders, dmRows), { defaultBranchId: s.branchId });
+    expect(dpv.body.mapping.code).toBe('Mã xuất hủy');
+    expect(dpv.body.mapping.lineReason).toBe('Lý do');
+    expect(dpv.body.mapping.note).toBe('Ghi chú');
+    const ddone = await commit(dpv.body.jobId);
+    expect(ddone.body).toMatchObject({ created: 2, failed: 0, items: 3, placeholders: 1 });
+    const doc = await t.prisma.raw.inventoryDocument.findFirstOrThrow({ where: { tenantId: s.tenantId, code: 'KV-XH000901' }, include: { lines: true } });
+    expect(doc).toMatchObject({ type: 'ISSUE', reason: 'DAMAGE', status: 'POSTED' });
+    expect(doc.postedAt).not.toBeNull();
+    expect([doc.totalQuantity.toString(), doc.totalCost.toString()]).toEqual(['3', '250000']);
+    expect(doc.lines.find((l) => l.variantId === variantId)!.note).toContain('Hết HSD');
+    expect((await t.http().get(`${api}/inventory/documents/${doc.id}`).set(s.auth)).status).toBe(200);
+    expect((await t.prisma.raw.inventoryDocument.findFirstOrThrow({ where: { tenantId: s.tenantId, code: 'KV-XH000902' } })).status).toBe('CANCELLED');
+    // lịch sử: không động kho, không động công nợ
+    expect(await t.prisma.raw.stockMovement.count({ where: { tenantId: s.tenantId, documentId: { in: [doc.id, ret.id] } } })).toBe(0);
+    expect(await balanceOf(t, s, variantId)).toEqual(before);
+    expect((await t.http().get(`${api}/suppliers`).set(s.auth).query({ search: 'NCC000301' })).body.data[0].balance).toBe(supBefore);
+    // chạy lại: bỏ qua mã đã có
+    expect((await commit((await preview('PURCHASE_RETURNS', await xlsx(prHeaders, [prRows[0]]), { defaultBranchId: s.branchId })).body.jobId)).body).toMatchObject({ created: 0, skipped: 1 });
+    expect((await commit((await preview('DAMAGES', await xlsx(dmHeaders, dmRows), { defaultBranchId: s.branchId })).body.jobId)).body).toMatchObject({ created: 0, skipped: 2 });
+    const rec = await t.http().get(`${api}/integrations/reconcile`).set(s.auth);
+    expect(rec.body.importedPurchaseReturns).toMatchObject({ count: 1, total: '200000' });
+    expect(rec.body.importedDamages).toMatchObject({ count: 2, cost: '250000' });
+  });
+
   it('T-223 KiotViet API connector: credentials stored encrypted, test lists branches, import pulls products/customers/suppliers/invoices through the same pipeline, auth failure reported', async () => {
     // a tiny stand-in for id.kiotviet.vn + public.kiotapi.com
     const calls: string[] = [];

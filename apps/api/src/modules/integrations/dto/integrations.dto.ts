@@ -4,7 +4,7 @@ import { ArrayMinSize, ArrayUnique, IsArray, IsBoolean, IsIn, IsISO8601, IsObjec
 import { PaginationQueryDto } from '../../../common/pagination';
 import { TrimToUndefined } from '../../../common/validators';
 
-export const IMPORT_TYPES = ['PRODUCTS', 'CUSTOMERS', 'SUPPLIERS', 'INVOICES', 'PRICEBOOKS', 'RETURNS', 'PURCHASES', 'ORDERS', 'CASHBOOK', 'STOCKTAKES'] as const;
+export const IMPORT_TYPES = ['PRODUCTS', 'CUSTOMERS', 'SUPPLIERS', 'INVOICES', 'PRICEBOOKS', 'RETURNS', 'PURCHASES', 'ORDERS', 'CASHBOOK', 'STOCKTAKES', 'PURCHASE_RETURNS', 'DAMAGES'] as const;
 
 export class StockColumnDto {
   @ApiProperty({ example: 'Tồn kho' }) @IsString() @MinLength(1) @MaxLength(200) header: string;

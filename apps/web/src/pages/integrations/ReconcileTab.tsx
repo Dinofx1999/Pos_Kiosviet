@@ -45,6 +45,10 @@ export function ReconcileTiles({ data }: { data: Reconcile }) {
       { label: 'Số phiếu kiểm', value: qty(data.importedStocktakes?.count ?? 0) }, { label: 'Dòng kiểm', value: qty(data.importedStocktakes?.lines ?? 0) }, { label: 'Phiếu tạm', value: qty(data.importedStocktakes?.open ?? 0) },
       { label: 'Khoảng ngày', value: data.importedStocktakes?.first ? `${d(data.importedStocktakes.first)} → ${d(data.importedStocktakes.last)}` : '—' },
     ] },
+    { title: 'Trả hàng nhập & xuất hủy lịch sử', hint: 'KiotViet: Mua hàng → Trả hàng nhập; Kho hàng → Xuất hủy', items: [
+      { label: 'Phiếu trả hàng nhập', value: qty(data.importedPurchaseReturns?.count ?? 0) }, { label: 'Tiền trả NCC', value: money(data.importedPurchaseReturns?.total ?? 0) },
+      { label: 'Phiếu xuất hủy', value: qty(data.importedDamages?.count ?? 0) }, { label: 'Giá trị hủy', value: money(data.importedDamages?.cost ?? 0) },
+    ] },
   ];
   return (
     <div className="ig-recon">
