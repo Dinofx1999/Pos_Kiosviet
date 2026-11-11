@@ -45,7 +45,7 @@ export interface ImportOptions {
   priceBookMeta?: Record<string, { status?: 'ACTIVE' | 'INACTIVE'; startsAt?: string; endsAt?: string; customerGroups?: string[]; priority?: number }>;
 }
 interface RowError { row: number; code?: string; error: string }
-interface Totals { rows: number; created: number; updated: number; skipped: number; failed: number; stockLines?: number; stockDocuments?: number; debtAdjusted?: number; units?: number; products?: number; negativeStock?: number; pointsAdjusted?: number; placeholders?: number; missingInvoices?: number; priceBooks?: number; items?: number; unknownCodes?: number; unitCodes?: number; basePriceUpdated?: number; suppliers?: number }
+interface Totals { rows: number; created: number; updated: number; skipped: number; failed: number; stockLines?: number; stockDocuments?: number; debtAdjusted?: number; units?: number; products?: number; negativeStock?: number; pointsAdjusted?: number; placeholders?: number; missingInvoices?: number; priceBooks?: number; items?: number; unknownCodes?: number; unitCodes?: number; basePriceUpdated?: number; suppliers?: number; linked?: number; categories?: number; cancelled?: number; open?: number }
 
 const BATCH = 200;
 /** Biến thể khớp với mã hàng trên dòng KiotViet (sku / mã hàng hóa / mã ĐVT quy đổi). */
@@ -117,6 +117,13 @@ export class ImportService {
       } else if (type === 'PURCHASES') {
         if (!get(r, 'code')) out.push({ row, error: 'Thiếu mã nhập hàng' });
         if (get(r, 'date') && !parseDate(get(r, 'date'))) out.push({ row, code: get(r, 'code'), error: `Ngày không hợp lệ: ${get(r, 'date')}` });
+      } else if (type === 'ORDERS') {
+        if (!get(r, 'code')) out.push({ row, error: 'Thiếu mã đặt hàng' });
+        if (get(r, 'date') && !parseDate(get(r, 'date'))) out.push({ row, code: get(r, 'code'), error: `Ngày không hợp lệ: ${get(r, 'date')}` });
+      } else if (type === 'CASHBOOK') {
+        if (!get(r, 'code')) continue; // dòng tổng / quỹ đầu kỳ của file KiotViet không có mã → bỏ qua
+        if (get(r, 'amount') && parseNumber(get(r, 'amount')) === null) out.push({ row, code: get(r, 'code'), error: `Số tiền không hợp lệ: ${get(r, 'amount')}` });
+        if (get(r, 'date') && !parseDate(get(r, 'date'))) out.push({ row, code: get(r, 'code'), error: `Ngày không hợp lệ: ${get(r, 'date')}` });
       }
     }
     return out;
@@ -141,7 +148,9 @@ export class ImportService {
             : type === 'PRICEBOOKS' ? await this.importPriceBooks(user, rows, mapping, options)
               : type === 'RETURNS' ? await this.importReturns(user, rows, mapping, options)
                 : type === 'PURCHASES' ? await this.importPurchases(user, rows, mapping, options)
-                  : await this.importInvoices(user, rows, mapping, options);
+                  : type === 'ORDERS' ? await this.importOrders(user, rows, mapping, options)
+                    : type === 'CASHBOOK' ? await this.importCashBook(user, rows, mapping, options)
+                      : await this.importInvoices(user, rows, mapping, options);
       await this.prisma.db.importJob.update({ where: { id: jobId }, data: { status: 'DONE', finishedAt: new Date(), totals: result.totals as unknown as Prisma.InputJsonValue, errors: result.errors.slice(0, 500) as unknown as Prisma.InputJsonValue, payload: Prisma.DbNull } });
       await this.audit.log(this.prisma.db as never, { action: 'import.commit', entityType: 'ImportJob', entityId: jobId, after: { type, ...result.totals } });
       return { jobId, type, ...result.totals, errors: result.errors.slice(0, 200) };
@@ -543,6 +552,203 @@ export class ImportService {
     return { totals, errors };
   }
 
+  // ---------------------------------------------------------------- lịch sử đặt hàng (KiotViet Đơn hàng → Đặt hàng; không giữ tồn / sổ quỹ / công nợ)
+  /**
+   * Mỗi phiếu đặt KiotViet thành đơn đặt hàng mã KV-<mã>: "Hoàn thành" → COMPLETED gắn hóa đơn KV-<mã hóa đơn> nếu có; "Đã hủy" → CANCELLED;
+   * "Phiếu tạm" → DRAFT; "Đang xử lý" / "Đang giao hàng" → CONFIRMED nhưng không giữ tồn (hủy xác nhận rồi xác nhận lại ở đây nếu cần giữ).
+   * Tiền cọc = "Khách đã trả", chỉ ghi trên đơn (phiếu thu nằm trong lịch sử sổ quỹ). Người nhận / ĐVVC / mã vận đơn ghi vào ghi chú.
+   * Chạy lại bỏ qua mã đã có, đơn còn mở mà KiotViet đã hoàn thành / hủy thì đổi trạng thái.
+   */
+  async importOrders(user: RequestUser, rows: RawRow[], mapping: Record<string, string>, options: ImportOptions) {
+    const get = (r: RawRow, f: string) => (mapping[f] ? (r[mapping[f]] ?? '').trim() : '');
+    const totals: Totals = { rows: rows.length, created: 0, updated: 0, skipped: 0, failed: 0, linked: 0, open: 0 };
+    const errors: RowError[] = [];
+    const branches = await this.prisma.db.branch.findMany({ select: { id: true, name: true, code: true } });
+    const defaultBranchId = options.defaultBranchId ?? (branches.find((b) => (user.branchIds ?? []).includes(b.id))?.id ?? branches[0]?.id);
+    const branchOf = (name: string) => options.branchMap?.[name] ?? branches.find((b) => b.name.toLowerCase() === name.toLowerCase() || b.code.toLowerCase() === name.toLowerCase())?.id ?? defaultBranchId;
+    const since = options.invoicesFrom ? new Date(options.invoicesFrom) : null;
+    const groups = new Map<string, RawRow[]>();
+    for (const r of rows) { const c = get(r, 'code'); if (!c) { totals.skipped++; continue; } (groups.get(c) ?? groups.set(c, []).get(c)!).push(r); }
+    const codes = Array.from(groups.values()).flatMap((g) => g.map((r) => safeCode(get(r, 'lineCode')).toLowerCase()).filter(Boolean));
+    const { vByCode, uByCode } = await this.resolveLineCodes(codes);
+    if (options.createMissingProducts !== false) await this.createPlaceholderProducts(user, groups, get, vByCode, uByCode, totals, errors, 'Tạo tự động khi nhập lịch sử đặt hàng KiotViet (mã không còn trong danh mục)');
+    const groupCodes = Array.from(groups.keys());
+    const existing = new Map<string, { id: string; status: string; invoiceId: string | null }>();
+    for (let i = 0; i < groupCodes.length; i += 5000) {
+      const found = await this.prisma.db.salesOrder.findMany({ where: { code: { in: groupCodes.slice(i, i + 5000).map((c) => `KV-${c}`) } }, select: { id: true, code: true, status: true, invoiceId: true } });
+      for (const f of found) existing.set(f.code.slice(3), { id: f.id, status: f.status, invoiceId: f.invoiceId });
+    }
+    // hóa đơn của đơn đã hoàn thành (theo mã KiotViet) – mỗi hóa đơn chỉ gắn được một đơn
+    const invCodes = Array.from(new Set(Array.from(groups.values()).map((g) => safeCode(get(g[0], 'invoiceCode'))).filter(Boolean)));
+    const invByCode = new Map<string, { id: string; customerId: string | null }>();
+    for (let i = 0; i < invCodes.length; i += 5000) {
+      const chunk = invCodes.slice(i, i + 5000);
+      const found = await this.prisma.db.invoice.findMany({ where: { OR: [{ externalRef: { in: chunk } }, { code: { in: chunk } }, { code: { in: chunk.map((c) => `KV-${c}`) } }] }, select: { id: true, code: true, externalRef: true, customerId: true } });
+      for (const f of found) { if (f.externalRef) invByCode.set(f.externalRef.toLowerCase(), f); invByCode.set(f.code.toLowerCase(), f); if (f.code.startsWith('KV-')) invByCode.set(f.code.slice(3).toLowerCase(), f); }
+    }
+    const usedInvoices = new Set((await this.prisma.db.salesOrder.findMany({ where: { invoiceId: { not: null } }, select: { invoiceId: true } })).map((o) => o.invoiceId!));
+    const customers = await this.prisma.db.customer.findMany({ select: { id: true, code: true } });
+    const cByCode = new Map(customers.map((c) => [c.code.toLowerCase(), c]));
+    const users = await this.prisma.db.user.findMany({ select: { id: true, fullName: true, username: true } });
+    const userOf = (name: string) => users.find((u) => u.fullName.toLowerCase() === name.toLowerCase() || u.username.toLowerCase() === name.toLowerCase())?.id ?? null;
+    const warehouses = await this.prisma.db.warehouse.findMany({ select: { id: true, branchId: true, isDefault: true } });
+    const sourceOf = (channel: string) => { const n = normalize(channel); if (!n || /truc tiep|tai quay|pos/.test(n)) return 'POS'; if (/dien thoai|phone/.test(n)) return 'PHONE'; if (/facebook/.test(n)) return 'FACEBOOK'; if (/zalo/.test(n)) return 'ZALO'; if (/shopee/.test(n)) return 'SHOPEE'; if (/web|online|lazada|tiktok/.test(n)) return 'ONLINE'; return 'OTHER'; };
+    for (const [code, g] of groups) {
+      const head = g[0]; const row = Number(head.__row);
+      try {
+        const date = parseDate(get(head, 'date')) ?? new Date();
+        if (since && date < since) { totals.skipped++; continue; }
+        const statusRaw = normalize(get(head, 'status'));
+        const status: 'DRAFT' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' = statusRaw.includes('huy') || statusRaw === 'cancelled' ? 'CANCELLED' : statusRaw.includes('hoan thanh') || statusRaw === 'completed' ? 'COMPLETED' : statusRaw.includes('tam') || statusRaw === 'draft' || !statusRaw ? 'DRAFT' : 'CONFIRMED';
+        const invRef = safeCode(get(head, 'invoiceCode')).toLowerCase();
+        const inv = invRef ? invByCode.get(invRef) : undefined;
+        const linkInvoice = status === 'COMPLETED' && inv && !usedInvoices.has(inv.id) ? inv.id : null;
+        const prev = existing.get(code);
+        if (prev) {
+          if ((prev.status === 'DRAFT' || prev.status === 'CONFIRMED') && status !== prev.status && (status === 'COMPLETED' || status === 'CANCELLED')) {
+            await this.prisma.db.salesOrder.update({ where: { id: prev.id }, data: { status, completedAt: status === 'COMPLETED' ? date : null, invoiceId: status === 'COMPLETED' && !prev.invoiceId ? linkInvoice : undefined, cancelledAt: status === 'CANCELLED' ? date : null, cancelledById: status === 'CANCELLED' ? user.id : null, cancelReason: status === 'CANCELLED' ? 'Đã hủy ở KiotViet' : null, version: { increment: 1 } } });
+            if (status === 'COMPLETED' && linkInvoice && !prev.invoiceId) { usedInvoices.add(linkInvoice); totals.linked!++; }
+            totals.updated++;
+          } else totals.skipped++;
+          continue;
+        }
+        const branchId = branchOf(get(head, 'branch'));
+        if (!branchId) throw new Error('Không xác định được chi nhánh');
+        this.access.assertBranch(user, branchId);
+        const warehouseId = (warehouses.find((w) => w.branchId === branchId && w.isDefault) ?? warehouses.find((w) => w.branchId === branchId))?.id;
+        if (!warehouseId) throw new Error('Chi nhánh chưa có kho');
+        const customer = (get(head, 'customerCode') ? cByCode.get(safeCode(get(head, 'customerCode')).toLowerCase()) : undefined) ?? (inv?.customerId ? { id: inv.customerId } : undefined);
+        const lines = g.filter((r) => get(r, 'lineCode') || get(r, 'lineName')).map((r, i) => {
+          const lc = safeCode(get(r, 'lineCode')).toLowerCase();
+          const unit = uByCode.get(lc);
+          const v = unit?.variant ?? vByCode.get(lc);
+          if (!v) throw new Error(`Dòng ${r.__row ?? i + 1}: không tìm thấy hàng ${get(r, 'lineCode') || get(r, 'lineName')} (nhập hàng hóa trước)`);
+          const quantity = toQty(parseNumber(get(r, 'lineQty')) ?? '1');
+          const factor = unit?.factor ?? D(1);
+          const listPrice = money(parseNumber(get(r, 'linePrice')) ?? parseNumber(get(r, 'lineSellPrice')) ?? '0');
+          const lineTotal = parseNumber(get(r, 'lineTotal')) !== null ? money(parseNumber(get(r, 'lineTotal'))!) : money(quantity.times(money(parseNumber(get(r, 'lineSellPrice')) ?? listPrice.toString())));
+          const discount = Prisma.Decimal.max(money(quantity.times(listPrice).minus(lineTotal)), ZERO);
+          return { lineNo: i + 1, variantId: v.id, productUnitId: unit?.unitId ?? null, unitName: unit?.unitName ?? v.product.baseUnit, conversionFactor: factor, quantity, baseQuantity: toQty(quantity.times(factor)), listPrice, unitPrice: listPrice, discountAmount: discount, taxRate: ZERO, taxAmount: ZERO, lineTotal };
+        });
+        const subtotal = parseNumber(get(head, 'subtotal')) !== null ? money(parseNumber(get(head, 'subtotal'))!) : lines.reduce((s, l) => s.plus(l.lineTotal), ZERO);
+        const discount = money(parseNumber(get(head, 'discount')) ?? '0');
+        const otherFee = money(parseNumber(get(head, 'otherFee')) ?? '0');
+        const total = Prisma.Decimal.max(parseNumber(get(head, 'total')) !== null ? money(parseNumber(get(head, 'total'))!) : subtotal.minus(discount).plus(otherFee), ZERO);
+        const deposit = Prisma.Decimal.min(Prisma.Decimal.max(money(parseNumber(get(head, 'paid')) ?? '0'), ZERO), total);
+        const receiver = [get(head, 'receiverName'), get(head, 'receiverPhone'), [get(head, 'receiverAddress'), get(head, 'receiverWard'), get(head, 'receiverArea')].filter(Boolean).join(', ')].filter(Boolean).join(' – ');
+        const shipping = [get(head, 'carrier'), get(head, 'trackingCode')].filter(Boolean).join(' ');
+        const note = ['Nhập từ KiotViet', get(head, 'channel') ? `Kênh ${get(head, 'channel')}` : '', receiver ? `Giao: ${receiver}` : '', shipping ? `ĐVVC: ${shipping}` : '', get(head, 'note')].filter(Boolean).join(' · ').slice(0, 1000);
+        const sellerId = userOf(get(head, 'seller'));
+        await this.prisma.db.salesOrder.create({ data: { tenantId: user.tenantId, branchId, warehouseId, customerId: customer?.id ?? null, sellerId, invoiceId: linkInvoice, code: `KV-${code}`, status, source: sourceOf(get(head, 'channel')), orderDate: date, expectedAt: parseDate(get(head, 'deliveryAt')), note, subtotal, discountAmount: discount, taxAmount: ZERO, totalAmount: total, depositAmount: deposit, confirmedAt: status === 'CONFIRMED' || status === 'COMPLETED' ? date : null, completedAt: status === 'COMPLETED' ? date : null, cancelledAt: status === 'CANCELLED' ? date : null, cancelledById: status === 'CANCELLED' ? sellerId ?? user.id : null, cancelReason: status === 'CANCELLED' ? 'Đã hủy ở KiotViet' : null, createdById: sellerId ?? user.id, lines: { create: lines.map((l) => ({ tenantId: user.tenantId, ...l })) } } });
+        if (linkInvoice) { usedInvoices.add(linkInvoice); totals.linked!++; }
+        if (status === 'DRAFT' || status === 'CONFIRMED') totals.open!++;
+        totals.created++;
+      } catch (e) { totals.failed++; errors.push({ row, code, error: err(e) }); }
+    }
+    return { totals, errors };
+  }
+
+  // ---------------------------------------------------------------- lịch sử sổ quỹ (KiotViet Sổ quỹ; chỉ ghi phiếu, không động công nợ; số dư quỹ cân lại sau)
+  /**
+   * Mỗi phiếu thu/chi KiotViet thành một phiếu mã KV-<mã>: chiều theo loại phiếu / dấu số tiền; phương thức → quỹ (tiền mặt / ngân hàng / ví);
+   * loại thu chi → danh mục thu/chi (tạo nếu chưa có, chỉ với phiếu không gắn chứng từ); đối tác theo mã KH/NCC, hoặc theo chứng từ gốc suy từ
+   * mã phiếu (TTHD… → hóa đơn, TTTH… → phiếu trả hàng, TTDH… → đơn đặt, TTPN… → phiếu nhập) và gắn phân bổ vào chứng từ đó. Không ghi sổ
+   * công nợ (đã lấy số hiện tại) và KHÔNG cộng vào số dư quỹ: sau khi nhập, đặt quỹ đầu kỳ = tồn quỹ KiotViet − tổng phiếu đã nhập của quỹ.
+   * Ghi theo lô (createMany) vì sổ quỹ có hàng trăm nghìn phiếu. Chạy lại bỏ qua mã đã có.
+   */
+  async importCashBook(user: RequestUser, rows: RawRow[], mapping: Record<string, string>, options: ImportOptions) {
+    const get = (r: RawRow, f: string) => (mapping[f] ? (r[mapping[f]] ?? '').trim() : '');
+    const totals: Totals = { rows: rows.length, created: 0, updated: 0, skipped: 0, failed: 0, linked: 0, categories: 0, cancelled: 0 };
+    const errors: RowError[] = [];
+    const branches = await this.prisma.db.branch.findMany({ select: { id: true, name: true, code: true } });
+    const defaultBranchId = options.defaultBranchId ?? (branches.find((b) => (user.branchIds ?? []).includes(b.id))?.id ?? branches[0]?.id);
+    const branchOf = (name: string) => options.branchMap?.[name] ?? branches.find((b) => b.name.toLowerCase() === name.toLowerCase() || b.code.toLowerCase() === name.toLowerCase())?.id ?? defaultBranchId;
+    const since = options.invoicesFrom ? new Date(options.invoicesFrom) : null;
+    const accounts = await this.prisma.db.cashAccount.findMany({ where: { isActive: true }, select: { id: true, type: true, branchId: true }, orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] });
+    const accountFor = (branchId: string, method: string) => {
+      const type = method === 'CASH' || method === 'OTHER' ? 'CASH' : method === 'EWALLET' ? 'EWALLET' : 'BANK';
+      const pick = (t: string) => accounts.find((a) => a.type === t && a.branchId === branchId) ?? accounts.find((a) => a.type === t);
+      return (pick(type) ?? (type === 'EWALLET' ? pick('BANK') : undefined) ?? pick('CASH') ?? accounts[0])?.id ?? null;
+    };
+    const methodOf = (s: string): 'CASH' | 'BANK_TRANSFER' | 'CARD' | 'EWALLET' | 'OTHER' => { const n = normalize(s); if (!n || /tien mat|^cash$/.test(n)) return 'CASH'; if (/chuyen khoan|transfer|bank|ngan hang/.test(n)) return 'BANK_TRANSFER'; if (/^the|card/.test(n)) return 'CARD'; if (/^vi|wallet|momo|zalo|vnpay/.test(n)) return 'EWALLET'; return 'OTHER'; };
+    const catList = await this.prisma.db.paymentCategory.findMany({ select: { id: true, direction: true, name: true } });
+    const cats = new Map(catList.map((c) => [`${c.direction}:${c.name.toLowerCase()}`, c.id]));
+    const categoryOf = async (direction: 'IN' | 'OUT', kind: string) => {
+      const name = (kind.replace(/^(phiếu|phieu)?\s*(thu|chi)\s*/i, '').trim() || (direction === 'IN' ? 'Thu khác' : 'Chi khác')).slice(0, 200);
+      const key = `${direction}:${name.toLowerCase()}`;
+      if (!cats.has(key)) { const c = await this.prisma.db.paymentCategory.create({ data: { tenantId: user.tenantId, direction, name } }); cats.set(key, c.id); totals.categories!++; }
+      return cats.get(key)!;
+    };
+    const valid = rows.filter((r) => get(r, 'code'));
+    totals.skipped += rows.length - valid.length;
+    const codes = valid.map((r) => get(r, 'code'));
+    const existing = new Set<string>();
+    for (let i = 0; i < codes.length; i += 5000) for (const f of await this.prisma.db.payment.findMany({ where: { code: { in: codes.slice(i, i + 5000).map((c) => `KV-${c}`) } }, select: { code: true } })) existing.add(f.code.slice(3));
+    // chứng từ gốc theo mã phiếu KiotViet: TTHD201925 → HD201925 (hóa đơn), TTTH… → phiếu trả, TTDH… → đơn đặt, PCPN… / TTPN… → phiếu nhập
+    const docRef = (code: string) => { const m = code.match(/^(?:TT|PC|PT|CT)(HD[D_A-Z0-9]*|TH\d+|DH\d+|PN\d+)$/i); return m ? m[1] : null; };
+    const refs = Array.from(new Set(valid.map((r) => (get(r, 'document') ? safeCode(get(r, 'document')) : docRef(get(r, 'code')))).filter((x): x is string => !!x)));
+    const invRefs = refs.filter((x) => /^HD/i.test(x)); const retRefs = refs.filter((x) => /^TH/i.test(x)); const ordRefs = refs.filter((x) => /^DH/i.test(x)); const purRefs = refs.filter((x) => /^PN/i.test(x));
+    const docs = new Map<string, { type: 'INVOICE' | 'SALES_RETURN' | 'SALES_ORDER' | 'PURCHASE_RECEIPT'; id: string; partyType: 'CUSTOMER' | 'SUPPLIER' | null; partyId: string | null; dir: 'IN' | 'OUT' }>();
+    for (let i = 0; i < invRefs.length; i += 5000) { const chunk = invRefs.slice(i, i + 5000); for (const f of await this.prisma.db.invoice.findMany({ where: { OR: [{ externalRef: { in: chunk } }, { code: { in: chunk.map((c) => `KV-${c}`) } }] }, select: { id: true, code: true, externalRef: true, customerId: true } })) docs.set((f.externalRef ?? f.code.replace(/^KV-/, '')).toLowerCase(), { type: 'INVOICE', id: f.id, partyType: f.customerId ? 'CUSTOMER' : null, partyId: f.customerId, dir: 'IN' }); }
+    for (let i = 0; i < retRefs.length; i += 5000) for (const f of await this.prisma.db.salesReturn.findMany({ where: { code: { in: retRefs.slice(i, i + 5000).map((c) => `KV-${c}`) } }, select: { id: true, code: true, customerId: true } })) docs.set(f.code.slice(3).toLowerCase(), { type: 'SALES_RETURN', id: f.id, partyType: f.customerId ? 'CUSTOMER' : null, partyId: f.customerId, dir: 'OUT' });
+    for (let i = 0; i < ordRefs.length; i += 5000) for (const f of await this.prisma.db.salesOrder.findMany({ where: { code: { in: ordRefs.slice(i, i + 5000).map((c) => `KV-${c}`) } }, select: { id: true, code: true, customerId: true } })) docs.set(f.code.slice(3).toLowerCase(), { type: 'SALES_ORDER', id: f.id, partyType: f.customerId ? 'CUSTOMER' : null, partyId: f.customerId, dir: 'IN' });
+    for (let i = 0; i < purRefs.length; i += 5000) for (const f of await this.prisma.db.purchaseReceipt.findMany({ where: { code: { in: purRefs.slice(i, i + 5000).map((c) => `KV-${c}`) } }, select: { id: true, code: true, supplierId: true } })) docs.set(f.code.slice(3).toLowerCase(), { type: 'PURCHASE_RECEIPT', id: f.id, partyType: 'SUPPLIER', partyId: f.supplierId, dir: 'OUT' });
+    const customers = await this.prisma.db.customer.findMany({ select: { id: true, code: true } });
+    const cByCode = new Map(customers.map((c) => [c.code.toLowerCase(), c.id]));
+    const suppliers = await this.prisma.db.supplier.findMany({ select: { id: true, code: true } });
+    const sByCode = new Map(suppliers.map((s) => [s.code.toLowerCase(), s.id]));
+    const users = await this.prisma.db.user.findMany({ select: { id: true, fullName: true, username: true } });
+    const userOf = (name: string) => users.find((u) => u.fullName.toLowerCase() === name.toLowerCase() || u.username.toLowerCase() === name.toLowerCase())?.id ?? user.id;
+    type Pending = { data: Prisma.PaymentCreateManyInput; alloc: { documentType: string; documentId: string; amount: Prisma.Decimal } | null };
+    const pending: Pending[] = [];
+    const flush = async () => {
+      if (!pending.length) return;
+      const batch = pending.splice(0, pending.length);
+      const created = await this.prisma.db.payment.createManyAndReturn({ data: batch.map((p) => p.data), select: { id: true, code: true } });
+      const idByCode = new Map(created.map((c) => [c.code, c.id]));
+      const allocs = batch.filter((p) => p.alloc && idByCode.has(p.data.code)).map((p) => ({ tenantId: user.tenantId, paymentId: idByCode.get(p.data.code)!, documentType: p.alloc!.documentType, documentId: p.alloc!.documentId, amount: p.alloc!.amount }));
+      if (allocs.length) await this.prisma.db.paymentAllocation.createMany({ data: allocs });
+      totals.created += created.length; totals.linked! += allocs.length;
+    };
+    const seen = new Set<string>();
+    for (const r of valid) {
+      const code = get(r, 'code'); const row = Number(r.__row);
+      try {
+        if (existing.has(code) || seen.has(code)) { totals.skipped++; continue; }
+        const date = parseDate(get(r, 'date')) ?? new Date();
+        if (since && date < since) { totals.skipped++; continue; }
+        const raw = parseNumber(get(r, 'amount'));
+        if (raw === null) throw new Error(`Số tiền không hợp lệ: ${get(r, 'amount')}`);
+        const kindN = normalize(get(r, 'kind'));
+        const direction: 'IN' | 'OUT' = /^(phieu )?chi|^tra |^hoan/.test(kindN) ? 'OUT' : /^(phieu )?thu/.test(kindN) ? 'IN' : D(raw).isNegative() ? 'OUT' : 'IN';
+        const amount = money(D(raw).abs());
+        if (amount.isZero()) { totals.skipped++; continue; }
+        const statusN = normalize(get(r, 'status'));
+        const status: 'POSTED' | 'CANCELLED' = /huy|cancel|^1$|^2$/.test(statusN) && !/da thanh toan|hoan thanh|^0$/.test(statusN) ? 'CANCELLED' : 'POSTED';
+        const branchId = branchOf(get(r, 'branch'));
+        if (!branchId) throw new Error('Không xác định được chi nhánh');
+        const method = methodOf(get(r, 'method'));
+        const ref = (get(r, 'document') ? safeCode(get(r, 'document')) : docRef(code))?.toLowerCase();
+        const doc = ref ? docs.get(ref) : undefined;
+        const alloc = doc && doc.dir === direction ? { documentType: doc.type, documentId: doc.id, amount } : null;
+        const pt = normalize(get(r, 'partyType')); const pc = safeCode(get(r, 'partyCode')).toLowerCase();
+        let partyType: 'CUSTOMER' | 'SUPPLIER' | null = null; let partyId: string | null = null;
+        if (pc && /^s|ncc|nha cung cap|supplier/.test(pt) && sByCode.has(pc)) { partyType = 'SUPPLIER'; partyId = sByCode.get(pc)!; }
+        else if (pc && cByCode.has(pc)) { partyType = 'CUSTOMER'; partyId = cByCode.get(pc)!; }
+        else if (pc && sByCode.has(pc)) { partyType = 'SUPPLIER'; partyId = sByCode.get(pc)!; }
+        else if (doc?.partyId) { partyType = doc.partyType; partyId = doc.partyId; }
+        const categoryId = alloc ? null : await categoryOf(direction, get(r, 'kind'));
+        const note = ['Nhập từ KiotViet', !partyId && get(r, 'partyName') ? get(r, 'partyName') : '', get(r, 'note')].filter(Boolean).join(' · ').slice(0, 1000);
+        seen.add(code);
+        if (status === 'CANCELLED') totals.cancelled!++;
+        pending.push({ data: { tenantId: user.tenantId, branchId, code: `KV-${code}`, direction, method, partyType, partyId, cashAccountId: accountFor(branchId, method), categoryId, amount, allocated: alloc ? amount : ZERO, paymentDate: date, note, status, cancelledAt: status === 'CANCELLED' ? date : null, cancelReason: status === 'CANCELLED' ? 'Đã hủy ở KiotViet' : null, createdById: userOf(get(r, 'creator')) }, alloc: status === 'POSTED' ? alloc : null });
+        if (pending.length >= 500) await flush();
+      } catch (e) { totals.failed++; errors.push({ row, code, error: err(e) }); }
+    }
+    await flush();
+    return { totals, errors };
+  }
+
   // ---------------------------------------------------------------- invoice history (no stock / ledger / cash effects)
   async importInvoices(user: RequestUser, rows: RawRow[], mapping: Record<string, string>, options: ImportOptions) {
     const get = (r: RawRow, f: string) => (mapping[f] ? (r[mapping[f]] ?? '').trim() : '');
@@ -813,7 +1019,7 @@ export class ImportService {
 
   async reconcile(user: RequestUser) {
     const tenant = user.tenantId;
-    const [products, variants, customers, suppliers, stock, debt, imported, importedRet, importedPur] = await Promise.all([
+    const [products, variants, customers, suppliers, stock, debt, imported, importedRet, importedPur, importedOrd, importedCash] = await Promise.all([
       this.prisma.db.product.count({ where: { deletedAt: null } }),
       this.prisma.db.productVariant.count({ where: { deletedAt: null } }),
       this.prisma.db.customer.count(),
@@ -823,6 +1029,8 @@ export class ImportService {
       this.prisma.raw.$queryRaw<{ n: bigint; revenue: Prisma.Decimal; first: Date | null; last: Date | null }[]>`SELECT count(*)::bigint AS n, COALESCE(SUM(total_amount) FILTER (WHERE status = 'COMPLETED'),0) AS revenue, MIN(invoice_date) AS first, MAX(invoice_date) AS last FROM invoices WHERE tenant_id = ${tenant}::uuid AND imported = true`,
       this.prisma.raw.$queryRaw<{ n: bigint; refund: Prisma.Decimal; first: Date | null; last: Date | null }[]>`SELECT count(*)::bigint AS n, COALESCE(SUM(total_refund) FILTER (WHERE status = 'COMPLETED'),0) AS refund, MIN(return_date) AS first, MAX(return_date) AS last FROM sales_returns WHERE tenant_id = ${tenant}::uuid AND code LIKE 'KV-%'`,
       this.prisma.raw.$queryRaw<{ n: bigint; total: Prisma.Decimal; first: Date | null; last: Date | null }[]>`SELECT count(*)::bigint AS n, COALESCE(SUM(total_amount) FILTER (WHERE status = 'POSTED'),0) AS total, MIN(receipt_date) AS first, MAX(receipt_date) AS last FROM purchase_receipts WHERE tenant_id = ${tenant}::uuid AND code LIKE 'KV-%'`,
+      this.prisma.raw.$queryRaw<{ n: bigint; total: Prisma.Decimal; open: bigint; first: Date | null; last: Date | null }[]>`SELECT count(*)::bigint AS n, COALESCE(SUM(total_amount) FILTER (WHERE status = 'COMPLETED'),0) AS total, count(*) FILTER (WHERE status IN ('DRAFT','CONFIRMED'))::bigint AS open, MIN(order_date) AS first, MAX(order_date) AS last FROM sales_orders WHERE tenant_id = ${tenant}::uuid AND code LIKE 'KV-%'`,
+      this.prisma.raw.$queryRaw<{ n: bigint; income: Prisma.Decimal; expense: Prisma.Decimal; first: Date | null; last: Date | null }[]>`SELECT count(*)::bigint AS n, COALESCE(SUM(amount) FILTER (WHERE direction = 'IN' AND status = 'POSTED'),0) AS income, COALESCE(SUM(amount) FILTER (WHERE direction = 'OUT' AND status = 'POSTED'),0) AS expense, MIN(payment_date) AS first, MAX(payment_date) AS last FROM payments WHERE tenant_id = ${tenant}::uuid AND code LIKE 'KV-%'`,
     ]);
     const byParty = (t: string) => debt.find((d) => d.party_type === t);
     const jobs = await this.prisma.db.importJob.findMany({ where: { status: 'DONE' }, select: { id: true, type: true, source: true, totals: true, finishedAt: true }, orderBy: { finishedAt: 'desc' }, take: 20 });
@@ -834,6 +1042,8 @@ export class ImportService {
       importedInvoices: { count: Number(imported[0]?.n ?? 0), revenue: D(imported[0]?.revenue ?? 0), first: imported[0]?.first ?? null, last: imported[0]?.last ?? null },
       importedReturns: { count: Number(importedRet[0]?.n ?? 0), refund: D(importedRet[0]?.refund ?? 0), first: importedRet[0]?.first ?? null, last: importedRet[0]?.last ?? null },
       importedPurchases: { count: Number(importedPur[0]?.n ?? 0), total: D(importedPur[0]?.total ?? 0), first: importedPur[0]?.first ?? null, last: importedPur[0]?.last ?? null },
+      importedOrders: { count: Number(importedOrd[0]?.n ?? 0), total: D(importedOrd[0]?.total ?? 0), open: Number(importedOrd[0]?.open ?? 0), first: importedOrd[0]?.first ?? null, last: importedOrd[0]?.last ?? null },
+      importedCash: { count: Number(importedCash[0]?.n ?? 0), income: D(importedCash[0]?.income ?? 0), expense: D(importedCash[0]?.expense ?? 0), first: importedCash[0]?.first ?? null, last: importedCash[0]?.last ?? null },
       recentJobs: jobs,
     };
   }

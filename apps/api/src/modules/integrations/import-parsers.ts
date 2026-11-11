@@ -7,7 +7,7 @@ import { Errors } from '../../common/errors/app-error';
  * common export layouts ("Danh sách hàng hóa", "Danh sách khách hàng", "Nhà cung cấp", "Danh sách hóa đơn") map automatically;
  * the user can still override any column in the preview step.
  */
-export type ImportEntity = 'PRODUCTS' | 'CUSTOMERS' | 'SUPPLIERS' | 'INVOICES' | 'PRICEBOOKS' | 'RETURNS' | 'PURCHASES';
+export type ImportEntity = 'PRODUCTS' | 'CUSTOMERS' | 'SUPPLIERS' | 'INVOICES' | 'PRICEBOOKS' | 'RETURNS' | 'PURCHASES' | 'ORDERS' | 'CASHBOOK';
 export type RawRow = Record<string, string>;
 export interface ParsedSheet { sheet: string; headers: string[]; rows: RawRow[]; headerRow: number }
 export interface FieldSpec { key: string; label: string; aliases: string[]; required?: boolean }
@@ -141,6 +141,56 @@ export const FIELDS: Record<ImportEntity, FieldSpec[]> = {
     { key: 'lineDiscount', label: 'Giảm giá (dòng)', aliases: ['giam gia', 'giam gia dong', 'ck dong'] },
     { key: 'lineCost', label: 'Giá nhập (sau giảm)', aliases: ['gia nhap', 'gia von'] },
     { key: 'lineTotal', label: 'Thành tiền', aliases: ['thanh tien', 'line total'] },
+  ],
+  // Đơn hàng → Đặt hàng → Xuất file → File chi tiết: một dòng = một mặt hàng, thông tin đơn lặp lại trên từng dòng
+  ORDERS: [
+    { key: 'code', label: 'Mã đặt hàng', aliases: ['ma dat hang', 'ma don hang', 'ma don', 'ma phieu dat', 'order code'], required: true },
+    { key: 'invoiceCode', label: 'Mã hóa đơn', aliases: ['ma hoa don', 'ma hd'] },
+    { key: 'date', label: 'Thời gian', aliases: ['thoi gian', 'ngay', 'ngay dat', 'ngay tao', 'date'] },
+    { key: 'branch', label: 'Chi nhánh', aliases: ['chi nhanh xu ly', 'chi nhanh', 'branch'] },
+    { key: 'customerCode', label: 'Mã khách hàng', aliases: ['ma khach hang', 'ma kh'] },
+    { key: 'customerName', label: 'Khách hàng', aliases: ['ten khach hang', 'khach hang', 'ten khach'] },
+    { key: 'phone', label: 'Điện thoại', aliases: ['dien thoai', 'so dien thoai', 'sdt', 'phone'] },
+    { key: 'seller', label: 'Người nhận đặt', aliases: ['nguoi nhan dat', 'nguoi ban', 'nhan vien ban hang', 'nguoi tao', 'nhan vien'] },
+    { key: 'channel', label: 'Kênh bán', aliases: ['kenh ban', 'kenh', 'nguon', 'nguon don'] },
+    { key: 'subtotal', label: 'Tổng tiền hàng', aliases: ['tong tien hang', 'tien hang'] },
+    { key: 'otherFee', label: 'Thu khác', aliases: ['thu khac', 'phu thu', 'phi khac'] },
+    { key: 'discount', label: 'Giảm giá phiếu đặt', aliases: ['giam gia phieu dat', 'giam gia don', 'giam gia don hang', 'giam gia phieu'] },
+    { key: 'total', label: 'Khách cần trả', aliases: ['khach can tra', 'tong cong', 'tong thanh toan', 'total'] },
+    { key: 'paid', label: 'Khách đã trả (cọc)', aliases: ['khach da tra', 'tien coc', 'da coc', 'da thanh toan', 'paid'] },
+    { key: 'deliveryAt', label: 'Thời gian giao hàng', aliases: ['thoi gian giao hang', 'ngay giao hang', 'ngay giao', 'hen giao'] },
+    { key: 'status', label: 'Trạng thái', aliases: ['trang thai', 'status'] },
+    { key: 'note', label: 'Ghi chú', aliases: ['ghi chu', 'note'] },
+    { key: 'receiverName', label: 'Người nhận', aliases: ['nguoi nhan', 'ten nguoi nhan'] },
+    { key: 'receiverPhone', label: 'Điện thoại người nhận', aliases: ['dien thoai nguoi nhan', 'sdt nguoi nhan'] },
+    { key: 'receiverAddress', label: 'Địa chỉ người nhận', aliases: ['dia chi nguoi nhan'] },
+    { key: 'receiverWard', label: 'Phường/Xã người nhận', aliases: ['phuong xa nguoi nhan'] },
+    { key: 'receiverArea', label: 'Khu vực người nhận', aliases: ['khu vuc nguoi nhan'] },
+    { key: 'carrier', label: 'Đối tác giao hàng', aliases: ['doi tac giao hang', 'don vi van chuyen', 'dvvc'] },
+    { key: 'trackingCode', label: 'Mã vận đơn', aliases: ['ma van don'] },
+    { key: 'lineCode', label: 'Mã hàng (dòng)', aliases: ['ma hang', 'ma hang hoa', 'ma sp'] },
+    { key: 'lineName', label: 'Tên hàng (dòng)', aliases: ['ten hang', 'ten hang hoa'] },
+    { key: 'lineQty', label: 'Số lượng', aliases: ['so luong', 'sl', 'quantity'] },
+    { key: 'linePrice', label: 'Đơn giá', aliases: ['don gia', 'gia ban le', 'price'] },
+    { key: 'lineDiscount', label: 'Giảm giá (dòng)', aliases: ['giam gia', 'giam gia dong', 'ck dong'] },
+    { key: 'lineSellPrice', label: 'Giá bán (sau giảm)', aliases: ['gia ban', 'gia sau giam'] },
+    { key: 'lineTotal', label: 'Thành tiền', aliases: ['thanh tien', 'line total'] },
+  ],
+  // Sổ quỹ → Xuất file (Mã phiếu, Thời gian, Loại thu chi, Người nộp/nhận, Giá trị) hoặc file JSON lấy từ API nội bộ (thêm phương thức, trạng thái, ghi chú…)
+  CASHBOOK: [
+    { key: 'code', label: 'Mã phiếu', aliases: ['ma phieu', 'ma phieu thu chi', 'ma chung tu', 'code'], required: true },
+    { key: 'date', label: 'Thời gian', aliases: ['thoi gian', 'ngay', 'ngay tao', 'date'] },
+    { key: 'kind', label: 'Loại thu chi', aliases: ['loai thu chi', 'loai phieu', 'loai'] },
+    { key: 'partyName', label: 'Người nộp/nhận', aliases: ['nguoi nop/nhan', 'nguoi nop nhan', 'nguoi nop', 'nguoi nhan', 'doi tac'] },
+    { key: 'partyCode', label: 'Mã đối tác', aliases: ['ma doi tac', 'ma khach hang', 'ma nha cung cap', 'ma kh', 'ma ncc'] },
+    { key: 'partyType', label: 'Loại đối tác', aliases: ['loai doi tac'] },
+    { key: 'amount', label: 'Giá trị', aliases: ['gia tri', 'so tien', 'tien', 'amount'] },
+    { key: 'method', label: 'Phương thức', aliases: ['phuong thuc', 'phuong thuc thanh toan', 'hinh thuc'] },
+    { key: 'status', label: 'Trạng thái', aliases: ['trang thai', 'status'] },
+    { key: 'document', label: 'Chứng từ', aliases: ['chung tu', 'ma hoa don', 'hoa don', 'document'] },
+    { key: 'note', label: 'Ghi chú', aliases: ['ghi chu', 'dien giai', 'note'] },
+    { key: 'branch', label: 'Chi nhánh', aliases: ['chi nhanh', 'branch'] },
+    { key: 'creator', label: 'Người tạo', aliases: ['nguoi tao', 'nhan vien', 'nguoi lap'] },
   ],
   PRICEBOOKS: [
     { key: 'code', label: 'Mã hàng', aliases: ['ma hang', 'ma hang hoa', 'ma sp', 'ma san pham', 'code', 'sku'], required: true },

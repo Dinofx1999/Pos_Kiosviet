@@ -33,6 +33,14 @@ export function ReconcileTiles({ data }: { data: Reconcile }) {
       { label: 'Số phiếu nhập', value: qty(data.importedPurchases?.count ?? 0) }, { label: 'Tiền hàng nhập', value: money(data.importedPurchases?.total ?? 0) },
       { label: 'Khoảng ngày', value: data.importedPurchases?.first ? `${d(data.importedPurchases.first)} → ${d(data.importedPurchases.last)}` : '—' },
     ] },
+    { title: 'Đặt hàng lịch sử', hint: 'KiotViet: Đơn hàng → Đặt hàng (cùng khoảng ngày)', items: [
+      { label: 'Số đơn', value: qty(data.importedOrders?.count ?? 0) }, { label: 'Đơn hoàn thành', value: money(data.importedOrders?.total ?? 0) }, { label: 'Đơn còn mở', value: qty(data.importedOrders?.open ?? 0) },
+      { label: 'Khoảng ngày', value: data.importedOrders?.first ? `${d(data.importedOrders.first)} → ${d(data.importedOrders.last)}` : '—' },
+    ] },
+    { title: 'Sổ quỹ lịch sử', hint: 'KiotViet: Sổ quỹ (cùng khoảng ngày)', items: [
+      { label: 'Số phiếu', value: qty(data.importedCash?.count ?? 0) }, { label: 'Tổng thu', value: money(data.importedCash?.income ?? 0) }, { label: 'Tổng chi', value: money(data.importedCash?.expense ?? 0) },
+      { label: 'Khoảng ngày', value: data.importedCash?.first ? `${d(data.importedCash.first)} → ${d(data.importedCash.last)}` : '—' },
+    ] },
   ];
   return (
     <div className="ig-recon">

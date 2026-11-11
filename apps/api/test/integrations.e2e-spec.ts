@@ -290,6 +290,113 @@ describe('KiotViet migration: Excel importers, API connector, reconciliation (Mo
     expect(rec.body.importedPurchases.total).toBe('1280000');
   });
 
+  it('T-231 order history: orders grouped by code, lines matched by product code, completed order linked to its invoice, draft kept open with deposit and delivery note, no reservation / cash effects, re-import skips and closes open orders', async () => {
+    const inv = (await t.http().get(`${api}/invoices`).set(s.auth).query({ search: 'KV-HD004501' })).body.data[0];
+    const p1 = (await t.http().get(`${api}/products`).set(s.auth).query({ search: 'SP000101' })).body.data[0];
+    const variantId = (await t.http().get(`${api}/products/${p1.id}`).set(s.auth)).body.variants[0].id;
+    const before = await balanceOf(t, s, variantId);
+    const headers = ['Chi nhánh xử lý', 'Mã đặt hàng', 'Mã hóa đơn', 'Thời gian', 'Mã khách hàng', 'Tên khách hàng', 'Điện thoại', 'Người nhận đặt', 'Kênh bán', 'Ghi chú', 'Tổng tiền hàng', 'Thu khác', 'Giảm giá phiếu đặt', 'Khách cần trả', 'Khách đã trả', 'Thời gian giao hàng', 'Trạng thái', 'Người nhận', 'Điện thoại (Người nhận)', 'Địa chỉ (Người nhận)', 'Đối tác giao hàng', 'Mã vận đơn', 'Mã hàng', 'Tên hàng', 'Số lượng', 'Đơn giá', 'Giảm giá %', 'Giảm giá', 'Giá bán', 'Thành tiền'];
+    const dh1 = (code: string, name: string, price: string) => ['Chi nhánh trung tâm', 'DH000901', 'HD004501', '24/09/2026 09:00', 'KH000501', 'Nguyễn Thị Hoa', '0901000501', 'admin', 'Bán trực tiếp', '', '539.000', '0', '0', '539.000', '539.000', '', 'Hoàn thành', '', '', '', '', '', code, name, '1', price, '0', '0', price, price];
+    const dh2 = (status: string, invoice: string) => ['Chi nhánh trung tâm', 'DH000902', invoice, '25/09/2026 10:00', '', 'Khách lẻ', '', 'admin', 'Facebook', 'Giao chiều', '700.000', '0', '50.000', '650.000', '200.000', '26/09/2026 15:00', status, 'Trần B', '0909000002', '5 Nguyễn Huệ', 'GHN', 'GHN123', 'SP000101', 'Serum Vitamin C 30ml', '2', '350.000', '0', '0', '350.000', '700.000'];
+    const pv = await preview('ORDERS', await xlsx(headers, [dh1('SP000101', 'Serum Vitamin C 30ml', '350.000'), dh1('SP000102', 'Son lì đỏ', '189.000'), dh2('Phiếu tạm', '')]), { defaultBranchId: s.branchId });
+    expect(pv.body.mapping.code).toBe('Mã đặt hàng');
+    expect(pv.body.mapping.branch).toBe('Chi nhánh xử lý');
+    expect(pv.body.mapping.seller).toBe('Người nhận đặt');
+    expect(pv.body.mapping.receiverName).toBe('Người nhận');
+    expect(pv.body.mapping.receiverPhone).toBe('Điện thoại (Người nhận)');
+    expect(pv.body.mapping.phone).toBe('Điện thoại');
+    expect(pv.body.mapping.lineDiscount).toBe('Giảm giá');
+    const done = await commit(pv.body.jobId);
+    expect(done.status).toBe(200);
+    expect(done.body).toMatchObject({ created: 2, failed: 0, linked: 1, open: 1 });
+    const o1 = (await t.http().get(`${api}/orders`).set(s.auth).query({ search: 'KV-DH000901' })).body.data[0];
+    expect(o1).toMatchObject({ status: 'COMPLETED', totalAmount: '539000', depositAmount: '539000', source: 'POS' });
+    expect(o1.invoice.code).toBe('KV-HD004501');
+    expect(o1.customer.code).toBe('KH000501');
+    const d1 = (await t.http().get(`${api}/orders/${o1.id}`).set(s.auth)).body;
+    expect(d1.lines).toHaveLength(2);
+    expect(d1.lines[0]).toMatchObject({ quantity: '1', unitPrice: '350000', lineTotal: '350000' });
+    expect(d1.dueAmount).toBe('0');
+    expect(d1.deposits).toEqual([]);
+    const o2 = (await t.http().get(`${api}/orders`).set(s.auth).query({ search: 'KV-DH000902' })).body.data[0];
+    expect(o2).toMatchObject({ status: 'DRAFT', totalAmount: '650000', depositAmount: '200000', dueAmount: '450000', source: 'FACEBOOK' });
+    expect(o2.note).toContain('GHN123');
+    expect(o2.note).toContain('Trần B');
+    expect(o2.expectedAt).toContain('2026-09-26');
+    expect((await t.http().get(`${api}/orders/${o2.id}`).set(s.auth)).body.reservations).toEqual([]);
+    // lịch sử: không giữ tồn, không phiếu thu
+    expect(await balanceOf(t, s, variantId)).toEqual(before);
+    expect(await t.prisma.raw.paymentAllocation.count({ where: { tenantId: s.tenantId, documentType: 'SALES_ORDER', documentId: o2.id } })).toBe(0);
+    // chạy lại: đơn đã có bỏ qua; phiếu tạm đã hoàn thành ở KiotViet → đóng đơn (hóa đơn đã gắn đơn khác thì không gắn lại)
+    const again = await commit((await preview('ORDERS', await xlsx(headers, [dh1('SP000101', 'Serum Vitamin C 30ml', '350.000'), dh2('Hoàn thành', 'HD004501')]), { defaultBranchId: s.branchId })).body.jobId);
+    expect(again.body).toMatchObject({ created: 0, skipped: 1, updated: 1 });
+    const o2b = (await t.http().get(`${api}/orders/${o2.id}`).set(s.auth)).body;
+    expect(o2b.status).toBe('COMPLETED');
+    expect(o2b.invoiceId).toBeNull();
+    const rec = await t.http().get(`${api}/integrations/reconcile`).set(s.auth);
+    expect(rec.body.importedOrders).toMatchObject({ count: 2, open: 0, total: '1189000' });
+    void inv;
+  });
+
+  it('T-232 cash book history: direction by kind / sign, method → fund, vouchers linked to invoice / return / order / receipt by code, categories created for manual vouchers, cancelled kept, no debt / fund balance effects, batch insert, idempotent', async () => {
+    const bank = await t.prisma.raw.cashAccount.create({ data: { tenantId: s.tenantId, code: 'QTB001', name: 'Ngân hàng test', type: 'BANK', openingBalance: 0, balance: 0 } });
+    const supBefore = (await t.http().get(`${api}/suppliers`).set(s.auth).query({ search: 'NCC000301' })).body.data[0].balance;
+    const custBefore = (await t.http().get(`${api}/customers`).set(s.auth).query({ search: 'KH000501' })).body.data[0].balance;
+    const fundsBefore = (await t.prisma.raw.cashAccount.findMany({ where: { tenantId: s.tenantId }, select: { code: true, balance: true } })).map((a) => `${a.code}=${a.balance.toString()}`).sort();
+    const inv = (await t.http().get(`${api}/invoices`).set(s.auth).query({ search: 'KV-HD004501' })).body.data[0];
+    const headers = ['Mã phiếu', 'Thời gian', 'Loại thu chi', 'Người nộp/nhận', 'Mã đối tác', 'Loại đối tác', 'Giá trị', 'Phương thức', 'Trạng thái', 'Ghi chú', 'Chi nhánh', 'Người tạo'];
+    const rows = [
+      ['TTHD004501', '20/09/2026 10:05', 'Tiền khách trả', 'Nguyễn Thị Hoa', 'KH000501', 'C', '539000', 'Transfer', 'Đã thanh toán', '', 'Chi nhánh trung tâm', 'admin'],
+      ['TTTH000901', '25/09/2026 10:30', 'Tiền trả khách', 'Nguyễn Thị Hoa', '', '', '-350000', 'Cash', 'Đã thanh toán', '', '', 'admin'],
+      ['PCPN000901', '20/09/2026 09:10', 'Tiền trả NCC', 'Công ty Mỹ phẩm Hoa Sen', 'NCC000301', 'S', '-500000', 'Cash', 'Đã thanh toán', '', '', ''],
+      ['TTDH000902', '25/09/2026 10:10', 'Tiền khách trả', 'Khách lẻ', '', '', '200000', 'Cash', 'Đã thanh toán', 'Cọc đơn', '', ''],
+      ['CTM000001', '26/09/2026 08:00', 'Phiếu chi phí ship', '', '', '', '-28000', 'Cash', 'Đã thanh toán', 'Ship GHN', '', ''],
+      ['CTM000002', '26/09/2026 09:00', 'Phiếu chi đồ cúng', '', '', '', '-150000', 'Cash', 'Đã hủy', '', '', ''],
+      ['', '', 'Quỹ đầu kỳ', '', '', '', '1000000', '', '', '', '', ''],
+    ];
+    const pv = await preview('CASHBOOK', await xlsx(headers, rows), { defaultBranchId: s.branchId });
+    expect(pv.body.mapping.code).toBe('Mã phiếu');
+    expect(pv.body.mapping.kind).toBe('Loại thu chi');
+    expect(pv.body.mapping.partyName).toBe('Người nộp/nhận');
+    expect(pv.body.mapping.amount).toBe('Giá trị');
+    const done = await commit(pv.body.jobId);
+    expect(done.status).toBe(200);
+    expect(done.body).toMatchObject({ created: 6, skipped: 1, failed: 0, linked: 4, categories: 2, cancelled: 1 });
+    const pay = async (code: string) => t.prisma.raw.payment.findFirstOrThrow({ where: { tenantId: s.tenantId, code }, include: { cashAccount: true, allocations: true, category: true } });
+    const p1 = await pay('KV-TTHD004501');
+    expect(p1).toMatchObject({ direction: 'IN', method: 'BANK_TRANSFER', status: 'POSTED', partyType: 'CUSTOMER' });
+    expect(p1.amount.toString()).toBe('539000');
+    expect(p1.allocated.toString()).toBe('539000');
+    expect(p1.cashAccount?.id).toBe(bank.id);
+    expect(p1.allocations[0]).toMatchObject({ documentType: 'INVOICE', documentId: inv.id });
+    const p2 = await pay('KV-TTTH000901');
+    expect(p2).toMatchObject({ direction: 'OUT', method: 'CASH', partyType: 'CUSTOMER' });
+    expect(p2.allocations[0].documentType).toBe('SALES_RETURN');
+    const p3 = await pay('KV-PCPN000901');
+    expect(p3).toMatchObject({ direction: 'OUT', partyType: 'SUPPLIER' });
+    expect(p3.allocations[0].documentType).toBe('PURCHASE_RECEIPT');
+    expect((await pay('KV-TTDH000902')).allocations[0].documentType).toBe('SALES_ORDER');
+    const p5 = await pay('KV-CTM000001');
+    expect(p5.direction).toBe('OUT');
+    expect(p5.allocations).toEqual([]);
+    expect(p5.category?.name).toBe('phí ship');
+    expect(p5.note).toContain('Ship GHN');
+    expect((await pay('KV-CTM000002')).status).toBe('CANCELLED');
+    // lịch sử: công nợ và số dư quỹ không đổi (quỹ đầu kỳ cân lại sau khi nhập)
+    expect((await t.http().get(`${api}/suppliers`).set(s.auth).query({ search: 'NCC000301' })).body.data[0].balance).toBe(supBefore);
+    expect((await t.http().get(`${api}/customers`).set(s.auth).query({ search: 'KH000501' })).body.data[0].balance).toBe(custBefore);
+    expect((await t.prisma.raw.cashAccount.findMany({ where: { tenantId: s.tenantId }, select: { code: true, balance: true } })).map((a) => `${a.code}=${a.balance.toString()}`).sort()).toEqual(fundsBefore);
+    // sổ quỹ của tài khoản ngân hàng thấy phiếu thu chuyển khoản
+    const book = await t.http().get(`${api}/cash/book`).set(s.auth).query({ accountId: bank.id });
+    expect(book.status).toBe(200);
+    expect(book.body.data.some((r: { code: string }) => r.code === 'KV-TTHD004501')).toBe(true);
+    // chạy lại: bỏ qua toàn bộ
+    const again = await commit((await preview('CASHBOOK', await xlsx(headers, rows), { defaultBranchId: s.branchId })).body.jobId);
+    expect(again.body).toMatchObject({ created: 0, skipped: 7 });
+    const rec = await t.http().get(`${api}/integrations/reconcile`).set(s.auth);
+    expect(rec.body.importedCash).toMatchObject({ count: 6, income: '739000', expense: '878000' });
+  });
+
   it('T-223 KiotViet API connector: credentials stored encrypted, test lists branches, import pulls products/customers/suppliers/invoices through the same pipeline, auth failure reported', async () => {
     // a tiny stand-in for id.kiotviet.vn + public.kiotapi.com
     const calls: string[] = [];
