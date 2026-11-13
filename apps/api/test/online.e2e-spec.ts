@@ -290,5 +290,16 @@ describe('Bán online: web bán hàng & Flash Sale – T-270..T-276', () => {
     // danh mục có ảnh đại diện = hàng bán chạy còn hàng có ảnh
     const menu = (await t.http().get(shop('/config'))).body.categories as Array<{ id: string; imageUrl: string | null }>;
     expect(menu.find((c) => c.id === cat.id)?.imageUrl).toBe(img(1));
+    // tìm không dấu, theo thương hiệu, và chữ viết tắt của cửa hàng (KCN = kem chống nắng)
+    const kcn = await stocked('3', '250000', { name: 'ANESSA - KCN T278 60ML', categoryId: cat.id });
+    const find = async (q: string) => ids((await t.http().get(shop(`/products?search=${encodeURIComponent(q)}`))).body);
+    expect(await find('ke mat t278')).toEqual([calm.productId]);
+    expect(await find('maybelline t278')).toEqual([hot.productId]);
+    expect(await find('kem chống nắng t278')).toEqual([kcn.productId]);
+    expect(await find('kcn t278')).toEqual([kcn.productId]);
+    expect(await find('khong co hang nay xyz')).toEqual([]);
+    // hàng nhiều phân loại có loại giá 0 → giá "từ" lấy giá thấp nhất khác 0
+    const multi = await createProduct(t, s, { name: 'Son T278 nhiều màu', categoryId: cat.id, attributeNames: ['Màu'], variants: [{ sellPrice: '0', attributes: { 'Màu': 'Thử' } }, { sellPrice: '99000', attributes: { 'Màu': 'Đỏ' } }, { sellPrice: '129000', attributes: { 'Màu': 'Hồng' } }] });
+    expect((await t.http().get(shop(`/products?search=${encodeURIComponent('son t278 nhieu mau')}`))).body.items[0]).toMatchObject({ id: multi.productId, price: 99000, priceMax: 129000 });
   });
 });

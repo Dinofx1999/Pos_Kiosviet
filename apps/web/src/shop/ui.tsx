@@ -48,7 +48,8 @@ export function Countdown({ to, onEnd, compact }: { to: string; onEnd?: () => vo
 }
 
 // ---------------------------------------------------------------- ảnh, giá
-const PH = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#f4f1f2"/><path d="M38 34h24l4 8H34z" fill="#e3d8dc"/><rect x="34" y="42" width="32" height="28" rx="3" fill="#e3d8dc"/></svg>');
+// ảnh thay thế khi hàng chưa có ảnh: chai mỹ phẩm nét mảnh trên nền hồng nhạt
+const PH = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#faf5f7"/><g fill="none" stroke="#e7d3db" stroke-width="2.2" stroke-linejoin="round"><rect x="43" y="22" width="14" height="9" rx="2"/><path d="M40 31h20v6l4 5v34a4 4 0 0 1-4 4H40a4 4 0 0 1-4-4V42l4-5z"/><path d="M36 52h28"/></g></svg>');
 export function Img({ src, alt, className, eager }: { src: string | null | undefined; alt: string; className?: string; eager?: boolean }) {
   const [err, setErr] = useState(false);
   return <img className={className} src={!src || err ? PH : src} alt={alt} loading={eager ? 'eager' : 'lazy'} decoding="async" onError={() => setErr(true)} />;
@@ -56,7 +57,8 @@ export function Img({ src, alt, className, eager }: { src: string | null | undef
 
 export function PriceTag({ price, priceMax, flash, big }: { price: number | null; priceMax?: number | null; flash?: FlashInfo | null; big?: boolean }) {
   const { cfg } = useShop();
-  if (!cfg.showPrice || price === null) return <div className={`sh-price contact ${big ? 'big' : ''}`}>{flash ? <span className="sh-pct">-{flash.discountPercent}%</span> : null}Liên hệ</div>;
+  // giá 0 (hàng chưa đặt giá ở cửa hàng) → hiện "Liên hệ" thay vì 0đ
+  if (!cfg.showPrice || price === null || (price <= 0 && !(priceMax && priceMax > 0))) return <div className={`sh-price contact ${big ? 'big' : ''}`}>{flash ? <span className="sh-pct">-{flash.discountPercent}%</span> : null}Liên hệ</div>;
   if (flash && flash.price !== null) {
     return (
       <div className={`sh-price ${big ? 'big' : ''}`}>
@@ -66,7 +68,9 @@ export function PriceTag({ price, priceMax, flash, big }: { price: number | null
       </div>
     );
   }
-  return <div className={`sh-price ${big ? 'big' : ''}`}><span className="now">{priceMax && priceMax > price ? `${vnd(price)} – ${vnd(priceMax)}` : vnd(price)}</span></div>;
+  // hàng nhiều phân loại khác giá: thẻ hàng hiện "từ <giá thấp nhất>" cho gọn
+  if (priceMax && priceMax > price) return <div className={`sh-price ${big ? 'big' : ''}`}>{big ? <span className="now">{vnd(price)} – {vnd(priceMax)}</span> : <span className="now"><small className="from">từ</small>{vnd(price)}</span>}</div>;
+  return <div className={`sh-price ${big ? 'big' : ''}`}><span className="now">{vnd(price)}</span></div>;
 }
 
 /** Thanh tiến độ suất Flash Sale. */
@@ -91,6 +95,14 @@ export const Icon = {
   bag: (s?: number) => svg(<><path d="M6 7h12l-1 13H7z" /><path d="M9 7a3 3 0 0 1 6 0" /></>, s),
   pin: (s?: number) => svg(<><path d="M12 22s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z" /><circle cx="12" cy="10" r="2.5" /></>, s),
   doc: (s?: number) => svg(<><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z" /><path d="M14 3v5h5M8 13h8M8 17h5" /></>, s),
+  chev: (s?: number) => svg(<path d="m9 18 6-6-6-6" />, s),
+  wallet: (s?: number) => svg(<><rect x="3" y="6" width="18" height="13" rx="2.5" /><path d="M3 10h18M16 14.5h2" /></>, s),
+  headset: (s?: number) => svg(<><path d="M4 14v-2a8 8 0 0 1 16 0v2" /><rect x="3" y="14" width="4" height="6" rx="1.5" /><rect x="17" y="14" width="4" height="6" rx="1.5" /></>, s),
+  shield: (s?: number) => svg(<><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6z" /><path d="m8.8 12 2.2 2.2 4.2-4.4" /></>, s),
+  chat: (s?: number) => svg(<path d="M21 12a8 8 0 0 1-11.8 7L4 20.5l1.5-4.9A8 8 0 1 1 21 12z" />, s),
+  sparkle: (s?: number) => <svg width={s ?? 18} height={s ?? 18} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5c.5 4.6 2.4 6.9 7 7.5-4.6.6-6.5 2.9-7 7.5-.5-4.6-2.4-6.9-7-7.5 4.6-.6 6.5-2.9 7-7.5zM19 15c.25 2 1 3 3 3.25-2 .25-2.75 1.25-3 3.25-.25-2-1-3-3-3.25 2-.25 2.75-1.25 3-3.25z" /></svg>,
+  cartPlus: (s?: number) => svg(<><circle cx="9" cy="20" r="1.4" /><circle cx="18" cy="20" r="1.4" /><path d="M2.5 3h2.6l2.4 11.2a1.6 1.6 0 0 0 1.6 1.3h8.6a1.6 1.6 0 0 0 1.6-1.2L21 7h-4" /><path d="M13 4v6M10 7h6" /></>, s),
+  grid: (s?: number) => svg(<><rect x="4" y="4" width="7" height="7" rx="1.5" /><rect x="13" y="4" width="7" height="7" rx="1.5" /><rect x="4" y="13" width="7" height="7" rx="1.5" /><rect x="13" y="13" width="7" height="7" rx="1.5" /></>, s),
 };
 
 export function Qty({ value, max, onChange, small }: { value: number; max: number; onChange: (v: number) => void; small?: boolean }) {

@@ -27,6 +27,29 @@ export function normalizePhone(raw: string | null | undefined): string | null {
   return /^0\d{9,10}$/.test(d) ? d : null;
 }
 
+/** Chữ để tìm kiếm: bỏ dấu, đ → d, chữ thường, chỉ giữ chữ / số, có khoảng trắng hai đầu để so khớp đầu từ. */
+export function foldText(s: string | null | undefined): string {
+  return ` ${(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()} `;
+}
+/** cụm từ ↔ chữ viết tắt quen dùng của cửa hàng mỹ phẩm (đã bỏ dấu) */
+const SEARCH_SYNONYMS: Array<[string, string]> = [
+  ['kem chong nang', 'kcn'], ['sua rua mat', 'srm'], ['tay te bao chet', 'ttbc'], ['nuoc tay trang', 'ntt'], ['bong tay trang', 'btt'], ['nuoc hoa chiet', 'nhc'], ['nuoc hoa', 'nh'],
+];
+/** Các cách hiểu câu tìm: mỗi cách là danh sách từ; từ viết tắt phải khớp nguyên từ, từ thường khớp đầu từ. */
+export function searchAlternatives(q: string): Array<Array<{ t: string; exact: boolean }>> {
+  const base = foldText(q).trim();
+  if (!base) return [];
+  const out = new Set<string>([base]);
+  for (const [phrase, abbr] of SEARCH_SYNONYMS) {
+    for (const v of Array.from(out)) {
+      if (` ${v} `.includes(` ${phrase} `)) out.add(` ${v} `.replace(` ${phrase} `, ` ${abbr} `).trim());
+      if (` ${v} `.includes(` ${abbr} `)) out.add(` ${v} `.replace(` ${abbr} `, ` ${phrase} `).trim());
+    }
+  }
+  const abbrs = new Set(SEARCH_SYNONYMS.map(([, a]) => a));
+  return Array.from(out).map((v) => v.split(' ').filter(Boolean).map((t) => ({ t, exact: abbrs.has(t) })));
+}
+
 /** Bỏ thẻ HTML trong mô tả hàng hóa (nhập từ KiotViet) để web hiển thị dạng chữ an toàn. */
 function plainText(html: string | null): string | null {
   if (!html) return null;
@@ -224,6 +247,25 @@ export class StorefrontService {
     return value;
   }
 
+  /** Chỉ mục tìm kiếm (chữ đã bỏ dấu) của hàng hiện trên web, đệm 60 giây theo cửa hàng. */
+  private readonly searchIndex = new Map<string, { at: number; rows: Array<{ id: string; text: string }> }>();
+  private async searchIds(s: Store, hidden: string[], query: string): Promise<string[]> {
+    const key = JSON.stringify([s.tenantId, hidden, s.cfg.onlyWithImage]);
+    let idx = this.searchIndex.get(key);
+    if (!idx || Date.now() - idx.at > 60_000 || process.env.NODE_ENV === 'test') {
+      const rows = await this.prisma.raw.$queryRaw<Array<{ id: string; t: string | null }>>`
+        SELECT p.id, concat_ws(' ', p.name, p.code, b.name,
+          (SELECT string_agg(concat_ws(' ', v.sku, v.name, v.barcode), ' ') FROM product_variants v WHERE v.product_id = p.id AND v.deleted_at IS NULL)) AS t
+        FROM products p LEFT JOIN brands b ON b.id = p.brand_id WHERE ${this.visibleSql(s, hidden)}`;
+      idx = { at: Date.now(), rows: rows.map((r) => ({ id: r.id, text: foldText(r.t) })) };
+      if (this.searchIndex.size > 20) this.searchIndex.clear();
+      this.searchIndex.set(key, idx);
+    }
+    const alts = searchAlternatives(query);
+    if (!alts.length) return [];
+    return idx.rows.filter((r) => alts.some((words) => words.every((w) => r.text.includes(w.exact ? ` ${w.t} ` : ` ${w.t}`)))).map((r) => r.id);
+  }
+
   private async productsUncached(s: Store, q: ShopProductsQueryDto) {
     const { cfg } = s;
     const page = q.page ?? 1;
@@ -236,8 +278,9 @@ export class StorefrontService {
     if (q.exclude) conds.push(Prisma.sql`p.id <> ${q.exclude}::uuid`);
     const ready = q.ready === '1' || q.ready === 'true';
     if (q.search) {
-      const like = `%${q.search.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
-      conds.push(Prisma.sql`(p.name ILIKE ${like} OR p.code ILIKE ${like} OR EXISTS (SELECT 1 FROM product_variants vs WHERE vs.product_id = p.id AND vs.deleted_at IS NULL AND (vs.sku ILIKE ${like} OR vs.name ILIKE ${like} OR vs.barcode = ${q.search})))`);
+      // tìm không dấu, theo đầu từ, hiểu chữ viết tắt (KCN = kem chống nắng…) trên tên, mã, thương hiệu, mã / tên / mã vạch phân loại
+      const ids = await this.searchIds(s, hidden, q.search);
+      conds.push(ids.length ? Prisma.sql`p.id = ANY(${ids}::uuid[])` : Prisma.sql`FALSE`);
     }
     const sort = !cfg.showPrice && q.sort?.startsWith('price') ? 'featured' : q.sort ?? 'featured';
     // "Nổi bật": còn hàng → có ảnh → bán chạy 90 ngày → mới nhất (hàng không ảnh / hết hàng xuống cuối)
@@ -254,7 +297,7 @@ export class StorefrontService {
       WITH vis AS (SELECT p.id, p.code, p.name, p.type, p.created_at, p.brand_id,
                      COALESCE(NULLIF(p.image_url, ''), (SELECT pi.url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.sort_order LIMIT 1)) AS image
                    FROM products p WHERE ${Prisma.join(conds, ' AND ')}),
-      v AS (SELECT pv.product_id, MIN(pv.sell_price) AS min_price, MAX(pv.sell_price) AS max_price, COUNT(*)::int AS n FROM product_variants pv JOIN vis ON vis.id = pv.product_id WHERE pv.deleted_at IS NULL AND pv.is_active GROUP BY pv.product_id),
+      v AS (SELECT pv.product_id, COALESCE(MIN(pv.sell_price) FILTER (WHERE pv.sell_price > 0), 0) AS min_price, MAX(pv.sell_price) AS max_price, COUNT(*)::int AS n FROM product_variants pv JOIN vis ON vis.id = pv.product_id WHERE pv.deleted_at IS NULL AND pv.is_active GROUP BY pv.product_id),
       s AS (SELECT pv.product_id, SUM(GREATEST(sb.on_hand - sb.reserved, 0)) AS avail FROM stock_balances sb JOIN product_variants pv ON pv.id = sb.variant_id JOIN vis ON vis.id = pv.product_id
             WHERE sb.tenant_id = ${s.tenantId}::uuid AND sb.warehouse_id = ANY(${warehouseIds}::uuid[]) AND pv.deleted_at IS NULL AND pv.is_active GROUP BY pv.product_id),
       sold AS (${this.soldSql(s)}),

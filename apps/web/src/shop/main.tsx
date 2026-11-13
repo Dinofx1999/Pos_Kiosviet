@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, Link, Navigate, Outlet, RouterProvider, ScrollRestoration, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { shopApi, ShopError, STORE, telLink, zaloLink, type ShopConfig } from './api';
 import { useCartCount } from './cart';
+import { catName, prettyPhone } from './format';
 import { CartPage, FlashSalePage, HomePage, LookupPage, OrderPage, ProductPage } from './pages';
 import { Icon, Img, ShopContext, Toaster, useShop } from './ui';
 import './shop.css';
@@ -10,6 +11,24 @@ import './shop.css';
 // web bán hàng không phải web app quản lý: bỏ manifest để "Thêm vào màn hình chính" không mở trang quản lý
 document.querySelector('link[rel="manifest"]')?.remove();
 document.querySelectorAll('meta[name="apple-mobile-web-app-capable"],meta[name="mobile-web-app-capable"]').forEach((m) => m.remove());
+// phông chữ có đủ dấu tiếng Việt cho web bán hàng (trang quản lý không tải)
+for (const [rel, href, cross] of [['preconnect', 'https://fonts.googleapis.com', false], ['preconnect', 'https://fonts.gstatic.com', true], ['stylesheet', 'https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap', false]] as const) {
+  const l = document.createElement('link'); l.rel = rel; l.href = href; if (cross) l.crossOrigin = ''; document.head.appendChild(l);
+}
+
+function TopBar() {
+  const { cfg } = useShop();
+  const tel = telLink(cfg.hotline);
+  return (
+    <div className="sh-topbar">
+      <div className="in">
+        <span>{Icon.wallet(14)} Thanh toán khi nhận hàng</span>
+        <span className="opt">{Icon.shield(14)} Cửa hàng gọi xác nhận trước khi giao</span>
+        {tel && <a href={tel}>{Icon.phone(13)} {prettyPhone(cfg.hotline)}</a>}
+      </div>
+    </div>
+  );
+}
 
 function Header() {
   const { cfg } = useShop();
@@ -20,17 +39,29 @@ function Header() {
   const count = useCartCount();
   useEffect(() => { setQ(sp.get('q') ?? ''); }, [sp.get('q')]);
   const home = loc.pathname === '/';
+  const tel = telLink(cfg.hotline);
+  const topCats = [...(cfg.categories ?? [])].sort((a, b) => b.count - a.count).slice(0, 8);
+  const curCat = sp.get('c');
   return (
     <header className="sh-header">
       <div className="sh-header-in">
         {!home && <button className="sh-icon-btn back" aria-label="Quay lại" onClick={() => (window.history.length > 1 ? nav(-1) : nav('/'))}>{Icon.back()}</button>}
         <Link to="/" className="sh-brand">{cfg.logoUrl ? <Img src={cfg.logoUrl} alt={cfg.shopName} eager /> : <span className="mono">{cfg.shopName.slice(0, 1)}</span>}<span className="nm">{cfg.shopName}</span></Link>
         <form className="sh-search" role="search" onSubmit={(e) => { e.preventDefault(); nav(q.trim() ? `/?q=${encodeURIComponent(q.trim())}` : '/'); (document.activeElement as HTMLElement)?.blur(); }}>
-          {Icon.search(18)}<input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm sản phẩm…" enterKeyHint="search" aria-label="Tìm sản phẩm" />
+          {Icon.search(18)}<input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm son, kem chống nắng, nước hoa…" enterKeyHint="search" aria-label="Tìm sản phẩm" />
+          {q && <button type="button" className="clr" aria-label="Xóa" onClick={() => { setQ(''); if (sp.get('q')) nav('/'); }}>×</button>}
         </form>
+        {tel && <a className="sh-hotline" href={tel}>{Icon.phone(18)}<span><small>Hotline</small><b>{prettyPhone(cfg.hotline)}</b></span></a>}
         {cfg.allowOrder && <Link to="/gio-hang" className="sh-icon-btn cart" aria-label="Giỏ hàng">{Icon.cart()}{count > 0 && <span className="cnt">{count > 99 ? '99+' : count}</span>}</Link>}
       </div>
-      {cfg.intro && home && <div className="sh-intro">{cfg.intro}</div>}
+      {topCats.length > 0 && (
+        <nav className="sh-catnav" aria-label="Danh mục">
+          <div className="in">
+            <Link to="/" className={home && !curCat && !sp.get('q') ? 'on' : ''}>Trang chủ</Link>
+            {topCats.map((c) => <Link key={c.id} to={`/?c=${c.id}`} className={curCat === c.id ? 'on' : ''}>{catName(c.name)}</Link>)}
+          </div>
+        </nav>
+      )}
     </header>
   );
 }
@@ -38,18 +69,31 @@ function Header() {
 function Footer() {
   const { cfg } = useShop();
   const zalo = zaloLink(cfg.zalo);
+  const tel = telLink(cfg.hotline);
   return (
     <footer className="sh-footer">
       <div className="sh-footer-in">
-        <div className="nm">{cfg.shopName}</div>
-        {cfg.address && <div>{Icon.pin(15)} {cfg.address}</div>}
-        {cfg.hotline && <div>{Icon.phone(15)} <a href={telLink(cfg.hotline)!}>{cfg.hotline}</a></div>}
-        <div className="links">
+        <div className="col brand">
+          <div className="logo">{cfg.logoUrl ? <Img src={cfg.logoUrl} alt={cfg.shopName} /> : <span className="mono">{cfg.shopName.slice(0, 1)}</span>}<b>{cfg.shopName}</b></div>
+          {cfg.intro && <p>{cfg.intro}</p>}
+          {cfg.address && <div className="li">{Icon.pin(16)} <span>{cfg.address}</span></div>}
+          {tel && <div className="li">{Icon.phone(16)} <a href={tel}>{prettyPhone(cfg.hotline)}</a></div>}
+        </div>
+        <div className="col">
+          <h4>Hỗ trợ khách hàng</h4>
           <Link to="/tra-cuu">Tra cứu đơn hàng</Link>
-          {zalo && <a href={zalo} target="_blank" rel="noreferrer">Zalo</a>}
+          {cfg.allowOrder && <Link to="/gio-hang">Giỏ hàng</Link>}
+          {zalo && <a href={zalo} target="_blank" rel="noreferrer">Nhắn Zalo</a>}
           {cfg.facebook && <a href={cfg.facebook} target="_blank" rel="noreferrer">Facebook</a>}
         </div>
+        <div className="col">
+          <h4>Mua hàng online</h4>
+          <span>Đặt hàng trên web, cửa hàng gọi xác nhận đơn</span>
+          <span>Thanh toán khi nhận hàng hoặc chuyển khoản</span>
+          <span>Phí giao hàng (nếu có) báo khi xác nhận</span>
+        </div>
       </div>
+      <div className="sh-copy">© {new Date().getFullYear()} {cfg.shopName}</div>
     </footer>
   );
 }
@@ -64,7 +108,7 @@ function FloatContact() {
   return (
     <div className="sh-float">
       {zalo && <a href={zalo} target="_blank" rel="noreferrer" className="zalo" aria-label="Nhắn Zalo">Zalo</a>}
-      {tel && <a href={tel} className="call" aria-label="Gọi cửa hàng">{Icon.phone(22)}</a>}
+      {tel && <a href={tel} className="call" aria-label="Gọi cửa hàng">{Icon.phone(20)}</a>}
     </div>
   );
 }
@@ -72,6 +116,7 @@ function FloatContact() {
 function Shell() {
   return (
     <>
+      <TopBar />
       <Header />
       <main className="sh-main"><Outlet /></main>
       <Footer />
