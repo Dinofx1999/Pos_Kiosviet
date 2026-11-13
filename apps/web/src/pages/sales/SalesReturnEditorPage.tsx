@@ -102,7 +102,7 @@ function InvoicePicker({ onPick }: { onPick: (inv: Invoice) => void }) {
 function ReturnEditor({ invoiceId, existing }: { invoiceId: string; existing?: SalesReturn }) {
   const nav = useNavigate();
   const qc = useQueryClient();
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const can = useCan();
   const isMobile = useIsMobile();
   const me = useAuthStore((s) => s.me);
@@ -121,7 +121,7 @@ function ReturnEditor({ invoiceId, existing }: { invoiceId: string; existing?: S
   const [reason, setReason] = useState('');
   const [note, setNote] = useState('');
   const [fee, setFee] = useState(0);
-  const [saving, setSaving] = useState<'draft' | 'complete' | 'exchange' | null>(null);
+  const [saving, setSaving] = useState<'draft' | 'complete' | 'exchange' | 'delete' | null>(null);
   const [completing, setCompleting] = useState(false);
   const [mode, setMode] = useState<'return' | 'exchange'>('return');
   // exchange
@@ -207,6 +207,25 @@ function ReturnEditor({ invoiceId, existing }: { invoiceId: string; existing?: S
       done(r.code, `Đã lưu phiếu tạm ${r.code}`);
     } catch (e) { fail(e); } finally { setSaving(null); }
   };
+  // phiếu tạm chưa ghi kho / sổ quỹ / công nợ → xóa hẳn (phiếu đã hoàn thành thì dùng "Hủy phiếu" để ghi đảo)
+  const removeDraft = () => {
+    if (!existing || saving) return;
+    modal.confirm({
+      title: `Xóa phiếu tạm ${existing.code}?`,
+      content: 'Phiếu tạm chưa ghi kho, sổ quỹ hay công nợ nên xóa không ảnh hưởng số liệu. Phiếu đã xóa không khôi phục được.',
+      okText: 'Xóa phiếu', okButtonProps: { danger: true }, cancelText: 'Không',
+      onOk: async () => {
+        setSaving('delete');
+        try {
+          await salesApi.deleteReturn(existing.id);
+          message.success(`Đã xóa phiếu tạm ${existing.code}`);
+          qc.removeQueries({ queryKey: ['sales-return', existing.id] });
+          SALES_KEYS.forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
+          nav('/sales-returns');
+        } catch (e) { message.error(returnErrMsg(e)); throw e; } finally { setSaving(null); }
+      },
+    });
+  };
   const openComplete = () => { if (!can('return.complete')) { message.warning('Bạn không có quyền hoàn thành phiếu trả'); return; } if (buildReturn()) setCompleting(true); };
   const complete = async (refund?: RefundInput) => {
     if (saving) return;
@@ -266,7 +285,7 @@ function ReturnEditor({ invoiceId, existing }: { invoiceId: string; existing?: S
   // điện thoại: màn Trả hàng hóa đơn kiểu app KiotViet (logic ở trên dùng chung)
   if (isMobile) {
     return (
-      <ReturnMobile ctx={{ inv, existing, lines, upd, active, subtotal, feeApplied, totalRefund, maxRefund, hasCustomer, returnDate, setReturnDate, reason, setReason, note, setNote, fee, setFee, canPriceEdit, canSellPrice, canExchange, canCreate: can('return.create'), canComplete: can('return.complete'), mode, setMode, xLines, addX, setX, removeX, xDiscount, setXDiscount, xNote, setXNote, xTotals, settle, payMethod, setPayMethod, payNow, setPayAmount, refMethod, setRefMethod, refundNow, setRefAmount, refCredit, setRefCredit, saving, saveDraft, openComplete, submitExchange, shift, openShift: () => setOpenShift(true), warehouseName: me?.warehouses.find((w) => w.id === inv.warehouseId)?.name, batchSelect }}>
+      <ReturnMobile ctx={{ inv, existing, lines, upd, active, subtotal, feeApplied, totalRefund, maxRefund, hasCustomer, returnDate, setReturnDate, reason, setReason, note, setNote, fee, setFee, canPriceEdit, canSellPrice, canExchange, canCreate: can('return.create'), canComplete: can('return.complete'), mode, setMode, xLines, addX, setX, removeX, xDiscount, setXDiscount, xNote, setXNote, xTotals, settle, payMethod, setPayMethod, payNow, setPayAmount, refMethod, setRefMethod, refundNow, setRefAmount, refCredit, setRefCredit, saving, saveDraft, removeDraft, openComplete, submitExchange, shift, openShift: () => setOpenShift(true), warehouseName: me?.warehouses.find((w) => w.id === inv.warehouseId)?.name, batchSelect }}>
         <ReturnCompleteModal open={completing} total={totalRefund} code={existing?.code} hasCustomer={hasCustomer} customerName={inv.customer?.name} loading={saving === 'complete'} onClose={() => setCompleting(false)} onConfirm={complete} />
         <ShiftOpenModal open={openShift} branchId={inv.branchId} onClose={() => setOpenShift(false)} onOpened={() => qc.invalidateQueries({ queryKey: ['shift-current'] })} />
       </ReturnMobile>
@@ -417,6 +436,7 @@ function ReturnEditor({ invoiceId, existing }: { invoiceId: string; existing?: S
               {mode === 'return' ? (
                 <>
                   {can('return.create') && <Button icon={<SaveOutlined />} loading={saving === 'draft'} onClick={saveDraft}>Lưu nháp</Button>}
+                  {existing && can('return.create') && <Button danger icon={<DeleteOutlined />} loading={saving === 'delete'} onClick={removeDraft}>Xóa phiếu tạm</Button>}
                   {can('return.complete') && <Button type="primary" icon={<CheckOutlined />} loading={saving === 'complete'} onClick={openComplete}>Hoàn thành</Button>}
                   {canExchange && !existing && <Button icon={<SwapOutlined />} onClick={() => setMode('exchange')}>Đổi hàng</Button>}
                 </>

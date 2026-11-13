@@ -167,6 +167,8 @@
 .rm-foot { flex: 0 0 auto; background: #fff; border-radius: 16px 16px 0 0; padding: 12px 14px calc(12px + env(safe-area-inset-bottom)); box-shadow: 0 -4px 16px rgba(0, 0, 0, .06); }
 .rm-foot-links { display: flex; align-items: center; justify-content: space-between; font-size: 16px; font-weight: 600; }
 .rm-foot-links .anticon { font-size: 16px; margin-left: 4px; }
+.rm-foot-links a.rm-del { color: #e5484d; }
+.rm-foot-links a.rm-del .anticon { margin: 0 4px 0 0; }
 .rm-tot { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; font-size: 20px; font-weight: 700; color: #111827; font-variant-numeric: tabular-nums; }
 .rm-tot .cnt { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 30px; padding: 0 8px; border-radius: 15px; border: 1.5px solid var(--kv-blue); color: var(--kv-blue); font-style: normal; font-size: 14px; margin-left: 8px; vertical-align: middle; }
 .rm-sub { display: flex; justify-content: space-between; margin-top: 8px; font-size: 14px; color: #6b7280; font-variant-numeric: tabular-nums; }

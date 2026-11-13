@@ -26,8 +26,8 @@ export interface ReturnMobileCtx {
   xTotals: { subtotal: number; discount: number; tax: number; total: number }; settle: { R: number; N: number; offset: number; customerPays: number; refundDue: number };
   payMethod: string; setPayMethod: (m: string) => void; payNow: number; setPayAmount: (v: number | null) => void;
   refMethod: string; setRefMethod: (m: string) => void; refundNow: number; setRefAmount: (v: number | null) => void; refCredit: boolean; setRefCredit: (v: boolean) => void;
-  saving: 'draft' | 'complete' | 'exchange' | null;
-  saveDraft: () => Promise<void>; openComplete: () => void; submitExchange: () => Promise<void>;
+  saving: 'draft' | 'complete' | 'exchange' | 'delete' | null;
+  saveDraft: () => Promise<void>; removeDraft: () => void; openComplete: () => void; submitExchange: () => Promise<void>;
   shift: Shift | null | undefined; openShift: () => void;
   warehouseName?: string;
   batchSelect: (l: XLine) => ReactNode;
@@ -111,7 +111,7 @@ export function ReturnMobile({ ctx, children }: { ctx: ReturnMobileCtx; children
 
       <div className="rm-foot">
         <div className="rm-foot-links">
-          {c.canExchange && !c.existing && !exchange ? <a onClick={() => c.setMode('exchange')}>Thêm hàng mua <PlusCircleFilled /></a> : <span className="muted" style={{ fontWeight: 500, fontSize: 14 }}>{exchange ? `Đổi hàng · ${c.xLines.length} hàng mua` : ' '}</span>}
+          {c.existing && c.canCreate && !exchange ? <a className="rm-del" onClick={c.removeDraft}><DeleteOutlined /> {c.saving === 'delete' ? 'Đang xóa…' : 'Xóa phiếu tạm'}</a> : c.canExchange && !c.existing && !exchange ? <a onClick={() => c.setMode('exchange')}>Thêm hàng mua <PlusCircleFilled /></a> : <span className="muted" style={{ fontWeight: 500, fontSize: 14 }}>{exchange ? `Đổi hàng · ${c.xLines.length} hàng mua` : ' '}</span>}
           {c.canCreate && !exchange && <a onClick={() => void c.saveDraft()}>{c.saving === 'draft' ? 'Đang lưu…' : 'Lưu nháp'}</a>}
         </div>
         <div className="rm-tot"><span>Tổng trả <i className="cnt">{c.active.length}</i></span><b>{money(c.totalRefund)}</b></div>
