@@ -467,3 +467,11 @@ Màn Bán hàng điện thoại tách thành `PosMobile` (`pages/pos/PosMobile.t
 - **Web**: thanh danh mục + ô danh mục theo thứ tự máy chủ; ≤ 8 danh mục trên điện thoại hiện lưới 4 cột theo hàng; giá Flash Sale ẩn → "Giá sốc · Liên hệ"; giỏ hàng ước tính theo từng nút giá; đơn web ẩn giá từng dòng theo nút tương ứng.
 - Kiểm thử: T-279 (online 10/10). Hướng dẫn "Mở web bán hàng…" cập nhật.
 
+### Chấm công: bắt buộc trong bán kính + ca làm việc (13/11/2026, đêm)
+- **Yêu cầu**: chỉ chấm công vào trong bán kính cho phép; chấm trước ca vẫn tính đúng giờ vào ca, chấm ra sau ca (VD hết ca 22h, ra 23h) chỉ tính đến 22h.
+- **Bán kính**: đã có sẵn (BR-151) nhưng cửa hàng chưa bật `attendance.gpsRequired` (lượt 13 km chỉ bị gắn cờ Nghi vấn) → bật trên máy chủ thật; thêm công tắc ngay ở Chấm công → "Ca làm & bán kính" (kèm bán kính / thiếu tọa độ từng chi nhánh).
+- **Ca làm việc** (BR-187): bảng `work_shifts`, cột `work_shift_id` / `shift_start_at` / `shift_end_at` trên `attendances` (migration `20261113160203_work_shifts`); `work-shift.util.ts` (khung ca theo múi giờ cửa hàng, tự nhận ca, ca qua đêm, giờ công = phần giao với khung ca). API `GET/POST/PATCH/DELETE /employees/attendance/shifts`, chấm vào nhận `workShiftId`, `current` trả ca + ca gợi ý theo chi nhánh, sửa / thêm lượt chọn ca.
+- **Giao diện**: chọn ca khi chấm vào (gợi ý sẵn), màn đang trong ca hiện "Tính công … → tối đa …", lịch sử có cột Ca + Giờ công (kèm "có mặt …" khi khác), hộp Sửa giờ / Thêm lượt có ô Ca làm việc, ngăn kéo "Ca làm & bán kính".
+- Sửa kèm: `AttendanceDevice` chưa nằm trong danh sách bảng theo cửa hàng (tenant-extension) → thêm vào.
+- Kiểm thử: T-280; toàn bộ 214 test API đạt.
+

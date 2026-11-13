@@ -9,7 +9,11 @@ import { AccessService } from '../../infra/access/access.service';
 import { AuditService } from '../../infra/audit/audit.service';
 import { getCtx, RequestUser } from '../../infra/cls/request-context';
 import { PrismaService } from '../../infra/prisma/prisma.service';
-import { AttendanceQueryDto, AttendanceDevicePatchDto, AttendanceDeviceQueryDto, CheckInDto, CheckOutDto, CreateCommissionRuleDto, EditAttendanceDto, EmployeeQueryDto, ManualAttendanceDto, PeriodQueryDto, UpdateCommissionRuleDto } from './dto/employees.dto';
+import { AttendanceQueryDto, AttendanceDevicePatchDto, AttendanceDeviceQueryDto, CheckInDto, CheckOutDto, CreateCommissionRuleDto, CreateWorkShiftDto, EditAttendanceDto, EmployeeQueryDto, ManualAttendanceDto, PeriodQueryDto, UpdateCommissionRuleDto, UpdateWorkShiftDto } from './dto/employees.dto';
+import { creditedMinutes, matchShift, minuteToHHmm, ShiftWindow, windowFor } from './work-shift.util';
+
+const SHIFT_SELECT = { id: true, name: true, startMinute: true, endMinute: true } as const;
+const toMinute = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
 
 const NONE = '00000000-0000-0000-0000-000000000000';
 const uuidList = (ids: string[]) => Prisma.join((ids.length ? ids : [NONE]).map((id) => Prisma.sql`${id}::uuid`));
@@ -212,6 +216,72 @@ export class EmployeesService {
     return this.prisma.db.attendanceDevice.update({ where: { id: found.id }, data: { lastSeenAt: now, status: 'TRUSTED', ...(name ? { name } : {}) } });
   }
 
+  // ---------------------------------------------------------------- ca làm việc (BR-187)
+  private async timezone(tenantId: string) {
+    return (await this.prisma.raw.tenant.findUnique({ where: { id: tenantId }, select: { timezone: true } }))?.timezone || 'Asia/Ho_Chi_Minh';
+  }
+  /** Ca đang dùng của một chi nhánh (ca chung + ca riêng của chi nhánh). */
+  private shiftsFor(branchId: string | null) {
+    return this.prisma.db.workShift.findMany({ where: { isActive: true, ...(branchId ? { OR: [{ branchId: null }, { branchId }] } : { branchId: null }) }, select: { ...SHIFT_SELECT, branchId: true }, orderBy: [{ sortOrder: 'asc' }, { startMinute: 'asc' }] });
+  }
+  /**
+   * Ca của một lượt: ca được chọn (khung giờ gần giờ vào nhất) hoặc tự nhận theo giờ vào. Có ca nhưng giờ vào ngoài mọi ca → cờ OFF_SHIFT
+   * (giờ công tính cả lượt, quản lý soát lại). `chosen` = null → không theo ca.
+   */
+  private async resolveShift(tenantId: string, branchId: string | null, at: Date, chosen: string | null | undefined, flags?: string[]): Promise<{ workShiftId: string | null; window: ShiftWindow | null }> {
+    if (chosen === null) return { workShiftId: null, window: null };
+    const tz = await this.timezone(tenantId);
+    if (chosen) {
+      const sh = await this.prisma.db.workShift.findFirst({ where: { id: chosen }, select: SHIFT_SELECT });
+      if (!sh) throw Errors.validation('Ca làm việc không tồn tại');
+      return { workShiftId: sh.id, window: windowFor(sh, at, tz) };
+    }
+    const shifts = await this.shiftsFor(branchId);
+    const m = matchShift(shifts, at, tz);
+    if (!m) { if (shifts.length) flags?.push('OFF_SHIFT'); return { workShiftId: null, window: null }; }
+    return { workShiftId: m.shift.id, window: m.window };
+  }
+  private shiftView<T extends { startMinute: number; endMinute: number }>(s: T) { return { ...s, start: minuteToHHmm(s.startMinute), end: minuteToHHmm(s.endMinute) }; }
+  async listShifts(includeInactive: boolean) {
+    const rows = await this.prisma.db.workShift.findMany({ where: includeInactive ? {} : { isActive: true }, include: { branch: { select: { id: true, name: true } }, _count: { select: { attendances: true } } }, orderBy: [{ isActive: 'desc' }, { sortOrder: 'asc' }, { startMinute: 'asc' }] });
+    return rows.map(({ _count, ...r }) => ({ ...this.shiftView(r), used: _count.attendances }));
+  }
+  private async checkShiftInput(branchId: string | null | undefined, start?: string, end?: string) {
+    if (start !== undefined && end !== undefined && start === end) throw Errors.validation('Giờ vào ca và giờ hết ca không được trùng nhau');
+    if (branchId && !(await this.prisma.db.branch.findFirst({ where: { id: branchId } }))) throw Errors.notFound('Chi nhánh', branchId);
+  }
+  async createShift(user: RequestUser, dto: CreateWorkShiftDto) {
+    await this.checkShiftInput(dto.branchId, dto.start, dto.end);
+    const r = await this.prisma.db.workShift.create({ data: { tenantId: user.tenantId, name: dto.name, startMinute: toMinute(dto.start), endMinute: toMinute(dto.end), branchId: dto.branchId ?? null, isActive: dto.isActive ?? true, sortOrder: dto.sortOrder ?? 0 } });
+    await this.audit.log(this.prisma.db as never, { action: 'attendance.shift.create', entityType: 'WorkShift', entityId: r.id, after: { name: r.name, start: dto.start, end: dto.end, branchId: r.branchId } });
+    return this.shiftView(r);
+  }
+  async updateShift(user: RequestUser, id: string, dto: UpdateWorkShiftDto) {
+    const cur = await this.prisma.db.workShift.findFirst({ where: { id } });
+    if (!cur) throw Errors.notFound('Ca làm việc', id);
+    await this.checkShiftInput(dto.branchId, dto.start ?? minuteToHHmm(cur.startMinute), dto.end ?? minuteToHHmm(cur.endMinute));
+    // đổi giờ ca không đổi các lượt đã chấm (mỗi lượt giữ khung giờ ca của ngày đó)
+    const r = await this.prisma.db.workShift.update({ where: { id }, data: {
+      ...(dto.name !== undefined ? { name: dto.name } : {}), ...(dto.start ? { startMinute: toMinute(dto.start) } : {}), ...(dto.end ? { endMinute: toMinute(dto.end) } : {}),
+      ...(dto.branchId !== undefined ? { branchId: dto.branchId } : {}), ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}), ...(dto.sortOrder !== undefined ? { sortOrder: dto.sortOrder } : {}),
+    } });
+    await this.audit.log(this.prisma.db as never, { action: 'attendance.shift.update', entityType: 'WorkShift', entityId: id, before: { name: cur.name, start: minuteToHHmm(cur.startMinute), end: minuteToHHmm(cur.endMinute), isActive: cur.isActive }, after: { name: r.name, start: minuteToHHmm(r.startMinute), end: minuteToHHmm(r.endMinute), isActive: r.isActive } });
+    return this.shiftView(r);
+  }
+  /** Ca chưa dùng thì xóa hẳn; đã có lượt chấm công thì chỉ ngừng dùng (giữ lịch sử). */
+  async removeShift(user: RequestUser, id: string) {
+    const cur = await this.prisma.db.workShift.findFirst({ where: { id }, include: { _count: { select: { attendances: true } } } });
+    if (!cur) throw Errors.notFound('Ca làm việc', id);
+    if (cur._count.attendances > 0) {
+      await this.prisma.db.workShift.update({ where: { id }, data: { isActive: false } });
+      await this.audit.log(this.prisma.db as never, { action: 'attendance.shift.deactivate', entityType: 'WorkShift', entityId: id, before: { name: cur.name, isActive: cur.isActive } });
+      return { removed: false, deactivated: true };
+    }
+    await this.prisma.db.workShift.delete({ where: { id } });
+    await this.audit.log(this.prisma.db as never, { action: 'attendance.shift.remove', entityType: 'WorkShift', entityId: id, before: { name: cur.name, start: minuteToHHmm(cur.startMinute), end: minuteToHHmm(cur.endMinute) } });
+    return { removed: true, deactivated: false };
+  }
+
   async checkIn(user: RequestUser, dto: CheckInDto) {
     if (dto.branchId) this.access.assertBranch(user, dto.branchId);
     const open = await this.prisma.db.attendance.findFirst({ where: { userId: user.id, checkOutAt: null } });
@@ -222,12 +292,13 @@ export class EmployeesService {
     const flags: string[] = [];
     const distance = this.geoCheck(cfg, branch, dto, true, flags);
     const device = await this.deviceCheck(user, cfg, dto, flags);
+    const shift = await this.resolveShift(user.tenantId, branchId, new Date(), dto.workShiftId, flags);
     const ctx = getCtx(this.cls);
-    const a = await this.prisma.db.attendance.create({ data: {
-      tenantId: user.tenantId, userId: user.id, branchId, note: dto.note, latitude: dto.latitude, longitude: dto.longitude, accuracy: dto.accuracy === undefined ? undefined : Math.round(dto.accuracy * 10) / 10,
+    const a = await this.prisma.db.attendance.create({ include: { workShift: { select: SHIFT_SELECT } }, data: {
+      tenantId: user.tenantId, userId: user.id, branchId, note: dto.note, workShiftId: shift.workShiftId, shiftStartAt: shift.window?.start ?? null, shiftEndAt: shift.window?.end ?? null, latitude: dto.latitude, longitude: dto.longitude, accuracy: dto.accuracy === undefined ? undefined : Math.round(dto.accuracy * 10) / 10,
       distanceMeters: distance, deviceId: device?.deviceId ?? dto.deviceId ?? null, ip: ctx.ip?.slice(0, 64) ?? null, userAgent: ctx.userAgent?.slice(0, 300) ?? null, flags,
     } });
-    await this.audit.log(this.prisma.db as never, { action: 'attendance.check_in', entityType: 'Attendance', entityId: a.id, after: { branchId: a.branchId, distance, flags } });
+    await this.audit.log(this.prisma.db as never, { action: 'attendance.check_in', entityType: 'Attendance', entityId: a.id, after: { branchId: a.branchId, distance, flags, workShiftId: a.workShiftId } });
     return a;
   }
   async checkOut(user: RequestUser, dto: CheckOutDto) {
@@ -239,15 +310,15 @@ export class EmployeesService {
     const flags = [...(open.flags ?? [])];
     const distance = this.geoCheck(cfg, branch, dto, false, flags, 'OUT_');
     if (dto.deviceId && open.deviceId && dto.deviceId !== open.deviceId) flags.push('DEVICE_CHANGED');
-    const a = await this.prisma.db.attendance.update({ where: { id: open.id }, data: {
-      checkOutAt: now, minutes: Math.max(0, Math.round((now.getTime() - open.checkInAt.getTime()) / 60000)), note: dto.note ? [open.note, dto.note].filter(Boolean).join(' · ') : open.note,
+    const a = await this.prisma.db.attendance.update({ where: { id: open.id }, include: { workShift: { select: SHIFT_SELECT } }, data: {
+      checkOutAt: now, minutes: creditedMinutes(open.checkInAt, now, { start: open.shiftStartAt, end: open.shiftEndAt }), note: dto.note ? [open.note, dto.note].filter(Boolean).join(' · ') : open.note,
       outLatitude: dto.latitude, outLongitude: dto.longitude, outDistanceMeters: distance, flags: Array.from(new Set(flags)),
     } });
     await this.audit.log(this.prisma.db as never, { action: 'attendance.check_out', entityType: 'Attendance', entityId: a.id, after: { minutes: a.minutes, distance, flags: a.flags } });
     return a;
   }
   async current(user: RequestUser, deviceId?: string) {
-    const open = await this.prisma.db.attendance.findFirst({ where: { userId: user.id, checkOutAt: null }, orderBy: { checkInAt: 'desc' } });
+    const open = await this.prisma.db.attendance.findFirst({ where: { userId: user.id, checkOutAt: null }, orderBy: { checkInAt: 'desc' }, include: { workShift: { select: SHIFT_SELECT } } });
     const since = new Date(new Date().setDate(1));
     const [month, cfg, device, branches] = await Promise.all([
       this.prisma.db.attendance.aggregate({ where: { userId: user.id, checkInAt: { gte: since } }, _sum: { minutes: true }, _count: { _all: true } }),
@@ -255,11 +326,17 @@ export class EmployeesService {
       deviceId ? this.prisma.db.attendanceDevice.findFirst({ where: { deviceId }, select: { id: true, userId: true, status: true, name: true } }) : null,
       this.prisma.db.branch.findMany({ where: { isActive: true, ...(user.allBranches ? {} : { id: { in: user.branchIds } }) }, select: { id: true, name: true, latitude: true, longitude: true, radiusMeters: true }, orderBy: { name: 'asc' } }),
     ]);
+    const tz = await this.timezone(user.tenantId);
     return {
       open, monthMinutes: month._sum.minutes ?? 0, monthDays: month._count._all,
       policy: { gpsRequired: cfg.gpsRequired, deviceLock: cfg.deviceLock, radius: cfg.radius, maxAccuracy: cfg.maxAccuracy },
       device: device ? { id: device.id, status: device.userId === user.id ? device.status : 'OTHER_USER', name: device.name } : null,
-      branches: branches.map((b) => ({ id: b.id, name: b.name, hasGeo: b.latitude !== null && b.longitude !== null, radius: b.radiusMeters ?? cfg.radius })),
+      branches: await Promise.all(branches.map(async (b) => {
+        // ca gợi ý khi chấm vào lúc này (nhân viên đổi được trước khi chấm)
+        const shifts = await this.shiftsFor(b.id);
+        const m = shifts.length ? matchShift(shifts, new Date(), tz) : null;
+        return { id: b.id, name: b.name, hasGeo: b.latitude !== null && b.longitude !== null, radius: b.radiusMeters ?? cfg.radius, shifts: shifts.map((x) => this.shiftView(x)), suggestedShiftId: m?.shift.id ?? null };
+      })),
     };
   }
   async listDevices(_user: RequestUser, q: AttendanceDeviceQueryDto) {
@@ -286,7 +363,7 @@ export class EmployeesService {
       ...(q.from || q.to ? { checkInAt: { ...(q.from ? { gte: new Date(q.from) } : {}), ...(q.to ? { lte: new Date(q.to) } : {}) } } : {}),
     };
     const [rows, total, perUser] = await Promise.all([
-      this.prisma.db.attendance.findMany({ where, include: { user: { select: { id: true, fullName: true, username: true } } }, ...skipTake(q), orderBy: { checkInAt: 'desc' } }),
+      this.prisma.db.attendance.findMany({ where, include: { user: { select: { id: true, fullName: true, username: true } }, workShift: { select: SHIFT_SELECT } }, ...skipTake(q), orderBy: { checkInAt: 'desc' } }),
       this.prisma.db.attendance.count({ where }),
       this.prisma.db.attendance.groupBy({ by: ['userId'], where, _sum: { minutes: true }, _count: { _all: true } }),
     ]);
@@ -299,15 +376,30 @@ export class EmployeesService {
     const checkInAt = dto.checkInAt ? new Date(dto.checkInAt) : a.checkInAt;
     const checkOutAt = dto.checkOutAt === undefined ? a.checkOutAt : dto.checkOutAt ? new Date(dto.checkOutAt) : null;
     if (checkOutAt && checkOutAt < checkInAt) throw Errors.validation('Giờ ra phải sau giờ vào');
-    const after = await this.prisma.db.attendance.update({ where: { id }, data: { checkInAt, checkOutAt, minutes: checkOutAt ? Math.round((checkOutAt.getTime() - checkInAt.getTime()) / 60000) : null, note: dto.note, editedById: user.id } });
-    await this.audit.log(this.prisma.db as never, { action: 'attendance.edit', entityType: 'Attendance', entityId: id, before: { checkInAt: a.checkInAt, checkOutAt: a.checkOutAt }, after: { checkInAt, checkOutAt } });
+    // đổi ca hoặc giờ vào → lấy lại khung giờ ca quanh giờ vào mới; chỉ sửa giờ ra → giữ khung ca cũ
+    let shift: { workShiftId: string | null; window: ShiftWindow | null } = { workShiftId: a.workShiftId, window: a.shiftStartAt && a.shiftEndAt ? { start: a.shiftStartAt, end: a.shiftEndAt } : null };
+    if (dto.workShiftId !== undefined || (dto.checkInAt && checkInAt.getTime() !== a.checkInAt.getTime())) {
+      const chosen = dto.workShiftId !== undefined ? dto.workShiftId : a.workShiftId;
+      shift = chosen ? await this.resolveShift(user.tenantId, a.branchId, checkInAt, chosen) : { workShiftId: null, window: null };
+    }
+    const after = await this.prisma.db.attendance.update({ where: { id }, include: { workShift: { select: SHIFT_SELECT } }, data: {
+      checkInAt, checkOutAt, minutes: checkOutAt ? creditedMinutes(checkInAt, checkOutAt, shift.window) : null, note: dto.note, editedById: user.id,
+      workShiftId: shift.workShiftId, shiftStartAt: shift.window?.start ?? null, shiftEndAt: shift.window?.end ?? null,
+      ...(dto.workShiftId !== undefined || shift.workShiftId ? { flags: (a.flags ?? []).filter((f) => f !== 'OFF_SHIFT') } : {}),
+    } });
+    await this.audit.log(this.prisma.db as never, { action: 'attendance.edit', entityType: 'Attendance', entityId: id, before: { checkInAt: a.checkInAt, checkOutAt: a.checkOutAt, workShiftId: a.workShiftId, minutes: a.minutes }, after: { checkInAt, checkOutAt, workShiftId: after.workShiftId, minutes: after.minutes } });
     return after;
   }
   async manualAttendance(user: RequestUser, dto: ManualAttendanceDto) {
     if (!(await this.prisma.db.user.findFirst({ where: { id: dto.userId } }))) throw Errors.notFound('Nhân viên', dto.userId);
     const checkInAt = new Date(dto.checkInAt); const checkOutAt = dto.checkOutAt ? new Date(dto.checkOutAt) : null;
     if (checkOutAt && checkOutAt < checkInAt) throw Errors.validation('Giờ ra phải sau giờ vào');
-    return this.prisma.db.attendance.create({ data: { tenantId: user.tenantId, userId: dto.userId, branchId: dto.branchId ?? null, checkInAt, checkOutAt, minutes: checkOutAt ? Math.round((checkOutAt.getTime() - checkInAt.getTime()) / 60000) : null, source: 'MANUAL', note: dto.note, editedById: user.id } });
+    const flags: string[] = [];
+    const shift = await this.resolveShift(user.tenantId, dto.branchId ?? null, checkInAt, dto.workShiftId, flags);
+    return this.prisma.db.attendance.create({ include: { workShift: { select: SHIFT_SELECT } }, data: {
+      tenantId: user.tenantId, userId: dto.userId, branchId: dto.branchId ?? null, checkInAt, checkOutAt, minutes: checkOutAt ? creditedMinutes(checkInAt, checkOutAt, shift.window) : null,
+      source: 'MANUAL', note: dto.note, editedById: user.id, workShiftId: shift.workShiftId, shiftStartAt: shift.window?.start ?? null, shiftEndAt: shift.window?.end ?? null, flags,
+    } });
   }
 
   // ---------------------------------------------------------------- performance (BR-152)

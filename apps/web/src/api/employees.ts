@@ -32,14 +32,19 @@ export interface CommissionReport { from: string; to: string; rules: number; dat
 export interface Attendance {
   id: string; userId: string; branchId?: string | null; checkInAt: string; checkOutAt?: string | null; minutes?: number | null; source: 'APP' | 'MANUAL' | string; note?: string | null;
   latitude?: number | null; longitude?: number | null; accuracy?: number | string | null; distanceMeters?: number | null; outDistanceMeters?: number | null; deviceId?: string | null; flags?: string[]; editedById?: string | null; user?: { id: string; fullName: string; username?: string };
+  /** ca làm việc (BR-187): minutes = giờ công tính trong khung ca [shiftStartAt, shiftEndAt] */
+  workShiftId?: string | null; shiftStartAt?: string | null; shiftEndAt?: string | null; workShift?: { id: string; name: string; startMinute: number; endMinute: number } | null;
 }
+/** Ca làm việc: giờ vào ca – hết ca ("HH:mm"); hết ca nhỏ hơn giờ vào = ca qua đêm. */
+export interface WorkShift { id: string; name: string; startMinute: number; endMinute: number; start: string; end: string; branchId?: string | null; isActive?: boolean; sortOrder?: number; used?: number; branch?: { id: string; name: string } | null }
+export interface WorkShiftInput { name: string; start: string; end: string; branchId?: string | null; isActive?: boolean; sortOrder?: number }
 export interface AttendancePolicy { gpsRequired: boolean; deviceLock: boolean; radius: number; maxAccuracy: number }
-export interface AttendanceBranchGeo { id: string; name: string; hasGeo: boolean; radius: number }
+export interface AttendanceBranchGeo { id: string; name: string; hasGeo: boolean; radius: number; shifts?: WorkShift[]; suggestedShiftId?: string | null }
 export interface AttendanceDeviceInfo { id: string; status: 'TRUSTED' | 'PENDING' | 'BLOCKED' | 'OTHER_USER' | string; name?: string | null }
 export interface AttendanceCurrent { open: Attendance | null; monthMinutes: number; monthDays: number; policy?: AttendancePolicy; device?: AttendanceDeviceInfo | null; branches?: AttendanceBranchGeo[] }
 export interface AttendanceDevice { id: string; userId: string; deviceId: string; name?: string | null; status: 'TRUSTED' | 'PENDING' | 'BLOCKED' | string; firstSeenAt: string; lastSeenAt: string; user?: { id: string; fullName: string; username?: string } }
 /** Nhãn cờ nghi vấn trên một lượt chấm công. */
-export const ATTENDANCE_FLAG_LABEL: Record<string, string> = { NO_GPS: 'Không có vị trí', GPS_INACCURATE: 'GPS sai số lớn', OUT_OF_RANGE: 'Ngoài bán kính chi nhánh', NO_DEVICE: 'Không nhận diện thiết bị', NEW_DEVICE: 'Thiết bị mới', DEVICE_SHARED: 'Thiết bị của người khác', OUT_NO_GPS: 'Ra: không có vị trí', OUT_GPS_INACCURATE: 'Ra: GPS sai số lớn', OUT_OF_RANGE_OUT: 'Ra: ngoài bán kính', OUT_OUT_OF_RANGE: 'Ra: ngoài bán kính', DEVICE_CHANGED: 'Ra bằng thiết bị khác' };
+export const ATTENDANCE_FLAG_LABEL: Record<string, string> = { NO_GPS: 'Không có vị trí', GPS_INACCURATE: 'GPS sai số lớn', OUT_OF_RANGE: 'Ngoài bán kính chi nhánh', NO_DEVICE: 'Không nhận diện thiết bị', NEW_DEVICE: 'Thiết bị mới', DEVICE_SHARED: 'Thiết bị của người khác', OUT_NO_GPS: 'Ra: không có vị trí', OUT_GPS_INACCURATE: 'Ra: GPS sai số lớn', OUT_OF_RANGE_OUT: 'Ra: ngoài bán kính', OUT_OUT_OF_RANGE: 'Ra: ngoài bán kính', DEVICE_CHANGED: 'Ra bằng thiết bị khác', OFF_SHIFT: 'Chấm ngoài giờ ca' };
 export const DEVICE_STATUS_LABEL: Record<string, string> = { TRUSTED: 'Tin cậy', PENDING: 'Chờ duyệt', BLOCKED: 'Đã khóa', OTHER_USER: 'Của nhân viên khác' };
 /** Mã thiết bị chấm công: sinh một lần và lưu trên trình duyệt (một thiết bị ↔ một nhân viên). */
 export function attendanceDeviceId(): string | undefined {
@@ -58,10 +63,10 @@ export function attendanceDeviceName(): string {
 export interface AttendanceQuery { page?: number; pageSize?: number; from?: string; to?: string; userId?: string; branchId?: string; open?: 'true' | 'false' }
 export interface AttendanceSummary { userId: string; name: string; sessions: number; minutes: number; hours: number }
 export interface AttendanceList extends Paginated<Attendance> { summary: AttendanceSummary[] }
-export interface CheckInInput { branchId?: string; note?: string; latitude?: number; longitude?: number; accuracy?: number; deviceId?: string; deviceName?: string }
+export interface CheckInInput { branchId?: string; note?: string; latitude?: number; longitude?: number; accuracy?: number; deviceId?: string; deviceName?: string; workShiftId?: string }
 export interface CheckOutInput { note?: string; latitude?: number; longitude?: number; accuracy?: number; deviceId?: string }
-export interface ManualAttendanceInput { userId: string; branchId?: string; checkInAt: string; checkOutAt?: string; note?: string }
-export interface EditAttendanceInput { checkInAt?: string; checkOutAt?: string | null; note?: string }
+export interface ManualAttendanceInput { userId: string; branchId?: string; checkInAt: string; checkOutAt?: string; note?: string; workShiftId?: string | null }
+export interface EditAttendanceInput { checkInAt?: string; checkOutAt?: string | null; note?: string; workShiftId?: string | null }
 
 export interface PerformanceRow {
   sellerId: string; name: string; invoices: number; revenue: string; returned: string; netRevenue: string; grossProfit: string; items: string; customers: number; avgBasket: string;
@@ -89,6 +94,10 @@ export const employeesApi = {
   attendance: (q: AttendanceQuery) => http.get<AttendanceList>('/employees/attendance', { params: clean({ ...q }) }).then((r) => r.data),
   manualAttendance: (b: ManualAttendanceInput) => http.post<Attendance>('/employees/attendance', b).then((r) => r.data),
   editAttendance: (id: string, b: EditAttendanceInput) => http.patch<Attendance>(`/employees/attendance/${id}`, b).then((r) => r.data),
+  shifts: (includeInactive = false) => http.get<WorkShift[]>('/employees/attendance/shifts', { params: { includeInactive } }).then((r) => r.data),
+  createShift: (b: WorkShiftInput) => http.post<WorkShift>('/employees/attendance/shifts', b).then((r) => r.data),
+  updateShift: (id: string, b: Partial<WorkShiftInput>) => http.patch<WorkShift>(`/employees/attendance/shifts/${id}`, b).then((r) => r.data),
+  removeShift: (id: string) => http.delete<{ removed: boolean; deactivated: boolean }>(`/employees/attendance/shifts/${id}`).then((r) => r.data),
   // hiệu suất
   performance: (q: PeriodQuery) => http.get<PerformanceReport>('/employees/performance', { params: clean({ ...q }) }).then((r) => r.data),
 };
@@ -97,6 +106,10 @@ export const useEmployees = (q: EmployeeQuery, enabled = true) => useQuery({ que
 export const useCommissionRules = (enabled = true, includeInactive = true) => useQuery({ queryKey: ['commission-rules', includeInactive], queryFn: () => employeesApi.rules(includeInactive), enabled });
 export const useCommissions = (q: PeriodQuery, enabled = true) => useQuery({ queryKey: ['commissions', q], queryFn: () => employeesApi.commissions(q), placeholderData: keepPreviousData, enabled });
 export const useMyCommission = (q: PeriodQuery, enabled = true) => useQuery({ queryKey: ['commissions-me', q], queryFn: () => employeesApi.myCommission(q), placeholderData: keepPreviousData, enabled });
+export const useWorkShifts = (includeInactive = false, enabled = true) => useQuery({ queryKey: ['work-shifts', includeInactive], queryFn: () => employeesApi.shifts(includeInactive), enabled });
+/** "Ca chiều · 14:00–22:00" */
+export const shiftLabel = (s: { name: string; startMinute: number; endMinute: number }) => `${s.name} · ${hhmm(s.startMinute)}–${hhmm(s.endMinute)}${s.endMinute <= s.startMinute ? ' (hôm sau)' : ''}`;
+export const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 export const useAttendanceCurrent = (enabled = true, deviceId?: string) => useQuery({ queryKey: ['attendance-current', deviceId], queryFn: () => employeesApi.current(deviceId), enabled, refetchInterval: 60_000 });
 export const useAttendanceDevices = (q: { userId?: string; status?: string } = {}, enabled = true) => useQuery({ queryKey: ['attendance-devices', q], queryFn: () => employeesApi.devices(q), enabled });
 export const useMyAttendance = (q: AttendanceQuery, enabled = true) => useQuery({ queryKey: ['attendance-me', q], queryFn: () => employeesApi.myAttendance(q), placeholderData: keepPreviousData, enabled });
@@ -104,7 +117,7 @@ export const useAttendance = (q: AttendanceQuery, enabled = true) => useQuery({ 
 export const usePerformance = (q: PeriodQuery, enabled = true) => useQuery({ queryKey: ['performance', q], queryFn: () => employeesApi.performance(q), placeholderData: keepPreviousData, enabled });
 
 /** Query keys touched by employee mutations – invalidate them all after a write. */
-export const EMPLOYEE_KEYS = ['employees', 'commission-rules', 'commissions', 'commissions-me', 'attendance-current', 'attendance-me', 'attendance', 'attendance-devices', 'performance', 'users'];
+export const EMPLOYEE_KEYS = ['employees', 'commission-rules', 'commissions', 'commissions-me', 'attendance-current', 'attendance-me', 'attendance', 'attendance-devices', 'work-shifts', 'performance', 'users'];
 
 export const COMMISSION_BASIS_LABEL: Record<CommissionBasis, string> = { REVENUE: 'Doanh thu', GROSS_PROFIT: 'Lợi nhuận gộp', QUANTITY: 'Số lượng' };
 export const COMMISSION_BASIS_HINT: Record<CommissionBasis, string> = { REVENUE: '% trên doanh thu thuần của dòng bán', GROSS_PROFIT: '% trên (doanh thu − giá vốn), không âm', QUANTITY: 'tiền thưởng cho mỗi đơn vị bán ra' };

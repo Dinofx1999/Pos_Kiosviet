@@ -16,7 +16,7 @@ export const TENANT_MODELS = new Set<string>([
   'StockTransfer', 'StockTransferLine', 'Stocktake', 'StocktakeLine',
   'Promotion', 'PromotionVoucher', 'InvoicePromotion',
   'SalesOrder', 'SalesOrderLine', 'Delivery',
-  'ImportJob', 'IntegrationConnection', 'CustomerPointEntry', 'CommissionRule', 'Attendance',
+  'ImportJob', 'IntegrationConnection', 'CustomerPointEntry', 'CommissionRule', 'Attendance', 'AttendanceDevice', 'WorkShift',
 ]);
 
 export class TenantContextMissingError extends Error {

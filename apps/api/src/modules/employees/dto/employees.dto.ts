@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsBoolean, IsIn, IsInt, IsISO8601, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsISO8601, IsNumber, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
 import { PaginationQueryDto } from '../../../common/pagination';
 import { IsDecimalStr, Trim, TrimToUndefined } from '../../../common/validators';
 
@@ -44,6 +44,7 @@ export class CheckInDto {
   @ApiPropertyOptional({ description: 'Sai số vị trí (m) do GPS báo' }) @IsOptional() @IsNumber() @Min(0) @Max(100000) accuracy?: number;
   @ApiPropertyOptional({ description: 'Mã thiết bị do trình duyệt sinh và lưu trên máy (chống chấm công hộ)' }) @IsOptional() @IsString() @MaxLength(80) deviceId?: string;
   @ApiPropertyOptional({ description: 'Tên thiết bị / trình duyệt (hiển thị cho quản lý)' }) @IsOptional() @TrimToUndefined() @IsString() @MaxLength(200) deviceName?: string;
+  @ApiPropertyOptional({ description: 'Ca làm việc nhân viên chọn; bỏ trống = tự nhận ca theo giờ chấm' }) @IsOptional() @IsUUID() workShiftId?: string;
 }
 export class CheckOutDto {
   @ApiPropertyOptional() @IsOptional() @TrimToUndefined() @IsString() @MaxLength(500) note?: string;
@@ -70,6 +71,7 @@ export class AttendanceQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({ description: 'true = chỉ lượt chưa chấm ra' }) @IsOptional() @IsIn(['true', 'false']) open?: string;
 }
 export class EditAttendanceDto {
+  @ApiPropertyOptional({ nullable: true, description: 'Đổi ca của lượt; null = không theo ca (tính cả lượt)' }) @IsOptional() @ValidateIf((_o, v) => v !== null) @IsUUID() workShiftId?: string | null;
   @ApiPropertyOptional() @IsOptional() @IsISO8601() checkInAt?: string;
   @ApiPropertyOptional({ nullable: true }) @IsOptional() @ValidateIf((_o, v) => v !== null) @IsISO8601() checkOutAt?: string | null;
   @ApiPropertyOptional() @IsOptional() @TrimToUndefined() @IsString() @MaxLength(500) note?: string;
@@ -80,6 +82,26 @@ export class ManualAttendanceDto {
   @ApiProperty() @IsISO8601() checkInAt: string;
   @ApiPropertyOptional() @IsOptional() @IsISO8601() checkOutAt?: string;
   @ApiPropertyOptional() @IsOptional() @TrimToUndefined() @IsString() @MaxLength(500) note?: string;
+  @ApiPropertyOptional({ nullable: true, description: 'Ca làm việc; bỏ trống = tự nhận ca theo giờ vào, null = không theo ca' }) @IsOptional() @ValidateIf((_o, v) => v !== null) @IsUUID() workShiftId?: string | null;
+}
+
+// ---------------------------------------------------------------- ca làm việc (BR-187)
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+export class CreateWorkShiftDto {
+  @ApiProperty({ example: 'Ca sáng' }) @Trim() @IsString() @MinLength(1) @MaxLength(100) name: string;
+  @ApiProperty({ example: '07:30', description: 'Giờ vào ca (HH:mm)' }) @Matches(HHMM, { message: 'Giờ vào ca dạng HH:mm' }) start: string;
+  @ApiProperty({ example: '14:00', description: 'Giờ hết ca (HH:mm); nhỏ hơn giờ vào = ca qua đêm' }) @Matches(HHMM, { message: 'Giờ hết ca dạng HH:mm' }) end: string;
+  @ApiPropertyOptional({ nullable: true, description: 'Chi nhánh áp dụng; bỏ trống = mọi chi nhánh' }) @IsOptional() @ValidateIf((_o, v) => v !== null) @IsUUID() branchId?: string | null;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() isActive?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) @Max(1000) sortOrder?: number;
+}
+export class UpdateWorkShiftDto {
+  @ApiPropertyOptional() @IsOptional() @Trim() @IsString() @MinLength(1) @MaxLength(100) name?: string;
+  @ApiPropertyOptional() @IsOptional() @Matches(HHMM, { message: 'Giờ vào ca dạng HH:mm' }) start?: string;
+  @ApiPropertyOptional() @IsOptional() @Matches(HHMM, { message: 'Giờ hết ca dạng HH:mm' }) end?: string;
+  @ApiPropertyOptional({ nullable: true }) @IsOptional() @ValidateIf((_o, v) => v !== null) @IsUUID() branchId?: string | null;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() isActive?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) @Max(1000) sortOrder?: number;
 }
 export class EmployeeQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional() @IsOptional() @IsUUID() branchId?: string;

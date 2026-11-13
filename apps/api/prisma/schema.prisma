@@ -85,6 +85,7 @@ model Tenant {
   commissionRules      CommissionRule[]
   attendances          Attendance[]
   attendanceDevices    AttendanceDevice[]
+  workShifts           WorkShift[]
   paymentCategories    PaymentCategory[]
   cashTransfers        CashTransfer[]
   cashReconciliations  CashReconciliation[]
@@ -112,27 +113,28 @@ model TenantSetting {
 // =====================================================================
 
 model Branch {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId  String   @map("tenant_id") @db.Uuid
-  code      String   @db.VarChar(50)
-  name      String   @db.VarChar(200)
-  address   String?  @db.VarChar(500)
-  phone     String?  @db.VarChar(30)
-  email     String?  @db.VarChar(200)
-  isDefault Boolean  @default(false) @map("is_default")
-  isActive  Boolean  @default(true) @map("is_active")
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  code         String   @db.VarChar(50)
+  name         String   @db.VarChar(200)
+  address      String?  @db.VarChar(500)
+  phone        String?  @db.VarChar(30)
+  email        String?  @db.VarChar(200)
+  isDefault    Boolean  @default(false) @map("is_default")
+  isActive     Boolean  @default(true) @map("is_active")
   /// vị trí GPS của chi nhánh và bán kính (m) cho phép chấm công tại chỗ; trống = không kiểm tra vị trí
   latitude     Decimal? @db.Decimal(9, 6)
   longitude    Decimal? @db.Decimal(9, 6)
   radiusMeters Int?     @map("radius_meters")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   warehouses           Warehouse[]
   userAccess           UserBranchAccess[]
   inventoryDocuments   InventoryDocument[]
   priceBookBranches    PriceBookBranch[]
+  workShifts           WorkShift[]
   purchaseOrders       PurchaseOrder[]
   purchaseReceipts     PurchaseReceipt[]
   purchaseReturns      PurchaseReturn[]
@@ -2316,34 +2318,61 @@ model CommissionRule {
   @@map("commission_rules")
 }
 
+/// Ca làm việc (BR-187): giờ vào ca – giờ hết ca (phút trong ngày; hết ca < vào ca = ca qua đêm). Chấm vào sớm tính từ giờ vào ca,
+/// chấm ra muộn tính đến giờ hết ca. branchId trống = dùng cho mọi chi nhánh.
+model WorkShift {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  branchId    String?  @map("branch_id") @db.Uuid
+  name        String   @db.VarChar(100)
+  startMinute Int      @map("start_minute")
+  endMinute   Int      @map("end_minute")
+  isActive    Boolean  @default(true) @map("is_active")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch      Branch?      @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  attendances Attendance[]
+
+  @@index([tenantId, branchId])
+  @@map("work_shifts")
+}
+
 /// Chấm công (BR-151): một lượt vào/ra của nhân viên tại chi nhánh.
 model Attendance {
-  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId   String    @map("tenant_id") @db.Uuid
-  userId     String    @map("user_id") @db.Uuid
-  branchId   String?   @map("branch_id") @db.Uuid
-  checkInAt  DateTime  @default(now()) @map("check_in_at") @db.Timestamptz(6)
-  checkOutAt DateTime? @map("check_out_at") @db.Timestamptz(6)
-  minutes    Int?
-  source     String    @default("APP") @db.VarChar(20)
-  note       String?   @db.VarChar(500)
-  latitude   Decimal?  @db.Decimal(9, 6)
-  longitude  Decimal?  @db.Decimal(9, 6)
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
+  branchId          String?   @map("branch_id") @db.Uuid
+  checkInAt         DateTime  @default(now()) @map("check_in_at") @db.Timestamptz(6)
+  checkOutAt        DateTime? @map("check_out_at") @db.Timestamptz(6)
+  minutes           Int?
+  source            String    @default("APP") @db.VarChar(20)
+  note              String?   @db.VarChar(500)
+  latitude          Decimal?  @db.Decimal(9, 6)
+  longitude         Decimal?  @db.Decimal(9, 6)
   /// chấm công GPS & chống chấm hộ: độ chính xác (m), khoảng cách tới chi nhánh (m), thiết bị, IP, trình duyệt, cờ nghi vấn
-  accuracy          Decimal? @db.Decimal(8, 1)
-  distanceMeters    Int?     @map("distance_meters")
-  outLatitude       Decimal? @map("out_latitude") @db.Decimal(9, 6)
-  outLongitude      Decimal? @map("out_longitude") @db.Decimal(9, 6)
-  outDistanceMeters Int?     @map("out_distance_meters")
-  deviceId          String?  @map("device_id") @db.VarChar(80)
-  ip                String?  @db.VarChar(64)
-  userAgent         String?  @map("user_agent") @db.VarChar(300)
-  flags             String[] @default([])
-  editedById String?   @map("edited_by_id") @db.Uuid
-  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  accuracy          Decimal?  @db.Decimal(8, 1)
+  distanceMeters    Int?      @map("distance_meters")
+  outLatitude       Decimal?  @map("out_latitude") @db.Decimal(9, 6)
+  outLongitude      Decimal?  @map("out_longitude") @db.Decimal(9, 6)
+  outDistanceMeters Int?      @map("out_distance_meters")
+  deviceId          String?   @map("device_id") @db.VarChar(80)
+  ip                String?   @db.VarChar(64)
+  userAgent         String?   @map("user_agent") @db.VarChar(300)
+  flags             String[]  @default([])
+  /// ca làm việc của lượt (BR-187): khung giờ ca của ngày đó (lưu lại, đổi giờ ca sau không ảnh hưởng); minutes = giờ công tính trong khung ca
+  workShiftId       String?   @map("work_shift_id") @db.Uuid
+  shiftStartAt      DateTime? @map("shift_start_at") @db.Timestamptz(6)
+  shiftEndAt        DateTime? @map("shift_end_at") @db.Timestamptz(6)
+  editedById        String?   @map("edited_by_id") @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workShift WorkShift? @relation(fields: [workShiftId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, userId, checkInAt])
   @@index([tenantId, checkInAt])
@@ -2353,16 +2382,16 @@ model Attendance {
 /// Thiết bị chấm công của nhân viên (mã do trình duyệt sinh, lưu trên máy): một thiết bị chỉ thuộc một người →
 /// chặn đăng nhập tài khoản đồng nghiệp để chấm công hộ. PENDING = thiết bị mới chờ quản lý duyệt khi bật khóa thiết bị.
 model AttendanceDevice {
-  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId     String    @map("tenant_id") @db.Uuid
-  userId       String    @map("user_id") @db.Uuid
-  deviceId     String    @map("device_id") @db.VarChar(80)
-  name         String?   @db.VarChar(200)
-  status       String    @default("TRUSTED") @db.VarChar(20)
-  firstSeenAt  DateTime  @default(now()) @map("first_seen_at") @db.Timestamptz(6)
-  lastSeenAt   DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(6)
-  approvedById String?   @map("approved_by_id") @db.Uuid
-  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  deviceId     String   @map("device_id") @db.VarChar(80)
+  name         String?  @db.VarChar(200)
+  status       String   @default("TRUSTED") @db.VarChar(20)
+  firstSeenAt  DateTime @default(now()) @map("first_seen_at") @db.Timestamptz(6)
+  lastSeenAt   DateTime @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  approvedById String?  @map("approved_by_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
