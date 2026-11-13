@@ -167,7 +167,7 @@ function MyTab() {
             <CardPager page={page} pageSize={20} total={hist.data?.meta.total ?? 0} onChange={(p) => setPage(p)} />
           </>
         ) : (
-          <Table<Attendance> size="small" rowKey="id" dataSource={rows} pagination={{ current: page, pageSize: 20, total: hist.data?.meta.total ?? 0, onChange: setPage, showTotal: (t) => `${t} lượt` }}
+          <Table<Attendance> size="small" rowKey="id" dataSource={rows} scroll={{ x: 980 }} pagination={{ current: page, pageSize: 20, total: hist.data?.meta.total ?? 0, onChange: setPage, showTotal: (t) => `${t} lượt` }}
             columns={[
               { title: 'Ngày', dataIndex: 'checkInAt', width: 120, render: (v) => <b>{dayLabel(v)}</b> },
               { title: 'Vào', dataIndex: 'checkInAt', width: 80, render: (v) => dt(v, 'HH:mm') },

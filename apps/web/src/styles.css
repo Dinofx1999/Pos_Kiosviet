@@ -10,7 +10,7 @@ html { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .kv-header { background: var(--kv-blue); height: 48px; display: flex; align-items: center; padding: 0 16px; color: #fff; position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
 .kv-logo { font-weight: 700; font-size: 18px; letter-spacing: .5px; color: #fff; margin-right: 24px; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
 .kv-logo .dot { width: 26px; height: 26px; border-radius: 6px; background: #fff; color: var(--kv-blue); display: inline-flex; align-items: center; justify-content: center; font-size: 14px; }
-.kv-menu { flex: 1; min-width: 0; display: flex; align-items: center; height: 48px; }
+.kv-menu { flex: 1; min-width: 0; display: flex; align-items: center; height: 48px; overflow: hidden; }
 .kv-menu .ant-menu { background: transparent; border-bottom: none; color: #fff; line-height: 48px; flex: 1; min-width: 0; }
 .kv-menu .ant-menu-horizontal > .ant-menu-item, .kv-menu .ant-menu-horizontal > .ant-menu-submenu { color: rgba(255,255,255,.92) !important; padding-inline: 10px; font-weight: 500; }
 .kv-menu .ant-menu-horizontal > .ant-menu-item:hover, .kv-menu .ant-menu-horizontal > .ant-menu-submenu:hover, .kv-menu .ant-menu-horizontal > .ant-menu-item-selected, .kv-menu .ant-menu-horizontal > .ant-menu-submenu-selected { color: #fff !important; background: rgba(255,255,255,.14); }
