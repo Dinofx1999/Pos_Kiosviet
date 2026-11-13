@@ -41,9 +41,9 @@ export function HomePage() {
       {!filtering && (
         <>
           <Hero />
+          {cfg.flashSaleEnabled && <FlashStrip />}
           <TrustRow />
           {cats.length > 0 && <CategoryTiles cats={cats} onPick={pickCat} />}
-          {cfg.flashSaleEnabled && <FlashStrip />}
           <Rail title="Bán chạy" icon={Icon.sparkle(16)} query={{ sort: 'best', ready: 1 }} onMore={() => showAll('best')} />
           <Rail title="Hàng mới về" query={{ sort: 'new', ready: 1 }} onMore={() => showAll('new')} />
         </>

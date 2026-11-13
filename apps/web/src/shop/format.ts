@@ -31,8 +31,9 @@ export function splitName(name: string, brand?: string | null): { brand: string 
   const m = t.match(/^(.{2,26}?)\s*[-–]\s+(.+)$/) ?? t.match(/^(.{2,26}?)\s+[-–]\s*(.+)$/);
   // "NH YSL LIBRE - EDP" là nước hoa YSL, không phải thương hiệu "NH YSL LIBRE"
   if (m && !/^NH\s/.test(m[1]) && m[1].trim().split(/\s+/).length <= 3 && !/\d{3,}/.test(m[1]) && upperRatio(m[1]) >= 0.6) { b = b ?? m[1].trim(); t = m[2].trim(); }
-  t = t.replace(/^\.?NHC\s+/, 'Nước hoa chiết ').replace(/^NH\s+/, 'Nước hoa ');
-  return { brand: b, title: smartCase(t) };
+  // bỏ viết hoa trước rồi mới mở rộng chữ tắt đầu tên (NH / NHC không có nguyên âm nên vẫn giữ nguyên sau smartCase)
+  t = smartCase(t).replace(/^\.?NHC\s+/, 'Nước hoa chiết ').replace(/^NH\s+/, 'Nước hoa ');
+  return { brand: b, title: t };
 }
 
 /** Tên danh mục: "CHĂM SÓC DA MẶT" / "đồng hồ" → "Chăm sóc da mặt" / "Đồng hồ". */
