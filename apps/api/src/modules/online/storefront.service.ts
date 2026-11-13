@@ -92,7 +92,10 @@ export class StorefrontService {
       intro: cfg.intro, bannerUrl: cfg.bannerUrl, logoUrl: cfg.logoUrl, themeColor: cfg.themeColor, serverTime: new Date().toISOString(),
     };
     if (!cfg.enabled) return base;
-    return { ...base, showPrice: cfg.showPrice, flashSaleEnabled: cfg.flashSaleEnabled, allowOrder: cfg.allowOrder, showStock: cfg.showStock, categories: await this.categoryMenu(s) };
+    return {
+      ...base, showPrice: cfg.showPrice, showFlashPrice: cfg.showFlashPrice, flashSaleEnabled: cfg.flashSaleEnabled, allowOrder: cfg.allowOrder, showStock: cfg.showStock,
+      categories: await this.categoryMenu(s),
+    };
   }
 
   // ---------------------------------------------------------------- danh mục
@@ -110,7 +113,10 @@ export class StorefrontService {
     return Array.from(new Set(cfg.hiddenCategoryIds.flatMap((id) => t.subtree(id))));
   }
 
-  /** Danh mục cấp 1 có hàng trên web (đếm cả danh mục con), kèm danh mục con có hàng; ảnh đại diện = hàng bán chạy còn hàng có ảnh. Đệm 5 phút. */
+  /**
+   * Danh mục cấp 1 có hàng trên web (đếm cả danh mục con), kèm danh mục con có hàng. Thứ tự: theo cửa hàng sắp xếp (webCategories),
+   * chưa sắp xếp thì nhiều hàng trước. Ảnh đại diện: ảnh cửa hàng chọn, không có thì hàng bán chạy còn hàng có ảnh. Đệm 5 phút.
+   */
   private readonly menuCache = new Map<string, { at: number; value: unknown }>();
   private async categoryMenu(s: Store) {
     const key = JSON.stringify([s.tenantId, s.cfg]);
@@ -123,8 +129,28 @@ export class StorefrontService {
   }
 
   private async categoryMenuUncached(s: Store) {
+    const stats = await this.categoryStats(s, true);
+    const over = new Map(s.cfg.webCategories.map((w, i) => [w.id, { ...w, pos: i }]));
+    // ownImage: ảnh cửa hàng tự chọn → web hiện tràn khung tròn (ảnh hàng hóa thì thu nhỏ vừa khung)
+    const view = <T extends { id: string; name: string; imageUrl: string | null }>(c: T) => { const o = over.get(c.id); return { ...c, name: o?.name || c.name, imageUrl: o?.imageUrl || c.imageUrl, ownImage: !!o?.imageUrl }; };
+    const pos = (id: string) => (s.cfg.customCategoryOrder ? over.get(id)?.pos ?? Number.MAX_SAFE_INTEGER : 0);
+    return stats.filter((c) => c.count > 0)
+      .sort((a, b) => pos(a.id) - pos(b.id) || b.count - a.count)
+      .map((c) => ({ ...view(c), children: c.children.filter((ch) => ch.count > 0).map(view) }));
+  }
+
+  /** Danh mục cho màn Thiết lập web: mọi danh mục cấp 1 đang dùng (kể cả đang ẩn), số hàng hiện được và ảnh tự động. */
+  async adminCategories(tenantId: string) {
+    const [tenant, cfg] = await Promise.all([this.prisma.raw.tenant.findUniqueOrThrow({ where: { id: tenantId } }), this.settings.get()]);
+    const s: Store = { tenantId, code: tenant.code, name: tenant.name, cfg };
+    const stats = await this.categoryStats(s, false);
+    return stats.map((c) => ({ id: c.id, name: c.name, count: c.count, autoImageUrl: c.imageUrl, children: c.children.length }));
+  }
+
+  /** Danh mục cấp 1 đang hoạt động (theo thứ tự của danh mục) với số hàng hiện trên web và ảnh tự động; `applyHidden` = bỏ danh mục cửa hàng ẩn. */
+  private async categoryStats(s: Store, applyHidden: boolean) {
     const tree = await this.categoryTree();
-    const hidden = await this.hiddenCategories(s.cfg, tree);
+    const hidden = applyHidden ? await this.hiddenCategories(s.cfg, tree) : [];
     const rows = await this.prisma.raw.$queryRaw<Array<{ category_id: string | null; n: number }>>`SELECT p.category_id, COUNT(*)::int AS n FROM products p WHERE ${this.visibleSql(s, hidden)} GROUP BY p.category_id`;
     const direct = new Map(rows.map((r) => [r.category_id, r.n]));
     const hiddenSet = new Set(hidden);
@@ -142,8 +168,10 @@ export class StorefrontService {
     pics.sort((a, b) => Number(b.sellable) - Number(a.sellable) || Number(D(b.sold ?? 0).minus(D(a.sold ?? 0))));
     const imageOf = (id: string) => { const ids = new Set(tree.subtree(id).filter((x) => !hiddenSet.has(x))); return pics.find((p) => ids.has(p.category_id))?.image ?? null; };
     return (tree.children.get(null) ?? []).filter((c) => !hiddenSet.has(c.id) && c.isActive).sort(byOrder)
-      .map((c) => ({ id: c.id, name: c.name, count: count(c.id), imageUrl: imageOf(c.id), children: (tree.children.get(c.id) ?? []).filter((ch) => !hiddenSet.has(ch.id) && ch.isActive).sort(byOrder).map((ch) => ({ id: ch.id, name: ch.name, count: count(ch.id), imageUrl: imageOf(ch.id) })).filter((ch) => ch.count > 0) }))
-      .filter((c) => c.count > 0);
+      .map((c) => ({
+        id: c.id, name: c.name, count: count(c.id), imageUrl: imageOf(c.id),
+        children: (tree.children.get(c.id) ?? []).filter((ch) => !hiddenSet.has(ch.id) && ch.isActive).sort(byOrder).map((ch) => ({ id: ch.id, name: ch.name, count: count(ch.id), imageUrl: imageOf(ch.id) })),
+      }));
   }
 
   /** Số lượng đã bán 90 ngày gần nhất theo hàng hóa (hóa đơn hoàn thành) – dùng cho "Bán chạy" / "Nổi bật". */
@@ -226,7 +254,7 @@ export class StorefrontService {
     const remaining = it.quantityLimit === null ? null : Math.max(0, it.quantityLimit - it.soldQuantity);
     return {
       flashSaleId: it.flashSale.id, name: it.flashSale.name, endsAt: it.flashSale.endsAt,
-      price: cfg.showPrice ? num(it.salePrice) : null,
+      price: cfg.showFlashPrice ? num(it.salePrice) : null,
       discountPercent: regular.greaterThan(0) ? Math.max(1, Math.round((1 - Number(D(it.salePrice).div(regular))) * 100)) : 0,
       limit: it.quantityLimit, sold: it.soldQuantity, remaining, perOrderLimit: it.perOrderLimit,
     };
@@ -351,7 +379,7 @@ export class StorefrontService {
     const flash = cfg.flashSaleEnabled ? this.pickFlash(await this.activeFlashItems(this.prisma.db, p.variants.map((v) => v.id)), regular) : new Map<string, FlashItem>();
     return {
       id: p.id, code: p.code, name: p.name, type: p.type, description: plainText(p.description), unit: p.baseUnit,
-      category: p.category ? { id: p.category.id, name: p.category.name } : null, brand: p.brand?.name ?? null, images, attributeNames: p.attributeNames,
+      category: p.category ? { id: p.category.id, name: cfg.webCategories.find((w) => w.id === p.category!.id)?.name || p.category.name } : null, brand: p.brand?.name ?? null, images, attributeNames: p.attributeNames,
       variants: p.variants.map((v) => {
         const a = avail.get(v.id) ?? 0;
         const fl = flash.get(v.id);
@@ -531,16 +559,22 @@ export class StorefrontService {
       where: { id },
       include: { customer: { select: { name: true, phone: true } }, delivery: { select: { status: true, carrier: true, trackingCode: true } }, lines: { orderBy: { lineNo: 'asc' }, include: { variant: { select: { name: true, imageUrl: true, product: { select: { id: true, imageUrl: true } } } } } } },
     });
-    const show = s.cfg.showPrice;
+    // dòng Flash Sale theo nút "Hiển thị giá Flash Sale", dòng thường theo "Hiển thị giá hàng hóa"; tổng tiền chỉ hiện khi mọi dòng đều hiện giá
+    const isFlash = (l: { note: string | null }) => !!l.note?.startsWith('Flash Sale');
+    const showLine = (l: { note: string | null }) => (isFlash(l) ? s.cfg.showFlashPrice : s.cfg.showPrice);
+    const show = o.lines.every(showLine);
     const p = normalizePhone(o.customer?.phone) ?? '';
     return {
       code: o.code, status: o.status, orderDate: o.orderDate, customerName: o.customer?.name ?? null, phone: p ? `${p.slice(0, 4)}***${p.slice(-3)}` : null,
       showPrice: show, totalAmount: show ? num(o.totalAmount) : null,
       delivery: o.delivery ? { status: o.delivery.status, carrier: o.delivery.carrier, trackingCode: o.delivery.trackingCode } : null,
-      lines: o.lines.map((l) => ({
-        productId: l.variant.product.id, name: l.variant.name, imageUrl: l.variant.imageUrl ?? l.variant.product.imageUrl ?? null, quantity: num(l.quantity),
-        unitPrice: show ? num(l.unitPrice) : null, listPrice: show ? num(l.listPrice) : null, lineTotal: show ? num(l.lineTotal) : null, flash: !!l.note?.startsWith('Flash Sale'),
-      })),
+      lines: o.lines.map((l) => {
+        const sh = showLine(l);
+        return {
+          productId: l.variant.product.id, name: l.variant.name, imageUrl: l.variant.imageUrl ?? l.variant.product.imageUrl ?? null, quantity: num(l.quantity),
+          unitPrice: sh ? num(l.unitPrice) : null, listPrice: sh && s.cfg.showPrice ? num(l.listPrice) : null, lineTotal: sh ? num(l.lineTotal) : null, flash: isFlash(l),
+        };
+      }),
     };
   }
 }

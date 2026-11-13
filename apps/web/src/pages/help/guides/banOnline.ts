@@ -4,20 +4,21 @@ import type { Guide } from './types';
 export const BAN_ONLINE: Guide[] = [
   {
     slug: 'web-ban-hang',
-    title: 'Mở web bán hàng và bật / tắt hiển thị giá',
+    title: 'Mở web bán hàng, bật / tắt hiển thị giá, sắp xếp danh mục',
     section: 'ban-online',
     when: 'Muốn khách xem hàng, xem Flash Sale và đặt hàng qua đường dẫn web (gửi qua Zalo, Facebook, in mã QR tại quầy) – hoặc tạm ẩn giá / tạm đóng web.',
     perms: ['Thiết lập web bán hàng, bật / tắt hiển thị giá và Flash Sale (online.manage)'],
-    keywords: ['web', 'website', 'bán online', 'shop', 'cửa hàng online', 'hiển thị giá', 'ẩn giá', 'liên hệ', 'đặt hàng online', 'QR', 'đường dẫn', 'Zalo', 'hotline'],
+    keywords: ['web', 'website', 'bán online', 'shop', 'cửa hàng online', 'hiển thị giá', 'ẩn giá', 'giá flash sale', 'liên hệ', 'danh mục web', 'ảnh danh mục', 'sắp xếp danh mục', 'ẩn danh mục', 'đặt hàng online', 'QR', 'đường dẫn', 'Zalo', 'hotline'],
     steps: [
       { text: 'Vào menu Bán online → Thiết lập web bán hàng.' },
       { text: 'Bật công tắc "Website bán hàng". Đường dẫn web và mã QR hiện ngay bên dưới: bấm Sao chép để gửi cho khách, bấm Mở web để xem thử.', note: 'Trên tên miền của cửa hàng, đường dẫn là https://<tên miền>/shop.' },
-      { text: 'Ở thẻ "Bật / tắt trên web": bật hoặc tắt "Hiển thị giá trên web". Thay đổi có hiệu lực ngay, không cần bấm Lưu.', note: 'Tắt giá: khách thấy "Liên hệ" thay cho giá; Flash Sale chỉ hiện mức giảm %. Khách vẫn đặt hàng được, đơn vẫn lưu đúng giá để cửa hàng gọi báo giá.' },
+      { text: 'Ở thẻ "Bật / tắt trên web": bật hoặc tắt "Hiển thị giá hàng hóa" và "Hiển thị giá Flash Sale" – hai nút riêng. Thay đổi có hiệu lực ngay, không cần bấm Lưu.', note: 'Tắt giá hàng hóa: khách thấy "Liên hệ" thay cho giá. Tắt giá Flash Sale: hàng Flash Sale chỉ hiện mức giảm % và "Giá sốc · Liên hệ". Có thể ẩn giá thường mà vẫn hiện giá Flash Sale, hoặc ngược lại. Khách vẫn đặt hàng được, đơn vẫn lưu đúng giá để cửa hàng gọi báo giá.' },
       { text: 'Bật / tắt các mục còn lại theo nhu cầu: Flash Sale, Nhận đặt hàng online (tắt = khách chỉ xem và gọi / nhắn Zalo), Hiện số lượng còn lại, Ẩn hàng đã hết, Chỉ hiện hàng có ảnh.' },
-      { text: 'Ở thẻ "Thông tin hiển thị & nhận đơn": nhập tên cửa hàng, hotline, Zalo, địa chỉ, dòng thông báo, logo, ảnh bìa, màu chủ đạo; chọn Chi nhánh nhận đơn web, Kho nhận đơn web và Kho tính còn hàng trên web (để trống = cộng tồn tất cả kho); chọn Nhóm hàng ẩn khỏi web nếu có. Bấm Lưu.' },
+      { text: 'Ở thẻ "Thông tin hiển thị & nhận đơn": nhập tên cửa hàng, hotline, Zalo, địa chỉ, dòng thông báo, logo, ảnh bìa, màu chủ đạo; chọn Chi nhánh nhận đơn web, Kho nhận đơn web và Kho tính còn hàng trên web (để trống = cộng tồn tất cả kho). Bấm Lưu.' },
+      { text: 'Ở thẻ "Danh mục trên web": bật / tắt Hiện cho từng danh mục; bấm ↑ ↓ để sắp xếp (chế độ "Tự sắp xếp"; "Tự động" = danh mục nhiều hàng trước); bấm vào ảnh tròn để chọn ảnh đại diện riêng ("Bỏ ảnh" để quay về ảnh tự động); gõ Tên trên web nếu muốn tên khác tên danh mục. Bấm Lưu danh mục.', note: 'Thứ tự dùng cho thanh danh mục đầu trang (8 danh mục đầu) và mục Danh mục ở trang chủ. Nên dùng ảnh vuông, web cắt thành hình tròn. Muốn ẩn riêng một nhóm con: chọn ở ô "Ẩn nhóm hàng con" cuối thẻ.' },
     ],
     notes: [
-      'Web chỉ hiện hàng đang kinh doanh, cho phép bán, không quản lý theo lô và không phải dịch vụ. Hàng ngừng kinh doanh nhập từ KiotViet nên ẩn bằng "Nhóm hàng ẩn khỏi web".',
+      'Web chỉ hiện hàng đang kinh doanh, cho phép bán, không quản lý theo lô và không phải dịch vụ. Danh mục chỉ để quản lý nội bộ thì tắt Hiện ở thẻ "Danh mục trên web".',
       'Giá trên web là giá bán của hàng hóa (Bảng giá chung). Khách không đặt được quá số lượng còn bán được ở kho web.',
     ],
     related: ['flash-sale', 'don-dat-tren-web'],

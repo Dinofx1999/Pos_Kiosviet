@@ -40,7 +40,7 @@ function Header() {
   useEffect(() => { setQ(sp.get('q') ?? ''); }, [sp.get('q')]);
   const home = loc.pathname === '/';
   const tel = telLink(cfg.hotline);
-  const topCats = [...(cfg.categories ?? [])].sort((a, b) => b.count - a.count).slice(0, 8);
+  const topCats = (cfg.categories ?? []).slice(0, 8);
   const curCat = sp.get('c');
   return (
     <header className="sh-header">

@@ -1,5 +1,5 @@
-import { Alert, App, Button, Card, ColorPicker, Form, Input, QRCode, Select, Skeleton, Switch, Tag, TreeSelect } from 'antd';
-import { CopyOutlined, ExportOutlined, FireOutlined, GlobalOutlined, SaveOutlined, ShoppingOutlined } from '@ant-design/icons';
+import { Alert, App, Button, Card, ColorPicker, Form, Input, QRCode, Select, Skeleton, Switch, Tag } from 'antd';
+import { CopyOutlined, ExportOutlined, FireOutlined, GlobalOutlined, SaveOutlined, ShoppingOutlined, TagOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -10,11 +10,13 @@ import { useBranches, useWarehouses } from '../../api/org';
 import { onlineApi, shopUrl, useShopSettings, type ShopConfig, type ShopSettingsView } from '../../api/online';
 import { ImageUploader, type ImageItem } from '../../components/ImageUploader';
 import type { Category } from '../../api/types';
+import { WebCategoriesCard } from './WebCategoriesCard';
 import './online.css';
 
-type ToggleKey = 'enabled' | 'showPrice' | 'flashSaleEnabled' | 'allowOrder' | 'showStock' | 'hideOutOfStock' | 'onlyWithImage';
+type ToggleKey = 'enabled' | 'showPrice' | 'showFlashPrice' | 'flashSaleEnabled' | 'allowOrder' | 'showStock' | 'hideOutOfStock' | 'onlyWithImage';
 const TOGGLES: Array<{ key: ToggleKey; title: string; on: string; off: string; icon?: React.ReactNode }> = [
-  { key: 'showPrice', title: 'Hiển thị giá trên web', on: 'Khách thấy giá bán và giá Flash Sale.', off: 'Giá được ẩn, khách thấy "Liên hệ". Flash Sale chỉ hiện mức giảm %. Đơn đặt vẫn lưu đúng giá.' },
+  { key: 'showPrice', title: 'Hiển thị giá hàng hóa', on: 'Khách thấy giá bán của hàng hóa (giá Flash Sale bật / tắt riêng ở nút bên dưới).', off: 'Giá hàng hóa được ẩn, khách thấy "Liên hệ". Đơn đặt vẫn lưu đúng giá.', icon: <TagOutlined style={{ color: '#1677ff' }} /> },
+  { key: 'showFlashPrice', title: 'Hiển thị giá Flash Sale', on: 'Khách thấy giá sốc của hàng đang Flash Sale.', off: 'Hàng Flash Sale chỉ hiện mức giảm % và "Giá sốc · Liên hệ". Đơn đặt vẫn lưu đúng giá Flash Sale.', icon: <ThunderboltOutlined style={{ color: '#fa541c' }} /> },
   { key: 'flashSaleEnabled', title: 'Flash Sale', on: 'Các chương trình Flash Sale đang bật sẽ chạy theo khung giờ.', off: 'Tạm dừng mọi chương trình Flash Sale trên web (không xóa chương trình).', icon: <FireOutlined style={{ color: '#f5222d' }} /> },
   { key: 'allowOrder', title: 'Nhận đặt hàng online', on: 'Khách cho hàng vào giỏ và gửi đơn; đơn về mục Đặt hàng (nguồn Website).', off: 'Khách chỉ xem hàng, bấm gọi hotline / nhắn Zalo để mua.' },
   { key: 'showStock', title: 'Hiện số lượng còn lại', on: 'Hiện "Còn 5 sản phẩm" (tối đa hiện 99).', off: 'Chỉ hiện trạng thái Hết hàng.' },
@@ -25,7 +27,7 @@ const COLORS = ['#d6336c', '#e64980', '#f76707', '#0ca678', '#1c7ed6', '#7048e8'
 
 interface InfoForm {
   shopName?: string; hotline?: string; zalo?: string; facebook?: string; address?: string; intro?: string; themeColor: string;
-  logo: Array<{ url: string }>; banner: Array<{ url: string }>; branchId?: string; warehouseId?: string; stockWarehouseIds: string[]; hiddenCategoryIds: string[];
+  logo: Array<{ url: string }>; banner: Array<{ url: string }>; branchId?: string; warehouseId?: string; stockWarehouseIds: string[];
 }
 
 const toTree = (cats: Category[]): any[] => {
@@ -54,7 +56,7 @@ export default function OnlineSettingsPage() {
     const c = view.config;
     form.setFieldsValue({
       shopName: c.shopName ?? undefined, hotline: c.hotline ?? undefined, zalo: c.zalo ?? undefined, facebook: c.facebook ?? undefined, address: c.address ?? undefined, intro: c.intro ?? undefined,
-      themeColor: c.themeColor, logo: c.logoUrl ? [{ url: c.logoUrl }] : [], banner: c.bannerUrl ? [{ url: c.bannerUrl }] : [], branchId: c.branchId ?? undefined, warehouseId: c.warehouseId ?? undefined, stockWarehouseIds: c.stockWarehouseIds ?? [], hiddenCategoryIds: c.hiddenCategoryIds,
+      themeColor: c.themeColor, logo: c.logoUrl ? [{ url: c.logoUrl }] : [], banner: c.bannerUrl ? [{ url: c.bannerUrl }] : [], branchId: c.branchId ?? undefined, warehouseId: c.warehouseId ?? undefined, stockWarehouseIds: c.stockWarehouseIds ?? [],
     });
   }, [view]);
 
@@ -64,7 +66,8 @@ export default function OnlineSettingsPage() {
     setBusy(key);
     try {
       apply(await onlineApi.saveSettings({ [key]: value } as Partial<ShopConfig>));
-      const t = key === 'enabled' ? 'website bán hàng' : TOGGLES.find((x) => x.key === key)?.title.toLowerCase();
+      const title = TOGGLES.find((x) => x.key === key)?.title ?? '';
+      const t = key === 'enabled' ? 'website bán hàng' : title.startsWith('Flash') ? title : title.charAt(0).toLowerCase() + title.slice(1);
       message.success(`Đã ${value ? (key === 'enabled' ? 'mở' : 'bật') : key === 'enabled' ? 'đóng' : 'tắt'} ${t}`);
     } catch (e) { message.error(errMsg(e)); } finally { setBusy(null); }
   };
@@ -76,7 +79,7 @@ export default function OnlineSettingsPage() {
       apply(await onlineApi.saveSettings({
         shopName: v.shopName?.trim() || null, hotline: v.hotline?.trim() || null, zalo: v.zalo?.trim() || null, facebook: v.facebook?.trim() || null,
         address: v.address?.trim() || null, intro: v.intro?.trim() || null, themeColor: v.themeColor, logoUrl: v.logo?.[0]?.url ?? null, bannerUrl: v.banner?.[0]?.url ?? null,
-        branchId: v.branchId ?? null, warehouseId: v.warehouseId ?? null, stockWarehouseIds: v.stockWarehouseIds ?? [], hiddenCategoryIds: v.hiddenCategoryIds ?? [],
+        branchId: v.branchId ?? null, warehouseId: v.warehouseId ?? null, stockWarehouseIds: v.stockWarehouseIds ?? [],
       }));
       message.success('Đã lưu thông tin web bán hàng');
     } catch (e) { message.error(errMsg(e)); } finally { setBusy(null); }
@@ -155,11 +158,10 @@ export default function OnlineSettingsPage() {
           <Form.Item name="stockWarehouseIds" label="Kho tính còn hàng trên web" extra="Cộng tồn các kho đã chọn. Để trống: cộng tất cả kho đang hoạt động.">
             <Select mode="multiple" allowClear placeholder="Tất cả kho" options={(allWarehouses ?? []).filter((w: any) => w.isActive !== false).map((w: any) => ({ value: w.id, label: w.branch?.name ? `${w.name} (${w.branch.name})` : w.name }))} />
           </Form.Item>
-          <Form.Item name="hiddenCategoryIds" label="Nhóm hàng ẩn khỏi web" extra="Ẩn cả nhóm con. Hàng ngừng kinh doanh, hàng quản lý theo lô và dịch vụ luôn không hiện trên web.">
-            <TreeSelect multiple treeCheckable showCheckedStrategy={TreeSelect.SHOW_PARENT} treeData={catTree} placeholder="Chọn nhóm hàng" allowClear treeNodeFilterProp="title" maxTagCount="responsive" />
-          </Form.Item>
         </Form>
       </Card>
+
+      <WebCategoriesCard config={c} catTree={catTree} onSaved={apply} />
     </div>
   );
 }

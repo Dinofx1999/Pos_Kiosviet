@@ -57,17 +57,20 @@ export function Img({ src, alt, className, eager }: { src: string | null | undef
 
 export function PriceTag({ price, priceMax, flash, big }: { price: number | null; priceMax?: number | null; flash?: FlashInfo | null; big?: boolean }) {
   const { cfg } = useShop();
-  // giá 0 (hàng chưa đặt giá ở cửa hàng) → hiện "Liên hệ" thay vì 0đ
-  if (!cfg.showPrice || price === null || (price <= 0 && !(priceMax && priceMax > 0))) return <div className={`sh-price contact ${big ? 'big' : ''}`}>{flash ? <span className="sh-pct">-{flash.discountPercent}%</span> : null}Liên hệ</div>;
-  if (flash && flash.price !== null) {
+  // giá hàng hóa và giá Flash Sale bật / tắt riêng; giá 0 (hàng chưa đặt giá ở cửa hàng) → "Liên hệ" thay vì 0đ
+  const regular = cfg.showPrice !== false && price !== null && (price > 0 || !!(priceMax && priceMax > 0)) ? price : null;
+  if (flash) {
+    if (flash.price === null || cfg.showFlashPrice === false) return <div className={`sh-price contact ${big ? 'big' : ''}`}><span className="sh-pct">-{flash.discountPercent}%</span>Giá sốc · Liên hệ</div>;
     return (
       <div className={`sh-price ${big ? 'big' : ''}`}>
         <span className="now flash">{vnd(flash.price)}</span>
-        <span className="old">{vnd(price)}</span>
-        {big && <span className="sh-pct">-{flash.discountPercent}%</span>}
+        {regular !== null && regular > 0 && <span className="old">{vnd(regular)}</span>}
+        {(big || regular === null) && <span className="sh-pct">-{flash.discountPercent}%</span>}
       </div>
     );
   }
+  if (regular === null) return <div className={`sh-price contact ${big ? 'big' : ''}`}>Liên hệ</div>;
+  price = regular;
   // hàng nhiều phân loại khác giá: thẻ hàng hiện "từ <giá thấp nhất>" cho gọn
   if (priceMax && priceMax > price) return <div className={`sh-price ${big ? 'big' : ''}`}>{big ? <span className="now">{vnd(price)} – {vnd(priceMax)}</span> : <span className="now"><small className="from">từ</small>{vnd(price)}</span>}</div>;
   return <div className={`sh-price ${big ? 'big' : ''}`}><span className="now">{vnd(price)}</span></div>;

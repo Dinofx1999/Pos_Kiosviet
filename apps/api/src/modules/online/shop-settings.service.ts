@@ -48,6 +48,10 @@ export class ShopSettingsService {
       const n = await this.prisma.db.warehouse.count({ where: { id: { in: next.stockWarehouseIds }, isActive: true } });
       if (n !== next.stockWarehouseIds.length) throw Errors.validation('Kho tính còn hàng không tồn tại hoặc đã ngừng hoạt động');
     }
+    if (next.webCategories.length) {
+      const ok = new Set((await this.prisma.db.productCategory.findMany({ where: { id: { in: next.webCategories.map((w) => w.id) } }, select: { id: true } })).map((c) => c.id));
+      next.webCategories = next.webCategories.filter((w) => ok.has(w.id));
+    }
     await this.prisma.tx(async (tx) => {
       await tx.tenantSetting.upsert({
         where: { tenantId_key: { tenantId: user.tenantId, key: SHOP_SETTING_KEY } },

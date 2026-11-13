@@ -3,10 +3,15 @@ import { http } from './client';
 
 // ---------------------------------------------------------------- Bán online (web bán hàng + Flash Sale)
 export interface ShopConfig {
-  enabled: boolean; showPrice: boolean; flashSaleEnabled: boolean; allowOrder: boolean; showStock: boolean; hideOutOfStock: boolean; onlyWithImage: boolean;
+  enabled: boolean; showPrice: boolean; showFlashPrice: boolean; flashSaleEnabled: boolean; allowOrder: boolean; showStock: boolean; hideOutOfStock: boolean; onlyWithImage: boolean;
   shopName: string | null; hotline: string | null; zalo: string | null; facebook: string | null; address: string | null; intro: string | null;
   bannerUrl: string | null; logoUrl: string | null; themeColor: string; branchId: string | null; warehouseId: string | null; stockWarehouseIds: string[]; hiddenCategoryIds: string[];
+  webCategories: WebCategory[]; customCategoryOrder: boolean;
 }
+/** Danh mục cấp 1 trên web: ảnh và tên riêng (null = tự động); thứ tự trong danh sách dùng khi customCategoryOrder. */
+export interface WebCategory { id: string; imageUrl: string | null; name: string | null }
+/** Danh mục cấp 1 cho màn thiết lập: số hàng hiện được trên web (chưa trừ danh mục ẩn), ảnh tự động (hàng bán chạy). */
+export interface ShopAdminCategory { id: string; name: string; count: number; autoImageUrl: string | null; children: number }
 export interface ShopSettingsView { config: ShopConfig; tenantCode: string; tenantName: string; isDefaultShop: boolean; pendingOrders: number }
 
 export type FlashSaleState = 'RUNNING' | 'UPCOMING' | 'ENDED' | 'OFF';
@@ -26,6 +31,7 @@ export interface FlashSaleInput {
 
 export const onlineApi = {
   settings: () => http.get<ShopSettingsView>('/online/settings').then((r) => r.data),
+  categories: () => http.get<ShopAdminCategory[]>('/online/settings/categories').then((r) => r.data),
   saveSettings: (body: Partial<ShopConfig>) => http.put<ShopSettingsView>('/online/settings', body).then((r) => r.data),
   summary: () => http.get<{ pendingOrders: number; enabled: boolean }>('/online/summary').then((r) => r.data),
   flashSales: (state?: string) => http.get<FlashSaleRow[]>('/online/flash-sales', { params: state ? { state } : {} }).then((r) => r.data),
@@ -37,6 +43,7 @@ export const onlineApi = {
 };
 
 export const useShopSettings = () => useQuery({ queryKey: ['shop-settings'], queryFn: onlineApi.settings });
+export const useShopCategories = () => useQuery({ queryKey: ['shop-categories'], queryFn: onlineApi.categories });
 export const useOnlineSummary = (enabled: boolean) => useQuery({ queryKey: ['online-summary'], queryFn: onlineApi.summary, enabled, refetchInterval: 60_000, staleTime: 30_000 });
 export const useFlashSales = (state?: string) => useQuery({ queryKey: ['flash-sales', state ?? ''], queryFn: () => onlineApi.flashSales(state) });
 export const useFlashSale = (id?: string) => useQuery({ queryKey: ['flash-sale', id], queryFn: () => onlineApi.flashSale(id!), enabled: !!id });

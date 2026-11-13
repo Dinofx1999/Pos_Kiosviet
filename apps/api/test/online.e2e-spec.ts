@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
+import { normalizeShopConfig } from '../src/modules/online/shop-config';
 import { createProduct, createTestApp, postReceipt, registerTenant, Session, TestApp } from './helpers';
 
 const api = '/api/v1';
 
-describe('Bán online: web bán hàng & Flash Sale – T-270..T-276', () => {
+describe('Bán online: web bán hàng & Flash Sale – T-270..T-279', () => {
   let t: TestApp;
   let s: Session;
   const shop = (path: string) => `${api}/shop/${s.tenantCode}${path}`;
@@ -119,10 +120,10 @@ describe('Bán online: web bán hàng & Flash Sale – T-270..T-276', () => {
     await settings({ flashSaleEnabled: true });
 
     // ẩn giá: Flash Sale chỉ còn mức giảm %
-    await settings({ showPrice: false });
+    await settings({ showPrice: false, showFlashPrice: false });
     const noPrice = (await t.http().get(shop('/flash-sale'))).body.campaigns[0].items[0];
     expect(noPrice).toMatchObject({ price: null, salePrice: null, discountPercent: 25 });
-    await settings({ showPrice: true });
+    await settings({ showPrice: true, showFlashPrice: true });
 
     const listed = await t.http().get(`${api}/online/flash-sales?state=RUNNING`).set(s.auth);
     expect(listed.body.map((x: any) => x.id)).toContain(fs.body.id);
@@ -301,5 +302,80 @@ describe('Bán online: web bán hàng & Flash Sale – T-270..T-276', () => {
     // hàng nhiều phân loại có loại giá 0 → giá "từ" lấy giá thấp nhất khác 0
     const multi = await createProduct(t, s, { name: 'Son T278 nhiều màu', categoryId: cat.id, attributeNames: ['Màu'], variants: [{ sellPrice: '0', attributes: { 'Màu': 'Thử' } }, { sellPrice: '99000', attributes: { 'Màu': 'Đỏ' } }, { sellPrice: '129000', attributes: { 'Màu': 'Hồng' } }] });
     expect((await t.http().get(shop(`/products?search=${encodeURIComponent('son t278 nhieu mau')}`))).body.items[0]).toMatchObject({ id: multi.productId, price: 99000, priceMax: 129000 });
+  });
+
+  it('T-279 danh mục trên web: ảnh / tên riêng, tự sắp xếp, ẩn hiện; giá hàng hóa và giá Flash Sale bật / tắt riêng', async () => {
+    await settings({ showPrice: true, showFlashPrice: true, hideOutOfStock: false, onlyWithImage: false, flashSaleEnabled: true });
+    const many = (await t.http().post(`${api}/categories`).set(s.auth).send({ name: 'CHĂM SÓC DA T279' })).body;
+    const few = (await t.http().post(`${api}/categories`).set(s.auth).send({ name: 'Nước hoa T279' })).body;
+    const sub = (await t.http().post(`${api}/categories`).set(s.auth).send({ name: 'Toner T279', parentId: many.id })).body;
+    const a1 = await stocked('5', '200000', { name: 'Sữa rửa mặt T279', categoryId: many.id, imageUrl: 'https://example.com/t279-a.jpg' });
+    await stocked('5', '210000', { name: 'Toner hoa hồng T279', categoryId: sub.id });
+    await stocked('5', '220000', { name: 'Kem dưỡng T279', categoryId: many.id });
+    const f1 = await stocked('5', '500000', { name: 'Nước hoa T279', categoryId: few.id });
+    const menu = async () => (await t.http().get(shop('/config'))).body.categories as Array<{ id: string; name: string; imageUrl: string | null; count: number; children: Array<{ id: string }> }>;
+    const pos = (m: Array<{ id: string }>, id: string) => m.findIndex((c) => c.id === id);
+
+    // tự động: nhiều hàng trước
+    let m = await menu();
+    expect(pos(m, many.id)).toBeGreaterThanOrEqual(0);
+    expect(pos(m, many.id)).toBeLessThan(pos(m, few.id));
+    expect(m.find((c) => c.id === many.id)).toMatchObject({ count: 3, imageUrl: 'https://example.com/t279-a.jpg' });
+
+    // màn thiết lập: mọi danh mục cấp 1 kể cả đang ẩn, số hàng, ảnh tự động
+    const admin = await t.http().get(`${api}/online/settings/categories`).set(s.auth);
+    expect(admin.status).toBe(200);
+    expect(admin.body.find((c: any) => c.id === many.id)).toMatchObject({ name: 'CHĂM SÓC DA T279', count: 3, autoImageUrl: 'https://example.com/t279-a.jpg', children: 1 });
+    expect(admin.body.find((c: any) => c.name === 'Hàng nội bộ')).toBeTruthy(); // ẩn ở T-271 vẫn hiện để bật lại
+    expect(admin.body.some((c: any) => c.id === sub.id)).toBe(false); // chỉ danh mục cấp 1
+
+    // tự sắp xếp + ảnh riêng + tên riêng; id lạ bị bỏ, dữ liệu sai bị từ chối
+    const ghost = randomUUID();
+    const saved = await settings({ customCategoryOrder: true, webCategories: [{ id: few.id, imageUrl: '/uploads/cat-t279.webp', name: null }, { id: ghost, imageUrl: null, name: null }, { id: many.id, imageUrl: '', name: '  Da mặt  ' }] });
+    expect(saved.status).toBe(200);
+    expect(saved.body.config.webCategories).toEqual([{ id: few.id, imageUrl: '/uploads/cat-t279.webp', name: null }, { id: many.id, imageUrl: null, name: 'Da mặt' }]);
+    m = await menu();
+    expect(m.slice(0, 2).map((c) => c.id)).toEqual([few.id, many.id]);
+    expect(m[0].imageUrl).toBe('/uploads/cat-t279.webp');
+    expect(m[1]).toMatchObject({ name: 'Da mặt', imageUrl: 'https://example.com/t279-a.jpg' });
+    expect(m[1].children.map((c) => c.id)).toEqual([sub.id]);
+    expect((await t.http().get(shop(`/products/${a1.productId}`))).body.category).toEqual({ id: many.id, name: 'Da mặt' });
+    expect((await settings({ webCategories: [{ id: few.id, imageUrl: 'javascript:alert(1)' }] })).status).toBe(400);
+    expect((await settings({ webCategories: [{ id: 'abc' }] })).status).toBe(400);
+    expect((await settings({ webCategories: [{ id: few.id, name: 'x'.repeat(61) }] })).status).toBe(400);
+    // về tự động: thứ tự theo số hàng, ảnh / tên riêng giữ nguyên
+    await settings({ customCategoryOrder: false });
+    m = await menu();
+    expect(pos(m, many.id)).toBeLessThan(pos(m, few.id));
+    expect(m.find((c) => c.id === few.id)?.imageUrl).toBe('/uploads/cat-t279.webp');
+    // ẩn danh mục: không hiện trên web
+    await settings({ hiddenCategoryIds: [few.id] });
+    expect(pos(await menu(), few.id)).toBe(-1);
+    await settings({ hiddenCategoryIds: [], webCategories: [], customCategoryOrder: false });
+
+    // giá hàng hóa / giá Flash Sale tách riêng
+    await flash({ name: 'Flash T279', items: [{ variantId: f1.variantId, salePrice: '400000', quantityLimit: 10, perOrderLimit: 2 }] });
+    const card = async () => (await t.http().get(shop(`/products?categoryId=${few.id}`))).body.items[0];
+    const flashList = async () => (await t.http().get(shop('/flash-sale'))).body.campaigns.flatMap((c: any) => c.items).find((i: any) => i.variantId === f1.variantId);
+    await settings({ showPrice: false, showFlashPrice: true });
+    expect(await card()).toMatchObject({ price: null, flash: { price: 400000, discountPercent: 20 } });
+    expect(await flashList()).toMatchObject({ price: null, salePrice: 400000 });
+    expect((await t.http().get(shop('/config'))).body).toMatchObject({ showPrice: false, showFlashPrice: true });
+    await settings({ showPrice: true, showFlashPrice: false });
+    expect(await card()).toMatchObject({ price: 500000, flash: { price: null, discountPercent: 20 } });
+    expect(await flashList()).toMatchObject({ price: 500000, salePrice: null });
+    expect((await t.http().get(shop(`/products/${f1.productId}`))).body.variants[0]).toMatchObject({ price: 500000, flash: { price: null } });
+    // đơn có dòng Flash Sale: giá dòng Flash Sale ẩn, tổng tiền ẩn; đơn vẫn lưu đúng giá
+    const o = await order([{ variantId: f1.variantId, quantity: 3 }]);
+    expect(o.status).toBe(201);
+    expect(o.body.totalAmount).toBeNull();
+    expect(o.body.lines.map((l: any) => [l.quantity, l.unitPrice, l.flash])).toEqual([[2, null, true], [1, 500000, false]]);
+    expect(Number((await t.prisma.raw.salesOrder.findFirstOrThrow({ where: { tenantId: s.tenantId, code: o.body.code } })).totalAmount)).toBe(2 * 400000 + 500000);
+    await settings({ showPrice: true, showFlashPrice: true });
+
+    // cấu hình cũ chỉ có "Hiển thị giá": tắt thì ẩn cả giá Flash Sale như trước
+    expect(normalizeShopConfig({ showPrice: false }).showFlashPrice).toBe(false);
+    expect(normalizeShopConfig({ showPrice: true }).showFlashPrice).toBe(true);
+    expect(normalizeShopConfig({ showPrice: false, showFlashPrice: true }).showFlashPrice).toBe(true);
   });
 });

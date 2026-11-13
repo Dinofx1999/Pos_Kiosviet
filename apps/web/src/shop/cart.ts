@@ -31,11 +31,14 @@ export const cart = {
 export const useCart = () => useSyncExternalStore(cart.subscribe, cart.get);
 export const useCartCount = () => useCart().reduce((s, i) => s + i.quantity, 0);
 
-/** Ước tính tiền một dòng: phần trong suất Flash Sale (≤ tối đa / đơn, ≤ suất còn) giá sốc, phần còn lại giá thường. */
+/**
+ * Ước tính tiền một dòng: phần trong suất Flash Sale (≤ tối đa / đơn, ≤ suất còn) giá sốc, phần còn lại giá thường.
+ * Giá ẩn (giá hàng hóa hoặc giá Flash Sale cửa hàng không hiện) ở phần nào thì cả dòng không ước tính được (null).
+ */
 export function lineEstimate(i: CartItem): { total: number | null; flashQty: number } {
-  if (i.price === null) return { total: null, flashQty: 0 };
   const f = i.flash;
-  if (!f || f.price === null) return { total: i.price * i.quantity, flashQty: 0 };
-  const flashQty = Math.max(0, Math.min(i.quantity, f.perOrderLimit ?? i.quantity, f.remaining ?? i.quantity));
-  return { total: f.price * flashQty + i.price * (i.quantity - flashQty), flashQty };
+  const flashQty = f ? Math.max(0, Math.min(i.quantity, f.perOrderLimit ?? i.quantity, f.remaining ?? i.quantity)) : 0;
+  const rest = i.quantity - flashQty;
+  if ((flashQty > 0 && f?.price == null) || (rest > 0 && i.price === null)) return { total: null, flashQty };
+  return { total: (flashQty > 0 ? f!.price! * flashQty : 0) + (rest > 0 ? i.price! * rest : 0), flashQty };
 }

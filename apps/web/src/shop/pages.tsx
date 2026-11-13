@@ -29,7 +29,7 @@ export function HomePage() {
   useTitle(search ? `Tìm "${search}" – ${cfg.shopName}` : found ? `${catName(found.cat.name)} – ${cfg.shopName}` : cfg.shopName);
   const setParam = (k: string, v: string) => { const n = new URLSearchParams(sp); if (v) n.set(k, v); else n.delete(k); setSp(n, { replace: k === 's' }); };
   const filtering = !!search || !!categoryId;
-  const cats = useMemo(() => [...(cfg.categories ?? [])].sort((a, b) => b.count - a.count), [cfg.categories]);
+  const cats = cfg.categories ?? [];
   const pickCat = (id: string) => { const n = new URLSearchParams(); if (id) n.set('c', id); setSp(n); window.scrollTo({ top: 0 }); };
   const showAll = (s: string) => { setParam('s', s); scrollToAll(); };
   // chip: trang chủ = danh mục cấp 1; trong danh mục = danh mục con của nhóm đó
@@ -112,9 +112,9 @@ function CategoryTiles({ cats, onPick }: { cats: Category[]; onPick: (id: string
   return (
     <section className="sh-sec">
       <div className="sh-sec-head"><h2>Danh mục</h2></div>
-      <div className="sh-cats">
+      <div className={`sh-cats ${cats.length <= 8 ? 'few' : ''}`}>
         {cats.map((c) => (
-          <button key={c.id} className="sh-cat" onClick={() => onPick(c.id)}>
+          <button key={c.id} className={`sh-cat ${c.ownImage ? 'own' : ''}`} onClick={() => onPick(c.id)}>
             <span className="ic"><Img src={c.imageUrl} alt="" /></span>
             <span className="nm">{catName(c.name)}</span>
           </button>
@@ -234,7 +234,7 @@ function FlashCard({ it }: { it: FlashSaleData['campaigns'][number]['items'][num
       <div className="body">
         <div className="br">{brand ?? ' '}</div>
         <div className="nm">{title}</div>
-        {it.salePrice !== null ? <div className="sh-price"><span className="now flash">{vnd(it.salePrice)}</span><span className="old">{vnd(it.price)}</span></div> : <div className="sh-price contact">Giá sốc · Liên hệ</div>}
+        {it.salePrice !== null ? <div className="sh-price"><span className="now flash">{vnd(it.salePrice)}</span>{it.price !== null && it.price > 0 && <span className="old">{vnd(it.price)}</span>}</div> : <div className="sh-price contact">Giá sốc · Liên hệ</div>}
         <FlashBar sold={it.sold} limit={it.limit} remaining={!it.inStock ? 0 : it.remaining} />
         {it.perOrderLimit && <div className="sh-lim">Tối đa {it.perOrderLimit}/đơn</div>}
       </div>
@@ -440,8 +440,9 @@ export function CartPage() {
     }).catch((e: ShopError) => { if (e.status === 404) for (const it of cart.get().filter((x) => x.productId === pid)) cart.update(it.variantId, { maxQuantity: 0 }); }));
   }, []);
 
-  const est = items.map((i) => ({ i, ...lineEstimate(i) }));
-  const total = cfg.showPrice && est.every((e) => e.total !== null) ? est.reduce((s, e) => s + (e.total ?? 0), 0) : null;
+  // giá trong giỏ có thể lưu từ trước khi cửa hàng ẩn giá → ẩn theo cấu hình hiện tại
+  const est = items.map((i) => ({ i, ...lineEstimate({ ...i, price: cfg.showPrice ? i.price : null, flash: i.flash && { ...i.flash, price: cfg.showFlashPrice === false ? null : i.flash.price } }) }));
+  const total = est.every((e) => e.total !== null) ? est.reduce((s, e) => s + (e.total ?? 0), 0) : null;
   const unavailable = items.filter((i) => i.maxQuantity <= 0);
   const set = (k: keyof Buyer, v: string) => { setBuyer((b) => ({ ...b, [k]: v })); setErrs((e) => ({ ...e, [k]: undefined })); };
   const count = items.reduce((s, i) => s + i.quantity, 0);
@@ -490,13 +491,14 @@ export function CartPage() {
                   {i.variantName && <div className="vn">{i.variantName}</div>}
                   {i.maxQuantity <= 0 ? <div className="warn">Đã hết hàng – vui lòng xóa</div> : (
                     <>
-                      {cfg.showPrice && i.price !== null && <div className="pr">{flashQty > 0 ? <><span className="flash">{Icon.bolt(11)} {vnd(i.flash!.price)}</span> × {flashQty}{i.quantity > flashQty ? <span className="muted"> + {vnd(i.price)} × {i.quantity - flashQty}</span> : null}</> : vnd(i.price)}</div>}
+                      {lt !== null && <div className="pr">{flashQty > 0 ? <><span className="flash">{Icon.bolt(11)} {vnd(i.flash!.price)}</span> × {flashQty}{i.quantity > flashQty ? <span className="muted"> + {vnd(i.price)} × {i.quantity - flashQty}</span> : null}</> : vnd(i.price)}</div>}
+                      {lt === null && i.flash && flashQty > 0 && <div className="pr"><span className="flash">{Icon.bolt(11)} Giá sốc -{i.flash.discountPercent}%</span></div>}
                       {i.flash && i.flash.perOrderLimit && i.quantity > i.flash.perOrderLimit && <div className="vn">Giá Flash Sale tối đa {i.flash.perOrderLimit}/đơn</div>}
                     </>
                   )}
                   <div className="row">
                     {i.maxQuantity > 0 && <Qty small value={i.quantity} max={i.maxQuantity} onChange={(q) => cart.setQty(i.variantId, q)} />}
-                    {cfg.showPrice && lt !== null && i.maxQuantity > 0 && <b>{vnd(lt)}</b>}
+                    {lt !== null && i.maxQuantity > 0 && <b>{vnd(lt)}</b>}
                     <button className="del" aria-label="Xóa" onClick={() => cart.remove(i.variantId)}>{Icon.trash(18)}</button>
                   </div>
                 </div>

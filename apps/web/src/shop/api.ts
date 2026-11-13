@@ -27,11 +27,12 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
-export interface Category { id: string; name: string; count: number; imageUrl?: string | null; children?: Category[] }
+/** Danh mục theo thứ tự cửa hàng chọn (máy chủ đã sắp xếp: tự sắp xếp hoặc nhiều hàng trước) */
+export interface Category { id: string; name: string; count: number; imageUrl?: string | null; ownImage?: boolean; children?: Category[] }
 export interface ShopConfig {
   store: string; enabled: boolean; shopName: string; hotline: string | null; zalo: string | null; facebook: string | null; address: string | null; intro: string | null;
   bannerUrl: string | null; logoUrl: string | null; themeColor: string; serverTime: string;
-  showPrice?: boolean; flashSaleEnabled?: boolean; allowOrder?: boolean; showStock?: boolean; categories?: Category[];
+  showPrice?: boolean; showFlashPrice?: boolean; flashSaleEnabled?: boolean; allowOrder?: boolean; showStock?: boolean; categories?: Category[];
 }
 export interface FlashInfo { flashSaleId: string; name: string; endsAt: string; price: number | null; discountPercent: number; limit: number | null; sold: number; remaining: number | null; perOrderLimit: number | null }
 export interface ProductCard { id: string; code: string; name: string; type: string; imageUrl: string | null; brand?: string | null; variantCount: number; price: number | null; priceMax: number | null; inStock: boolean; available: number | null; flash: FlashInfo | null; /** biến thể duy nhất (hàng không có phiên bản) – cho nút thêm nhanh vào giỏ */ variantId?: string | null; maxQuantity?: number }

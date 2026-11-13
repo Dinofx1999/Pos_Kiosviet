@@ -11,10 +11,13 @@ import { StorefrontService } from './storefront.service';
 /** Quản trị bán online: thiết lập web bán hàng, Flash Sale. */
 @ApiTags('online') @ApiBearerAuth() @Controller('online')
 export class OnlineController {
-  constructor(private readonly settings: ShopSettingsService, private readonly flash: FlashSalesService) {}
+  constructor(private readonly settings: ShopSettingsService, private readonly flash: FlashSalesService, private readonly storefront: StorefrontService) {}
 
   @Get('settings') @RequirePermission('online.manage') @ApiOperation({ summary: 'Thiết lập web bán hàng' })
   getSettings(@CurrentUser() u: RequestUser) { return this.settings.adminView(u); }
+
+  @Get('settings/categories') @RequirePermission('online.manage') @ApiOperation({ summary: 'Danh mục cấp 1 cho mục "Danh mục trên web" (số hàng hiện được, ảnh tự động)' })
+  categories(@CurrentUser() u: RequestUser) { return this.storefront.adminCategories(u.tenantId); }
 
   @Put('settings') @RequirePermission('online.manage') @ApiOperation({ summary: 'Lưu thiết lập web (bật web, hiển thị giá, Flash Sale…)' })
   saveSettings(@CurrentUser() u: RequestUser, @Body() dto: UpdateShopConfigDto) { return this.settings.update(u, dto); }

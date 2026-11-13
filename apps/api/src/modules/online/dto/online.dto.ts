@@ -6,9 +6,16 @@ import { IsDecimalStr, Trim, TrimToUndefined } from '../../../common/validators'
 const URLISH = /^(https?:\/\/|\/)[^\s]{1,990}$/;
 
 // ------------------------------------------------------------------ thiết lập web bán hàng
+export class WebCategoryDto {
+  @ApiProperty() @IsUUID() id: string;
+  @ApiPropertyOptional({ description: 'Ảnh đại diện riêng; bỏ trống = lấy ảnh hàng bán chạy' }) @IsOptional() @ValidateIf((_, v) => v !== null && v !== '') @Matches(URLISH, { message: 'Ảnh danh mục không hợp lệ' }) imageUrl?: string | null;
+  @ApiPropertyOptional({ description: 'Tên hiện trên web; bỏ trống = tên danh mục' }) @IsOptional() @ValidateIf((_, v) => v !== null) @Trim() @IsString() @MaxLength(60, { message: 'Tên danh mục trên web tối đa 60 ký tự' }) name?: string | null;
+}
+
 export class UpdateShopConfigDto {
   @ApiPropertyOptional() @IsOptional() @IsBoolean() enabled?: boolean;
-  @ApiPropertyOptional({ description: 'Hiển thị giá trên web' }) @IsOptional() @IsBoolean() showPrice?: boolean;
+  @ApiPropertyOptional({ description: 'Hiển thị giá hàng hóa trên web' }) @IsOptional() @IsBoolean() showPrice?: boolean;
+  @ApiPropertyOptional({ description: 'Hiển thị giá Flash Sale trên web' }) @IsOptional() @IsBoolean() showFlashPrice?: boolean;
   @ApiPropertyOptional({ description: 'Bật Flash Sale trên web' }) @IsOptional() @IsBoolean() flashSaleEnabled?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() allowOrder?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() showStock?: boolean;
@@ -27,6 +34,8 @@ export class UpdateShopConfigDto {
   @ApiPropertyOptional() @IsOptional() @ValidateIf((_, v) => v !== null) @IsUUID() warehouseId?: string | null;
   @ApiPropertyOptional({ type: [String], description: 'Kho tính còn hàng trên web (cộng tồn); rỗng = mọi kho' }) @IsOptional() @IsArray() @ArrayMaxSize(100) @IsUUID('all', { each: true }) stockWarehouseIds?: string[];
   @ApiPropertyOptional({ type: [String] }) @IsOptional() @IsArray() @ArrayMaxSize(500) @IsUUID('all', { each: true }) hiddenCategoryIds?: string[];
+  @ApiPropertyOptional({ type: [WebCategoryDto], description: 'Thứ tự, ảnh, tên danh mục trên web; rỗng = tự động' }) @IsOptional() @IsArray() @ArrayMaxSize(500) @ValidateNested({ each: true }) @Type(() => WebCategoryDto) webCategories?: WebCategoryDto[];
+  @ApiPropertyOptional({ description: 'Danh mục hiện theo thứ tự webCategories (false = nhiều hàng trước)' }) @IsOptional() @IsBoolean() customCategoryOrder?: boolean;
 }
 
 // ------------------------------------------------------------------ Flash Sale (quản trị)
