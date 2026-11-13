@@ -9,8 +9,8 @@ import { AccessService } from '../../infra/access/access.service';
 import { AuditService } from '../../infra/audit/audit.service';
 import { getCtx, RequestUser } from '../../infra/cls/request-context';
 import { PrismaService } from '../../infra/prisma/prisma.service';
-import { AttendanceQueryDto, AttendanceDevicePatchDto, AttendanceDeviceQueryDto, CheckInDto, CheckOutDto, CreateCommissionRuleDto, CreateWorkShiftDto, EditAttendanceDto, EmployeeQueryDto, ManualAttendanceDto, PeriodQueryDto, UpdateCommissionRuleDto, UpdateWorkShiftDto } from './dto/employees.dto';
-import { creditedMinutes, matchShift, minuteToHHmm, ShiftWindow, windowFor } from './work-shift.util';
+import { AttendanceQueryDto, AttendanceDevicePatchDto, AttendanceDeviceQueryDto, CheckInDto, CheckOutDto, CreateCommissionRuleDto, CreateWorkShiftDto, EditAttendanceDto, EmployeeQueryDto, LatePolicyDto, ManualAttendanceDto, PeriodQueryDto, UpdateCommissionRuleDto, UpdateWorkShiftDto } from './dto/employees.dto';
+import { creditedMinutes, LATE_POLICY_KEY, lateOf, LatePolicy, matchShift, minuteToHHmm, normalizeLatePolicy, ShiftWindow, windowFor } from './work-shift.util';
 
 const SHIFT_SELECT = { id: true, name: true, startMinute: true, endMinute: true } as const;
 const toMinute = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
@@ -282,6 +282,25 @@ export class EmployeesService {
     return { removed: true, deactivated: false };
   }
 
+  // ---------------------------------------------------------------- phạt đi trễ (BR-188)
+  async latePolicy(): Promise<LatePolicy> {
+    const row = await this.prisma.db.tenantSetting.findFirst({ where: { key: LATE_POLICY_KEY } });
+    return normalizeLatePolicy(row?.value);
+  }
+  async saveLatePolicy(user: RequestUser, dto: LatePolicyDto) {
+    const before = await this.latePolicy();
+    const next = normalizeLatePolicy(dto);
+    if (next.enabled && next.mode === 'TIERS' && !next.tiers.some((t) => t.amount > 0)) throw Errors.validation('Thêm ít nhất một mức phạt (trễ từ … phút → … đ)');
+    if (next.enabled && next.mode === 'PER_MINUTE' && next.perMinute <= 0) throw Errors.validation('Nhập số tiền phạt mỗi phút trễ');
+    await this.prisma.db.tenantSetting.upsert({
+      where: { tenantId_key: { tenantId: user.tenantId, key: LATE_POLICY_KEY } },
+      create: { tenantId: user.tenantId, key: LATE_POLICY_KEY, value: next as unknown as Prisma.InputJsonValue },
+      update: { value: next as unknown as Prisma.InputJsonValue },
+    });
+    await this.audit.log(this.prisma.db as never, { action: 'attendance.late_policy.update', entityType: 'TenantSetting', entityCode: LATE_POLICY_KEY, before: before as never, after: next as never });
+    return next;
+  }
+
   async checkIn(user: RequestUser, dto: CheckInDto) {
     if (dto.branchId) this.access.assertBranch(user, dto.branchId);
     const open = await this.prisma.db.attendance.findFirst({ where: { userId: user.id, checkOutAt: null } });
@@ -292,10 +311,15 @@ export class EmployeesService {
     const flags: string[] = [];
     const distance = this.geoCheck(cfg, branch, dto, true, flags);
     const device = await this.deviceCheck(user, cfg, dto, flags);
-    const shift = await this.resolveShift(user.tenantId, branchId, new Date(), dto.workShiftId, flags);
+    const now = new Date();
+    const shift = await this.resolveShift(user.tenantId, branchId, now, dto.workShiftId, flags);
+    // nhân viên chọn "Chấm ngoài ca" (workShiftId = null) khi cửa hàng có ca → gắn cờ để quản lý xem lại
+    if (dto.workShiftId === null && (await this.shiftsFor(branchId)).length) flags.push('OFF_SHIFT');
+    const late = lateOf(now, shift.window, await this.latePolicy());
     const ctx = getCtx(this.cls);
     const a = await this.prisma.db.attendance.create({ include: { workShift: { select: SHIFT_SELECT } }, data: {
-      tenantId: user.tenantId, userId: user.id, branchId, note: dto.note, workShiftId: shift.workShiftId, shiftStartAt: shift.window?.start ?? null, shiftEndAt: shift.window?.end ?? null, latitude: dto.latitude, longitude: dto.longitude, accuracy: dto.accuracy === undefined ? undefined : Math.round(dto.accuracy * 10) / 10,
+      tenantId: user.tenantId, userId: user.id, branchId, checkInAt: now, note: dto.note, workShiftId: shift.workShiftId, shiftStartAt: shift.window?.start ?? null, shiftEndAt: shift.window?.end ?? null,
+      lateMinutes: late.lateMinutes, latePenalty: late.penalty, latitude: dto.latitude, longitude: dto.longitude, accuracy: dto.accuracy === undefined ? undefined : Math.round(dto.accuracy * 10) / 10,
       distanceMeters: distance, deviceId: device?.deviceId ?? dto.deviceId ?? null, ip: ctx.ip?.slice(0, 64) ?? null, userAgent: ctx.userAgent?.slice(0, 300) ?? null, flags,
     } });
     await this.audit.log(this.prisma.db as never, { action: 'attendance.check_in', entityType: 'Attendance', entityId: a.id, after: { branchId: a.branchId, distance, flags, workShiftId: a.workShiftId } });
@@ -321,7 +345,7 @@ export class EmployeesService {
     const open = await this.prisma.db.attendance.findFirst({ where: { userId: user.id, checkOutAt: null }, orderBy: { checkInAt: 'desc' }, include: { workShift: { select: SHIFT_SELECT } } });
     const since = new Date(new Date().setDate(1));
     const [month, cfg, device, branches] = await Promise.all([
-      this.prisma.db.attendance.aggregate({ where: { userId: user.id, checkInAt: { gte: since } }, _sum: { minutes: true }, _count: { _all: true } }),
+      this.prisma.db.attendance.aggregate({ where: { userId: user.id, checkInAt: { gte: since } }, _sum: { minutes: true, latePenalty: true }, _count: { _all: true } }),
       this.attendanceConfig(),
       deviceId ? this.prisma.db.attendanceDevice.findFirst({ where: { deviceId }, select: { id: true, userId: true, status: true, name: true } }) : null,
       this.prisma.db.branch.findMany({ where: { isActive: true, ...(user.allBranches ? {} : { id: { in: user.branchIds } }) }, select: { id: true, name: true, latitude: true, longitude: true, radiusMeters: true }, orderBy: { name: 'asc' } }),
@@ -329,6 +353,8 @@ export class EmployeesService {
     const tz = await this.timezone(user.tenantId);
     return {
       open, monthMinutes: month._sum.minutes ?? 0, monthDays: month._count._all,
+      monthLate: await this.prisma.db.attendance.count({ where: { userId: user.id, checkInAt: { gte: since }, lateMinutes: { gt: 0 } } }), monthLatePenalty: Number(month._sum.latePenalty ?? 0),
+      latePolicy: await this.latePolicy(),
       policy: { gpsRequired: cfg.gpsRequired, deviceLock: cfg.deviceLock, radius: cfg.radius, maxAccuracy: cfg.maxAccuracy },
       device: device ? { id: device.id, status: device.userId === user.id ? device.status : 'OTHER_USER', name: device.name } : null,
       branches: await Promise.all(branches.map(async (b) => {
@@ -365,10 +391,11 @@ export class EmployeesService {
     const [rows, total, perUser] = await Promise.all([
       this.prisma.db.attendance.findMany({ where, include: { user: { select: { id: true, fullName: true, username: true } }, workShift: { select: SHIFT_SELECT } }, ...skipTake(q), orderBy: { checkInAt: 'desc' } }),
       this.prisma.db.attendance.count({ where }),
-      this.prisma.db.attendance.groupBy({ by: ['userId'], where, _sum: { minutes: true }, _count: { _all: true } }),
+      this.prisma.db.attendance.groupBy({ by: ['userId'], where, _sum: { minutes: true, latePenalty: true }, _count: { _all: true } }),
     ]);
+    const lateBy = await this.prisma.db.attendance.groupBy({ by: ['userId'], where: { ...where, lateMinutes: { gt: 0 } }, _count: { _all: true } });
     const names = await this.prisma.db.user.findMany({ where: { id: { in: perUser.map((p) => p.userId) } }, select: { id: true, fullName: true } });
-    return { ...paginated(rows, total, q), summary: perUser.map((p) => ({ userId: p.userId, name: names.find((n) => n.id === p.userId)?.fullName ?? '—', sessions: p._count._all, minutes: p._sum.minutes ?? 0, hours: Math.round(((p._sum.minutes ?? 0) / 60) * 10) / 10 })) };
+    return { ...paginated(rows, total, q), summary: perUser.map((p) => ({ userId: p.userId, name: names.find((n) => n.id === p.userId)?.fullName ?? '—', sessions: p._count._all, minutes: p._sum.minutes ?? 0, hours: Math.round(((p._sum.minutes ?? 0) / 60) * 10) / 10, lateCount: lateBy.find((l) => l.userId === p.userId)?._count._all ?? 0, latePenalty: Number(p._sum.latePenalty ?? 0) })) };
   }
   async editAttendance(user: RequestUser, id: string, dto: EditAttendanceDto) {
     const a = await this.prisma.db.attendance.findFirst({ where: { id } });
@@ -382,12 +409,16 @@ export class EmployeesService {
       const chosen = dto.workShiftId !== undefined ? dto.workShiftId : a.workShiftId;
       shift = chosen ? await this.resolveShift(user.tenantId, a.branchId, checkInAt, chosen) : { workShiftId: null, window: null };
     }
+    // đi trễ: tính lại khi đổi giờ vào / ca; quản lý đặt tiền phạt (0 = miễn phạt) thì dùng số đó
+    const recompute = dto.workShiftId !== undefined || checkInAt.getTime() !== a.checkInAt.getTime();
+    const late = recompute ? lateOf(checkInAt, shift.window, await this.latePolicy()) : { lateMinutes: a.lateMinutes, penalty: a.latePenalty === null ? null : Number(a.latePenalty) };
+    const penalty = dto.latePenalty !== undefined ? dto.latePenalty : late.penalty;
     const after = await this.prisma.db.attendance.update({ where: { id }, include: { workShift: { select: SHIFT_SELECT } }, data: {
-      checkInAt, checkOutAt, minutes: checkOutAt ? creditedMinutes(checkInAt, checkOutAt, shift.window) : null, note: dto.note, editedById: user.id,
+      checkInAt, checkOutAt, minutes: checkOutAt ? creditedMinutes(checkInAt, checkOutAt, shift.window) : null, note: dto.note, editedById: user.id, lateMinutes: late.lateMinutes, latePenalty: penalty,
       workShiftId: shift.workShiftId, shiftStartAt: shift.window?.start ?? null, shiftEndAt: shift.window?.end ?? null,
       ...(dto.workShiftId !== undefined || shift.workShiftId ? { flags: (a.flags ?? []).filter((f) => f !== 'OFF_SHIFT') } : {}),
     } });
-    await this.audit.log(this.prisma.db as never, { action: 'attendance.edit', entityType: 'Attendance', entityId: id, before: { checkInAt: a.checkInAt, checkOutAt: a.checkOutAt, workShiftId: a.workShiftId, minutes: a.minutes }, after: { checkInAt, checkOutAt, workShiftId: after.workShiftId, minutes: after.minutes } });
+    await this.audit.log(this.prisma.db as never, { action: 'attendance.edit', entityType: 'Attendance', entityId: id, before: { checkInAt: a.checkInAt, checkOutAt: a.checkOutAt, workShiftId: a.workShiftId, minutes: a.minutes, latePenalty: a.latePenalty }, after: { checkInAt, checkOutAt, workShiftId: after.workShiftId, minutes: after.minutes, latePenalty: after.latePenalty } });
     return after;
   }
   async manualAttendance(user: RequestUser, dto: ManualAttendanceDto) {
@@ -396,9 +427,11 @@ export class EmployeesService {
     if (checkOutAt && checkOutAt < checkInAt) throw Errors.validation('Giờ ra phải sau giờ vào');
     const flags: string[] = [];
     const shift = await this.resolveShift(user.tenantId, dto.branchId ?? null, checkInAt, dto.workShiftId, flags);
+    const late = lateOf(checkInAt, shift.window, await this.latePolicy());
     return this.prisma.db.attendance.create({ include: { workShift: { select: SHIFT_SELECT } }, data: {
       tenantId: user.tenantId, userId: dto.userId, branchId: dto.branchId ?? null, checkInAt, checkOutAt, minutes: checkOutAt ? creditedMinutes(checkInAt, checkOutAt, shift.window) : null,
       source: 'MANUAL', note: dto.note, editedById: user.id, workShiftId: shift.workShiftId, shiftStartAt: shift.window?.start ?? null, shiftEndAt: shift.window?.end ?? null, flags,
+      lateMinutes: late.lateMinutes, latePenalty: late.penalty,
     } });
   }
 

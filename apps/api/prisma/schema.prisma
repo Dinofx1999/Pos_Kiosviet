@@ -2367,6 +2367,9 @@ model Attendance {
   workShiftId       String?   @map("work_shift_id") @db.Uuid
   shiftStartAt      DateTime? @map("shift_start_at") @db.Timestamptz(6)
   shiftEndAt        DateTime? @map("shift_end_at") @db.Timestamptz(6)
+  /// đi trễ (BR-188): số phút trễ so với giờ vào ca (0 = đúng giờ hoặc trong thời gian cho phép; null = không theo ca) và tiền phạt theo cấu hình lúc chấm
+  lateMinutes       Int?      @map("late_minutes")
+  latePenalty       Decimal?  @map("late_penalty") @db.Decimal(18, 4)
   editedById        String?   @map("edited_by_id") @db.Uuid
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 

@@ -1,8 +1,8 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseBoolPipe, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseBoolPipe, ParseUUIDPipe, Patch, Post, Put, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser, RequirePermission } from '../../common/decorators';
 import { RequestUser } from '../../infra/cls/request-context';
-import { AttendanceQueryDto, AttendanceCurrentQueryDto, AttendanceDevicePatchDto, AttendanceDeviceQueryDto, CheckInDto, CheckOutDto, CreateCommissionRuleDto, CreateWorkShiftDto, EditAttendanceDto, EmployeeQueryDto, ManualAttendanceDto, PeriodQueryDto, UpdateCommissionRuleDto, UpdateWorkShiftDto } from './dto/employees.dto';
+import { AttendanceQueryDto, AttendanceCurrentQueryDto, AttendanceDevicePatchDto, AttendanceDeviceQueryDto, CheckInDto, CheckOutDto, CreateCommissionRuleDto, CreateWorkShiftDto, EditAttendanceDto, EmployeeQueryDto, LatePolicyDto, ManualAttendanceDto, PeriodQueryDto, UpdateCommissionRuleDto, UpdateWorkShiftDto } from './dto/employees.dto';
 import { EmployeesService } from './employees.service';
 
 @ApiTags('employees') @ApiBearerAuth() @Controller('employees')
@@ -27,6 +27,8 @@ export class EmployeesController {
   @Post('attendance/shifts') @RequirePermission('employee.manage') @HttpCode(201) createShift(@CurrentUser() u: RequestUser, @Body() dto: CreateWorkShiftDto) { return this.svc.createShift(u, dto); }
   @Patch('attendance/shifts/:id') @RequirePermission('employee.manage') updateShift(@CurrentUser() u: RequestUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateWorkShiftDto) { return this.svc.updateShift(u, id, dto); }
   @Delete('attendance/shifts/:id') @RequirePermission('employee.manage') @ApiOperation({ summary: 'Xóa ca (ca đã có lượt chấm công thì chỉ ngừng dùng)' }) removeShift(@CurrentUser() u: RequestUser, @Param('id', ParseUUIDPipe) id: string) { return this.svc.removeShift(u, id); }
+  @Get('attendance/late-policy') @RequirePermission('attendance.view') @ApiOperation({ summary: 'Cấu hình phạt đi trễ' }) latePolicy() { return this.svc.latePolicy(); }
+  @Put('attendance/late-policy') @RequirePermission('employee.manage') @ApiOperation({ summary: 'Lưu cấu hình phạt đi trễ (cho phép trễ, phạt theo mức / theo phút)' }) saveLatePolicy(@CurrentUser() u: RequestUser, @Body() dto: LatePolicyDto) { return this.svc.saveLatePolicy(u, dto); }
   @Get('attendance/me') mine(@CurrentUser() u: RequestUser, @Query() q: AttendanceQueryDto) { return this.svc.listAttendance(u, q, true); }
   @Get('attendance') @RequirePermission('attendance.view') attendance(@CurrentUser() u: RequestUser, @Query() q: AttendanceQueryDto) { return this.svc.listAttendance(u, q, false); }
   @Post('attendance') @RequirePermission('employee.manage') @HttpCode(201) @ApiOperation({ summary: 'Chấm công hộ / bổ sung' }) manual(@CurrentUser() u: RequestUser, @Body() dto: ManualAttendanceDto) { return this.svc.manualAttendance(u, dto); }

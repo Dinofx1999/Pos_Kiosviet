@@ -315,4 +315,53 @@ describe('Employees (commission, attendance, performance), SaaS plans and tax re
     expect((await t.http().get(shifts).set(s.auth)).body.map((x: any) => x.name)).not.toContain('Ca sáng');
     expect((await t.prisma.raw.attendance.findUniqueOrThrow({ where: { id: ci.body.id } })).workShiftId).toBe(morning.id);
   });
+
+  it('T-281 phạt đi trễ: mặc định tắt; cho phép trễ; phạt theo mức (lấy mức cao nhất) / theo phút; tắt phạt vẫn ghi phút trễ; quản lý sửa giờ vào tính lại, đặt 0 = miễn phạt; tổng hợp số lần trễ + tiền phạt', async () => {
+    const policy = `${api}/employees/attendance/late-policy`;
+    expect((await t.http().get(policy).set(s.auth)).body).toMatchObject({ enabled: false, graceMinutes: 5, mode: 'TIERS' });
+    const tiers = { enabled: true, graceMinutes: 5, mode: 'TIERS', perMinute: 1000, tiers: [{ fromMinutes: 16, amount: 50000 }, { fromMinutes: 6, amount: 20000 }] };
+    expect((await t.http().put(policy).set(cashierAuth).send(tiers)).status).toBe(403);
+    expect((await t.http().put(policy).set(s.auth).send({ ...tiers, mode: 'X' })).status).toBe(400);
+    expect((await t.http().put(policy).set(s.auth).send({ ...tiers, tiers: [] })).status).toBe(400);
+    const saved = await t.http().put(policy).set(s.auth).send(tiers);
+    expect(saved.status).toBe(200);
+    expect(saved.body.tiers).toEqual([{ fromMinutes: 6, amount: 20000 }, { fromMinutes: 16, amount: 50000 }]);
+
+    const ca = (await t.http().post(`${api}/employees/attendance/shifts`).set(s.auth).send({ name: 'Ca T281', start: '08:00', end: '16:00' })).body;
+    const manual = (checkInAt: string) => t.http().post(`${api}/employees/attendance`).set(s.auth).send({ userId: cashierId, branchId: s.branchId, workShiftId: ca.id, checkInAt, checkOutAt: checkInAt.replace(/T\d\d:\d\d/, 'T16:30') });
+    const onTime = (await manual('2026-09-01T08:04:00+07:00')).body; // trong 5 phút cho phép
+    expect(onTime).toMatchObject({ lateMinutes: 0 });
+    expect(Number(onTime.latePenalty)).toBe(0);
+    const l10 = (await manual('2026-09-02T08:10:00+07:00')).body;
+    expect(l10.lateMinutes).toBe(10);
+    expect(Number(l10.latePenalty)).toBe(20000);
+    expect(l10.minutes).toBe(470); // 08:10 → 16:00
+    const l20 = (await manual('2026-09-03T08:20:00+07:00')).body;
+    expect([l20.lateMinutes, Number(l20.latePenalty)]).toEqual([20, 50000]);
+    // theo phút
+    await t.http().put(policy).set(s.auth).send({ ...tiers, mode: 'PER_MINUTE', perMinute: 1000 });
+    const pm = (await manual('2026-09-04T08:12:00+07:00')).body;
+    expect([pm.lateMinutes, Number(pm.latePenalty)]).toEqual([12, 12000]);
+    // tắt phạt: vẫn ghi phút trễ, không phạt
+    await t.http().put(policy).set(s.auth).send({ ...tiers, enabled: false });
+    const off = (await manual('2026-09-05T08:30:00+07:00')).body;
+    expect([off.lateMinutes, Number(off.latePenalty)]).toEqual([30, 0]);
+    // lượt không theo ca: không tính trễ
+    const noShift = (await t.http().post(`${api}/employees/attendance`).set(s.auth).send({ userId: cashierId, workShiftId: null, checkInAt: '2026-09-06T09:00:00+07:00', checkOutAt: '2026-09-06T10:00:00+07:00' })).body;
+    expect([noShift.lateMinutes, noShift.latePenalty]).toEqual([null, null]);
+
+    // quản lý: sửa giờ vào → tính lại theo cấu hình hiện tại; đặt 0 = miễn phạt
+    await t.http().put(policy).set(s.auth).send(tiers);
+    const fixed = (await t.http().patch(`${api}/employees/attendance/${l20.id}`).set(s.auth).send({ checkInAt: '2026-09-03T08:00:00+07:00' })).body;
+    expect([fixed.lateMinutes, Number(fixed.latePenalty)]).toEqual([0, 0]);
+    const waived = (await t.http().patch(`${api}/employees/attendance/${l10.id}`).set(s.auth).send({ latePenalty: 0, note: 'kẹt xe, miễn phạt' })).body;
+    expect([waived.lateMinutes, Number(waived.latePenalty)]).toEqual([10, 0]);
+
+    // tổng hợp: số lần trễ (l10, pm, off) và tiền phạt (12.000)
+    const sum = (await t.http().get(`${api}/employees/attendance`).set(s.auth).query({ userId: cashierId, from: '2026-09-01T00:00:00+07:00', to: '2026-09-30T23:59:59+07:00' })).body.summary[0];
+    expect(sum).toMatchObject({ lateCount: 3, latePenalty: 12000 });
+    const cur = (await t.http().get(`${api}/employees/attendance/current`).set(cashierAuth)).body;
+    expect(cur.latePolicy).toMatchObject({ enabled: true, graceMinutes: 5 });
+    expect(typeof cur.monthLatePenalty).toBe('number');
+  });
 });

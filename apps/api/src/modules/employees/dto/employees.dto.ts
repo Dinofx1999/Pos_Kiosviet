@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsBoolean, IsIn, IsInt, IsISO8601, IsNumber, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsIn, IsInt, IsISO8601, IsNumber, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, ValidateIf, ValidateNested } from 'class-validator';
 import { PaginationQueryDto } from '../../../common/pagination';
 import { IsDecimalStr, Trim, TrimToUndefined } from '../../../common/validators';
 
@@ -44,7 +44,7 @@ export class CheckInDto {
   @ApiPropertyOptional({ description: 'Sai số vị trí (m) do GPS báo' }) @IsOptional() @IsNumber() @Min(0) @Max(100000) accuracy?: number;
   @ApiPropertyOptional({ description: 'Mã thiết bị do trình duyệt sinh và lưu trên máy (chống chấm công hộ)' }) @IsOptional() @IsString() @MaxLength(80) deviceId?: string;
   @ApiPropertyOptional({ description: 'Tên thiết bị / trình duyệt (hiển thị cho quản lý)' }) @IsOptional() @TrimToUndefined() @IsString() @MaxLength(200) deviceName?: string;
-  @ApiPropertyOptional({ description: 'Ca làm việc nhân viên chọn; bỏ trống = tự nhận ca theo giờ chấm' }) @IsOptional() @IsUUID() workShiftId?: string;
+  @ApiPropertyOptional({ nullable: true, description: 'Ca làm việc nhân viên chọn; bỏ trống = tự nhận ca theo giờ chấm; null = chấm ngoài ca (gắn cờ OFF_SHIFT)' }) @IsOptional() @ValidateIf((_o, v) => v !== null) @IsUUID() workShiftId?: string | null;
 }
 export class CheckOutDto {
   @ApiPropertyOptional() @IsOptional() @TrimToUndefined() @IsString() @MaxLength(500) note?: string;
@@ -71,6 +71,7 @@ export class AttendanceQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({ description: 'true = chỉ lượt chưa chấm ra' }) @IsOptional() @IsIn(['true', 'false']) open?: string;
 }
 export class EditAttendanceDto {
+  @ApiPropertyOptional({ nullable: true, description: 'Quản lý đặt lại tiền phạt đi trễ của lượt (0 = miễn phạt); bỏ trống = tính lại theo cấu hình khi đổi giờ vào / ca' }) @IsOptional() @ValidateIf((_o, v) => v !== null) @IsInt() @Min(0) @Max(100000000) latePenalty?: number | null;
   @ApiPropertyOptional({ nullable: true, description: 'Đổi ca của lượt; null = không theo ca (tính cả lượt)' }) @IsOptional() @ValidateIf((_o, v) => v !== null) @IsUUID() workShiftId?: string | null;
   @ApiPropertyOptional() @IsOptional() @IsISO8601() checkInAt?: string;
   @ApiPropertyOptional({ nullable: true }) @IsOptional() @ValidateIf((_o, v) => v !== null) @IsISO8601() checkOutAt?: string | null;
@@ -108,3 +109,16 @@ export class EmployeeQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({ enum: ['ACTIVE', 'LOCKED', 'DISABLED'] }) @IsOptional() @IsIn(['ACTIVE', 'LOCKED', 'DISABLED']) status?: string;
 }
 export class PageOnlyDto { @ApiPropertyOptional() @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number }
+
+// ---------------------------------------------------------------- phạt đi trễ (BR-188)
+export class LateTierDto {
+  @ApiProperty({ example: 6, description: 'Trễ từ (phút)' }) @IsInt() @Min(1) @Max(1440) fromMinutes: number;
+  @ApiProperty({ example: 20000, description: 'Tiền phạt (đ)' }) @IsInt() @Min(0) @Max(100000000) amount: number;
+}
+export class LatePolicyDto {
+  @ApiProperty() @IsBoolean() enabled: boolean;
+  @ApiProperty({ example: 5, description: 'Cho phép trễ (phút) – trễ quá mức này mới tính đi trễ' }) @IsInt() @Min(0) @Max(240) graceMinutes: number;
+  @ApiProperty({ enum: ['TIERS', 'PER_MINUTE'] }) @IsIn(['TIERS', 'PER_MINUTE']) mode: 'TIERS' | 'PER_MINUTE';
+  @ApiProperty({ example: 1000, description: 'Phạt mỗi phút trễ (đ) khi mode = PER_MINUTE' }) @IsInt() @Min(0) @Max(10000000) perMinute: number;
+  @ApiProperty({ type: [LateTierDto] }) @IsArray() @ArrayMaxSize(10) @ValidateNested({ each: true }) @Type(() => LateTierDto) tiers: LateTierDto[];
+}

@@ -475,3 +475,9 @@ Màn Bán hàng điện thoại tách thành `PosMobile` (`pages/pos/PosMobile.t
 - Sửa kèm: `AttendanceDevice` chưa nằm trong danh sách bảng theo cửa hàng (tenant-extension) → thêm vào.
 - Kiểm thử: T-280; toàn bộ 214 test API đạt.
 
+### Chấm công: tab "Thiết lập ca làm", chọn ca khi chấm vào, phạt đi trễ (13/11/2026, đêm muộn)
+- **Yêu cầu**: tab thiết lập ca cạnh "Toàn bộ nhân viên"; bấm chấm công vào thì hiện các ca để nhân viên tự chọn; cấu hình phạt đi trễ. Kèm sửa bảng lịch sử tràn trang trên màn ~900 px (máy gập) – commit 1f11ff2.
+- **Phạt đi trễ** (BR-188): cột `late_minutes`, `late_penalty` (migration `attendance_late_penalty`), `LatePolicy` trong `work-shift.util.ts` (cho phép trễ, theo mức / theo phút), API `GET/PUT /employees/attendance/late-policy`; chấm vào / thêm lượt tính trễ + phạt; sửa lượt tính lại hoặc đặt phạt (0 = miễn); tổng hợp số lần trễ + tiền phạt (danh sách, `current`).
+- **Giao diện**: tab "Thiết lập ca làm" (thẻ Ca làm việc, Phạt đi trễ có ví dụ tính sẵn, Chấm công tại cửa hàng) thay ngăn kéo "Ca làm & bán kính"; bấm CHẤM CÔNG VÀO → hộp "Chọn ca làm" (Gợi ý, Đúng giờ / Trễ … · phạt … / Vào ca lúc … / Đã hết ca, Chấm ngoài ca); cột / nhãn Đi trễ, thẻ "Đi trễ tháng này", "Đi trễ" ở Toàn bộ nhân viên; ô Tiền phạt trong Sửa giờ.
+- Kiểm thử: T-281; xem trên 375 px và 900 px (không tràn).
+

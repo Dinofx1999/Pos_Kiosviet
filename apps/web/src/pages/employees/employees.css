@@ -78,6 +78,45 @@
 .em-shift .meta { font-size: 12px; color: #6b7280; }
 .em-shift .acts { display: flex; align-items: center; gap: 2px; }
 
+/* ---- đi trễ, chọn ca, tab thiết lập ---- */
+.em-late-line { font-size: 13px; font-weight: 600; color: #dc2626; }
+.em-ontime { font-size: 12.5px; color: #16a34a; }
+.em-late-cell { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; }
+.em-late-cell .ant-tag { margin-inline-end: 0; }
+.em-late-cell small { font-size: 11.5px; color: #dc2626; white-space: nowrap; }
+.em-late-cell small.muted { color: #9ca3af; }
+.em-session .meta .em-late-cell { flex-direction: row; align-items: center; gap: 4px; }
+.em-picker { display: flex; flex-direction: column; gap: 8px; }
+.em-pick { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; text-align: left; background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px 14px; cursor: pointer; transition: border-color .15s, background .15s; font: inherit; }
+.em-pick:hover:not(:disabled) { border-color: #16a34a; background: #f0fdf4; }
+.em-pick:disabled { cursor: default; opacity: .7; }
+.em-pick.sug { border-color: #93c5fd; background: #eff6ff; }
+.em-pick .top { display: flex; align-items: center; gap: 6px; font-size: 15px; }
+.em-pick .top .ant-tag { margin: 0; }
+.em-pick .tm { font-size: 20px; font-weight: 700; color: #1f2937; font-variant-numeric: tabular-nums; }
+.em-pick .stt { font-size: 13px; color: #6b7280; }
+.em-pick .stt.ok { color: #16a34a; font-weight: 600; }
+.em-pick .stt.late { color: #dc2626; font-weight: 600; }
+.em-pick .stt.early { color: #2563eb; }
+.em-pick .stt.ended { color: #9ca3af; }
+.em-pick.off { border-style: dashed; background: #fafafa; }
+.em-pick.off .top { font-size: 14px; color: #4b5563; }
+.em-setup { display: flex; flex-direction: column; gap: 12px; max-width: 760px; }
+.em-late-form { display: flex; flex-direction: column; gap: 12px; }
+.em-field { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.em-field > span { font-weight: 500; min-width: 120px; }
+.em-field small { flex-basis: 100%; color: #6b7280; font-size: 12px; }
+.em-tiers { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.em-tier { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 6px 8px; align-items: center; width: 100%; max-width: 560px; padding: 8px 10px; border: 1px solid #f0f0f0; border-radius: 8px; background: #fff; }
+.em-tier .ant-input-number-group-wrapper, .em-tier .ant-input-number { width: 100% !important; }
+.em-tier .del { grid-column: 3; grid-row: 1 / span 2; }
+@media (min-width: 768px) {
+  .em-tier { grid-template-columns: auto 150px auto 180px auto; padding: 6px 10px; }
+  .em-tier .del { grid-column: 5; grid-row: 1; }
+}
+.em-late-sample { font-size: 12.5px; color: #374151; background: #f9fafb; border-radius: 8px; padding: 8px 10px; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.em-late-sample em { color: #9ca3af; }
+
 /* ---- commission rules ---- */
 .em-rules { display: flex; flex-direction: column; gap: 8px; }
 .em-rule { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; }

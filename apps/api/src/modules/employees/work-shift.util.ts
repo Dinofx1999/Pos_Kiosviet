@@ -63,3 +63,41 @@ export function creditedMinutes(checkIn: Date, checkOut: Date, window?: { start:
 
 /** "07:30" ↔ 450 */
 export const minuteToHHmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+
+// ---------------------------------------------------------------- phạt đi trễ (BR-188)
+export interface LateTier { fromMinutes: number; amount: number }
+/**
+ * Cấu hình phạt đi trễ: trễ quá `graceMinutes` phút so với giờ vào ca mới tính là đi trễ (số phút trễ tính từ giờ vào ca).
+ * TIERS: phạt theo mức trễ (lấy mức cao nhất có "trễ từ" ≤ số phút trễ); PER_MINUTE: mỗi phút trễ × `perMinute`.
+ */
+export interface LatePolicy { enabled: boolean; graceMinutes: number; mode: 'TIERS' | 'PER_MINUTE'; perMinute: number; tiers: LateTier[] }
+export const LATE_POLICY_KEY = 'attendance.latePolicy';
+export const LATE_POLICY_DEFAULT: LatePolicy = { enabled: false, graceMinutes: 5, mode: 'TIERS', perMinute: 1000, tiers: [{ fromMinutes: 6, amount: 20000 }, { fromMinutes: 16, amount: 50000 }, { fromMinutes: 31, amount: 100000 }] };
+
+const int = (v: unknown, d: number, min: number, max: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(min, Math.round(v))) : d);
+export function normalizeLatePolicy(raw: unknown): LatePolicy {
+  const v = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const d = LATE_POLICY_DEFAULT;
+  const tiers = Array.isArray(v.tiers)
+    ? (v.tiers as unknown[]).filter((t): t is Record<string, unknown> => !!t && typeof t === 'object').map((t) => ({ fromMinutes: int(t.fromMinutes, 1, 1, 1440), amount: int(t.amount, 0, 0, 100_000_000) }))
+    : d.tiers;
+  const uniq = new Map<number, LateTier>(); for (const t of tiers) uniq.set(t.fromMinutes, t);
+  return {
+    enabled: typeof v.enabled === 'boolean' ? v.enabled : d.enabled,
+    graceMinutes: int(v.graceMinutes, d.graceMinutes, 0, 240),
+    mode: v.mode === 'PER_MINUTE' ? 'PER_MINUTE' : 'TIERS',
+    perMinute: int(v.perMinute, d.perMinute, 0, 10_000_000),
+    tiers: [...uniq.values()].sort((a, b) => a.fromMinutes - b.fromMinutes).slice(0, 10),
+  };
+}
+
+/** Số phút trễ (trong thời gian cho phép → 0; không theo ca → null) và tiền phạt (tắt phạt → 0). */
+export function lateOf(checkIn: Date, window: { start: Date } | null | undefined, p: LatePolicy): { lateMinutes: number | null; penalty: number | null } {
+  if (!window) return { lateMinutes: null, penalty: null };
+  const raw = Math.floor((checkIn.getTime() - window.start.getTime()) / 60_000);
+  const late = raw > p.graceMinutes ? raw : 0;
+  if (!late || !p.enabled) return { lateMinutes: late, penalty: 0 };
+  if (p.mode === 'PER_MINUTE') return { lateMinutes: late, penalty: late * p.perMinute };
+  const tier = [...p.tiers].reverse().find((t) => late >= t.fromMinutes);
+  return { lateMinutes: late, penalty: tier?.amount ?? 0 };
+}
