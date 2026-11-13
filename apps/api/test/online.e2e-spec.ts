@@ -263,4 +263,32 @@ describe('Bán online: web bán hàng & Flash Sale – T-270..T-276', () => {
     expect((await settings({ stockWarehouseIds: [randomUUID()] })).status).toBe(400);
     await settings({ stockWarehouseIds: [] });
   });
+
+  it('T-278 trang chủ web: "Bán chạy" theo số bán 90 ngày, "Nổi bật" đưa hàng còn hàng có ảnh lên trước, lọc ready / exclude, ảnh đại diện danh mục, thương hiệu trên thẻ hàng', async () => {
+    await settings({ showStock: false, hideOutOfStock: false, onlyWithImage: false });
+    const cat = (await t.http().post(`${api}/categories`).set(s.auth).send({ name: 'Trang điểm T278' })).body;
+    const brand = (await t.http().post(`${api}/brands`).set(s.auth).send({ name: 'Maybelline T278' })).body;
+    const img = (n: number) => `https://example.com/t278-${n}.jpg`;
+    const hot = await stocked('20', '120000', { name: 'Phấn phủ T278 bán chạy', categoryId: cat.id, brandId: brand.id, imageUrl: img(1) });
+    const calm = await stocked('20', '90000', { name: 'Kẻ mắt T278 ít bán', categoryId: cat.id, imageUrl: img(2) });
+    const noImg = await stocked('20', '80000', { name: 'Son T278 không ảnh', categoryId: cat.id });
+    const out = await stocked('0', '70000', { name: 'Mascara T278 hết hàng', categoryId: cat.id, imageUrl: img(3) });
+    const checkout = async (variantId: string, quantity: string, amount: string) => { const r = await t.http().post(`${api}/invoices/checkout`).set(s.auth).send({ branchId: s.branchId, warehouseId: s.warehouseId, lines: [{ variantId, quantity }], payments: [{ method: 'CASH', amount }] }); if (r.status !== 201) throw new Error(JSON.stringify(r.body)); return r; };
+    await checkout(hot.variantId, '5', '600000');
+    await checkout(calm.variantId, '1', '90000');
+    const ids = (body: { items: Array<{ id: string }> }) => body.items.map((i) => i.id);
+    const best = (await t.http().get(shop(`/products?categoryId=${cat.id}&sort=best`))).body;
+    expect(ids(best).slice(0, 2)).toEqual([hot.productId, calm.productId]);
+    expect(best.items[0].brand).toBe('Maybelline T278');
+    // nổi bật: còn hàng & có ảnh trước, hàng không ảnh sau, hết hàng cuối
+    const featured = ids((await t.http().get(shop(`/products?categoryId=${cat.id}`))).body);
+    expect(featured).toEqual([hot.productId, calm.productId, noImg.productId, out.productId]);
+    // ready: chỉ hàng còn hàng có ảnh; exclude: bỏ hàng đang xem
+    expect(ids((await t.http().get(shop(`/products?categoryId=${cat.id}&ready=1&sort=best`))).body)).toEqual([hot.productId, calm.productId]);
+    expect(ids((await t.http().get(shop(`/products?categoryId=${cat.id}&ready=1&exclude=${hot.productId}`))).body)).toEqual([calm.productId]);
+    expect((await t.http().get(shop('/products?ready=yes'))).status).toBe(400);
+    // danh mục có ảnh đại diện = hàng bán chạy còn hàng có ảnh
+    const menu = (await t.http().get(shop('/config'))).body.categories as Array<{ id: string; imageUrl: string | null }>;
+    expect(menu.find((c) => c.id === cat.id)?.imageUrl).toBe(img(1));
+  });
 });

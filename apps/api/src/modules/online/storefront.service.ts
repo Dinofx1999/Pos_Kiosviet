@@ -87,8 +87,19 @@ export class StorefrontService {
     return Array.from(new Set(cfg.hiddenCategoryIds.flatMap((id) => t.subtree(id))));
   }
 
-  /** Danh mục cấp 1 có hàng trên web (đếm cả danh mục con), kèm danh mục con có hàng. */
+  /** Danh mục cấp 1 có hàng trên web (đếm cả danh mục con), kèm danh mục con có hàng; ảnh đại diện = hàng bán chạy còn hàng có ảnh. Đệm 5 phút. */
+  private readonly menuCache = new Map<string, { at: number; value: unknown }>();
   private async categoryMenu(s: Store) {
+    const key = JSON.stringify([s.tenantId, s.cfg]);
+    const hit = this.menuCache.get(key);
+    if (hit && Date.now() - hit.at < 300_000 && process.env.NODE_ENV !== 'test') return hit.value as Awaited<ReturnType<StorefrontService['categoryMenuUncached']>>;
+    const value = await this.categoryMenuUncached(s);
+    if (this.menuCache.size > 20) this.menuCache.clear();
+    this.menuCache.set(key, { at: Date.now(), value });
+    return value;
+  }
+
+  private async categoryMenuUncached(s: Store) {
     const tree = await this.categoryTree();
     const hidden = await this.hiddenCategories(s.cfg, tree);
     const rows = await this.prisma.raw.$queryRaw<Array<{ category_id: string | null; n: number }>>`SELECT p.category_id, COUNT(*)::int AS n FROM products p WHERE ${this.visibleSql(s, hidden)} GROUP BY p.category_id`;
@@ -96,9 +107,26 @@ export class StorefrontService {
     const hiddenSet = new Set(hidden);
     const count = (id: string) => tree.subtree(id).filter((x) => !hiddenSet.has(x)).reduce((sum, x) => sum + (direct.get(x) ?? 0), 0);
     const byOrder = (a: { sortOrder: number; name: string }, b: { sortOrder: number; name: string }) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'vi');
+    // ảnh đại diện: hàng có ảnh, ưu tiên còn hàng rồi bán chạy 90 ngày, theo từng danh mục (kể cả danh mục con)
+    const warehouseIds = await this.stockWarehouses(this.prisma.db, s.cfg);
+    const pics = await this.prisma.raw.$queryRaw<Array<{ category_id: string; image: string; sellable: boolean; sold: Prisma.Decimal | null }>>`
+      WITH vis AS (SELECT p.id, p.category_id, p.type, COALESCE(NULLIF(p.image_url, ''), (SELECT pi.url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.sort_order LIMIT 1)) AS image FROM products p WHERE ${this.visibleSql(s, hidden)} AND p.category_id IS NOT NULL),
+      st AS (SELECT pv.product_id, SUM(GREATEST(sb.on_hand - sb.reserved, 0)) AS avail FROM stock_balances sb JOIN product_variants pv ON pv.id = sb.variant_id JOIN vis ON vis.id = pv.product_id
+             WHERE sb.tenant_id = ${s.tenantId}::uuid AND sb.warehouse_id = ANY(${warehouseIds}::uuid[]) GROUP BY pv.product_id)
+      SELECT vis.category_id, vis.image, (vis.type = 'COMBO' OR COALESCE(st.avail, 0) > 0) AS sellable, sold.q AS sold
+      FROM vis LEFT JOIN st ON st.product_id = vis.id LEFT JOIN (${this.soldSql(s)}) sold ON sold.product_id = vis.id
+      WHERE vis.image IS NOT NULL`;
+    pics.sort((a, b) => Number(b.sellable) - Number(a.sellable) || Number(D(b.sold ?? 0).minus(D(a.sold ?? 0))));
+    const imageOf = (id: string) => { const ids = new Set(tree.subtree(id).filter((x) => !hiddenSet.has(x))); return pics.find((p) => ids.has(p.category_id))?.image ?? null; };
     return (tree.children.get(null) ?? []).filter((c) => !hiddenSet.has(c.id) && c.isActive).sort(byOrder)
-      .map((c) => ({ id: c.id, name: c.name, count: count(c.id), children: (tree.children.get(c.id) ?? []).filter((ch) => !hiddenSet.has(ch.id) && ch.isActive).sort(byOrder).map((ch) => ({ id: ch.id, name: ch.name, count: count(ch.id) })).filter((ch) => ch.count > 0) }))
+      .map((c) => ({ id: c.id, name: c.name, count: count(c.id), imageUrl: imageOf(c.id), children: (tree.children.get(c.id) ?? []).filter((ch) => !hiddenSet.has(ch.id) && ch.isActive).sort(byOrder).map((ch) => ({ id: ch.id, name: ch.name, count: count(ch.id), imageUrl: imageOf(ch.id) })).filter((ch) => ch.count > 0) }))
       .filter((c) => c.count > 0);
+  }
+
+  /** Số lượng đã bán 90 ngày gần nhất theo hàng hóa (hóa đơn hoàn thành) – dùng cho "Bán chạy" / "Nổi bật". */
+  private soldSql(s: Store) {
+    return Prisma.sql`SELECT pv.product_id, SUM(il.base_quantity) AS q FROM invoice_lines il JOIN invoices i ON i.id = il.invoice_id JOIN product_variants pv ON pv.id = il.variant_id
+      WHERE i.tenant_id = ${s.tenantId}::uuid AND i.status = 'COMPLETED' AND i.invoice_date >= now() - interval '90 days' GROUP BY pv.product_id`;
   }
 
   /** Điều kiện hàng được hiện trên web (alias p = products). */
@@ -187,7 +215,7 @@ export class StorefrontService {
   private static readonly LIST_TTL_MS = 30_000;
 
   async products(s: Store, q: ShopProductsQueryDto) {
-    const key = JSON.stringify([s.tenantId, q.search ?? '', q.categoryId ?? '', q.sort ?? '', q.page ?? 1, q.pageSize ?? 24, s.cfg]);
+    const key = JSON.stringify([s.tenantId, q.search ?? '', q.categoryId ?? '', q.sort ?? '', q.page ?? 1, q.pageSize ?? 24, q.ready ?? '', q.exclude ?? '', s.cfg]);
     const hit = this.listCache.get(key);
     if (hit && Date.now() - hit.at < StorefrontService.LIST_TTL_MS && process.env.NODE_ENV !== 'test') return hit.value as Awaited<ReturnType<StorefrontService['productsUncached']>>;
     const value = await this.productsUncached(s, q);
@@ -205,27 +233,35 @@ export class StorefrontService {
     const warehouseIds = await this.stockWarehouses(this.prisma.db, cfg);
     const conds: Prisma.Sql[] = [this.visibleSql(s, hidden)];
     if (q.categoryId) conds.push(Prisma.sql`p.category_id = ANY(${tree.subtree(q.categoryId)}::uuid[])`);
+    if (q.exclude) conds.push(Prisma.sql`p.id <> ${q.exclude}::uuid`);
+    const ready = q.ready === '1' || q.ready === 'true';
     if (q.search) {
       const like = `%${q.search.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
       conds.push(Prisma.sql`(p.name ILIKE ${like} OR p.code ILIKE ${like} OR EXISTS (SELECT 1 FROM product_variants vs WHERE vs.product_id = p.id AND vs.deleted_at IS NULL AND (vs.sku ILIKE ${like} OR vs.name ILIKE ${like} OR vs.barcode = ${q.search})))`);
     }
     const sort = !cfg.showPrice && q.sort?.startsWith('price') ? 'featured' : q.sort ?? 'featured';
+    // "Nổi bật": còn hàng → có ảnh → bán chạy 90 ngày → mới nhất (hàng không ảnh / hết hàng xuống cuối)
     const order = {
-      featured: Prisma.sql`x.sellable DESC, x.created_at DESC, x.id`,
+      featured: Prisma.sql`x.sellable DESC, (x.image IS NOT NULL) DESC, x.sold DESC, x.created_at DESC, x.id`,
+      best: Prisma.sql`x.sold DESC, x.sellable DESC, (x.image IS NOT NULL) DESC, x.created_at DESC, x.id`,
       new: Prisma.sql`x.created_at DESC, x.id`,
       name: Prisma.sql`x.name ASC, x.id`,
       price_asc: Prisma.sql`x.min_price ASC, x.id`,
       price_desc: Prisma.sql`x.max_price DESC, x.id`,
-    }[sort] ?? Prisma.sql`x.sellable DESC, x.created_at DESC, x.id`;
-    const rows = await this.prisma.raw.$queryRaw<Array<{ id: string; code: string; name: string; type: string; image: string | null; min_price: Prisma.Decimal; max_price: Prisma.Decimal; n: number; avail: Prisma.Decimal; sellable: boolean; total: number }>>`
-      WITH vis AS (SELECT p.id, p.code, p.name, p.type, p.image_url, p.created_at FROM products p WHERE ${Prisma.join(conds, ' AND ')}),
+    }[sort] ?? Prisma.sql`x.sellable DESC, (x.image IS NOT NULL) DESC, x.sold DESC, x.created_at DESC, x.id`;
+    const where = [cfg.hideOutOfStock || ready ? Prisma.sql`x.sellable` : Prisma.sql`TRUE`, ready ? Prisma.sql`x.image IS NOT NULL` : Prisma.sql`TRUE`];
+    const rows = await this.prisma.raw.$queryRaw<Array<{ id: string; code: string; name: string; type: string; image: string | null; brand: string | null; min_price: Prisma.Decimal; max_price: Prisma.Decimal; n: number; avail: Prisma.Decimal; sellable: boolean; total: number }>>`
+      WITH vis AS (SELECT p.id, p.code, p.name, p.type, p.created_at, p.brand_id,
+                     COALESCE(NULLIF(p.image_url, ''), (SELECT pi.url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.sort_order LIMIT 1)) AS image
+                   FROM products p WHERE ${Prisma.join(conds, ' AND ')}),
       v AS (SELECT pv.product_id, MIN(pv.sell_price) AS min_price, MAX(pv.sell_price) AS max_price, COUNT(*)::int AS n FROM product_variants pv JOIN vis ON vis.id = pv.product_id WHERE pv.deleted_at IS NULL AND pv.is_active GROUP BY pv.product_id),
       s AS (SELECT pv.product_id, SUM(GREATEST(sb.on_hand - sb.reserved, 0)) AS avail FROM stock_balances sb JOIN product_variants pv ON pv.id = sb.variant_id JOIN vis ON vis.id = pv.product_id
             WHERE sb.tenant_id = ${s.tenantId}::uuid AND sb.warehouse_id = ANY(${warehouseIds}::uuid[]) AND pv.deleted_at IS NULL AND pv.is_active GROUP BY pv.product_id),
-      x AS (SELECT vis.*, v.min_price, v.max_price, v.n, COALESCE(s.avail, 0) AS avail, (vis.type = 'COMBO' OR COALESCE(s.avail, 0) > 0) AS sellable FROM vis JOIN v ON v.product_id = vis.id LEFT JOIN s ON s.product_id = vis.id)
-      SELECT x.id, x.code, x.name, x.type::text AS type, x.min_price, x.max_price, x.n, x.avail, x.sellable, COUNT(*) OVER()::int AS total,
-        COALESCE(NULLIF(x.image_url, ''), (SELECT pi.url FROM product_images pi WHERE pi.product_id = x.id ORDER BY pi.sort_order LIMIT 1)) AS image
-      FROM x WHERE ${cfg.hideOutOfStock ? Prisma.sql`x.sellable` : Prisma.sql`TRUE`}
+      sold AS (${this.soldSql(s)}),
+      x AS (SELECT vis.*, v.min_price, v.max_price, v.n, COALESCE(s.avail, 0) AS avail, (vis.type = 'COMBO' OR COALESCE(s.avail, 0) > 0) AS sellable, COALESCE(sold.q, 0) AS sold
+            FROM vis JOIN v ON v.product_id = vis.id LEFT JOIN s ON s.product_id = vis.id LEFT JOIN sold ON sold.product_id = vis.id)
+      SELECT x.id, x.code, x.name, x.type::text AS type, x.min_price, x.max_price, x.n, x.avail, x.sellable, x.image, b.name AS brand, COUNT(*) OVER()::int AS total
+      FROM x LEFT JOIN brands b ON b.id = x.brand_id WHERE ${Prisma.join(where, ' AND ')}
       ORDER BY ${order} LIMIT ${size} OFFSET ${(page - 1) * size}`;
     const total = rows[0]?.total ?? 0;
     if (!rows.length) return { items: [], total, page, pageSize: size };
@@ -242,7 +278,7 @@ export class StorefrontService {
       const fl = own.map((v) => flash.get(v.id)).filter((x): x is FlashItem => !!x).sort((a, b) => Number(D(a.salePrice).minus(D(b.salePrice))))[0];
       const avail = r.type === 'COMBO' ? Math.max(0, ...own.map((v) => comboAvail.get(v.id) ?? 0)) : Math.floor(Number(r.avail));
       return {
-        id: r.id, code: r.code, name: r.name, type: r.type, imageUrl: r.image, variantCount: r.n,
+        id: r.id, code: r.code, name: r.name, type: r.type, imageUrl: r.image, brand: r.brand, variantCount: r.n,
         price: cfg.showPrice ? num(r.min_price) : null, priceMax: cfg.showPrice ? num(r.max_price) : null,
         inStock: avail > 0, available: cfg.showStock ? Math.min(avail, STOCK_CAP) : null,
         flash: fl ? this.flashInfo(fl, regular.get(fl.variantId) ?? ZERO, cfg) : null,

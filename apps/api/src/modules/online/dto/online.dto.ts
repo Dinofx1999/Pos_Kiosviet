@@ -55,7 +55,9 @@ export class FlashSaleQueryDto {
 export class ShopProductsQueryDto {
   @ApiPropertyOptional() @IsOptional() @TrimToUndefined() @IsString() @MaxLength(100) search?: string;
   @ApiPropertyOptional() @IsOptional() @IsUUID() categoryId?: string;
-  @ApiPropertyOptional({ enum: ['featured', 'new', 'name', 'price_asc', 'price_desc'] }) @IsOptional() @IsIn(['featured', 'new', 'name', 'price_asc', 'price_desc']) sort?: string;
+  @ApiPropertyOptional({ enum: ['featured', 'best', 'new', 'name', 'price_asc', 'price_desc'] }) @IsOptional() @IsIn(['featured', 'best', 'new', 'name', 'price_asc', 'price_desc']) sort?: string;
+  @ApiPropertyOptional({ description: '1 = chỉ hàng còn hàng và có ảnh (dải "Bán chạy", "Hàng mới về" ở trang chủ)' }) @IsOptional() @IsIn(['0', '1', 'true', 'false']) ready?: string;
+  @ApiPropertyOptional({ description: 'Bỏ một hàng khỏi danh sách (hàng đang xem ở trang chi tiết)' }) @IsOptional() @IsUUID() exclude?: string;
   @ApiPropertyOptional({ default: 1 }) @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(1000) page?: number;
   @ApiPropertyOptional({ default: 24 }) @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(60) pageSize?: number;
 }
