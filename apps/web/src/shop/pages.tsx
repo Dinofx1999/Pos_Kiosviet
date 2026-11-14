@@ -25,10 +25,15 @@ export function HomePage() {
   const search = sp.get('q') ?? '';
   const categoryId = sp.get('c') ?? '';
   const sort = sp.get('s') ?? 'featured';
-  const found = categoryId ? findCat(cfg.categories, categoryId) : null;
-  useTitle(search ? `Tìm "${search}" – ${cfg.shopName}` : found ? `${catName(found.cat.name)} – ${cfg.shopName}` : cfg.shopName);
+  const combo = sp.get('combo') === '1' && !search;
+  const comboGroups = cfg.combos?.groups ?? [];
+  const comboGroup = combo && categoryId ? comboGroups.find((g) => g.id === categoryId) : undefined;
+  const found = categoryId && !combo ? findCat(cfg.categories, categoryId) : null;
+  useTitle(search ? `Tìm "${search}" – ${cfg.shopName}` : combo ? `Combo${comboGroup ? ` ${catName(comboGroup.name)}` : ''} – ${cfg.shopName}` : found ? `${catName(found.cat.name)} – ${cfg.shopName}` : cfg.shopName);
   const setParam = (k: string, v: string) => { const n = new URLSearchParams(sp); if (v) n.set(k, v); else n.delete(k); setSp(n, { replace: k === 's' }); };
-  const filtering = !!search || !!categoryId;
+  const filtering = !!search || !!categoryId || combo;
+  /** mục Combo: chip theo nhóm combo, giữ combo=1 */
+  const pickComboGroup = (id: string) => { const n = new URLSearchParams({ combo: '1' }); if (id) n.set('c', id); setSp(n); window.scrollTo({ top: 0 }); };
   const cats = cfg.categories ?? [];
   const pickCat = (id: string) => { const n = new URLSearchParams(); if (id) n.set('c', id); setSp(n); window.scrollTo({ top: 0 }); };
   const showAll = (s: string) => { setParam('s', s); scrollToAll(); };
@@ -42,8 +47,9 @@ export function HomePage() {
         <>
           <Hero />
           {cfg.flashSaleEnabled && <FlashStrip />}
+          {(cfg.combos?.count ?? 0) > 0 && <Rail title="Combo ưu đãi" icon={Icon.bag(16)} query={{ type: 'combo' }} moreTo="/?combo=1" />}
           <TrustRow />
-          {cats.length > 0 && <CategoryTiles cats={cats} onPick={pickCat} />}
+          {cats.length > 0 && <CategoryTiles cats={cats} onPick={pickCat} onCombo={(cfg.combos?.count ?? 0) > 0 ? () => pickComboGroup('') : undefined} />}
           <Rail title="Bán chạy" icon={Icon.sparkle(16)} query={{ sort: 'best', ready: 1 }} onMore={() => showAll('best')} />
           <Rail title="Hàng mới về" query={{ sort: 'new', ready: 1 }} onMore={() => showAll('new')} />
         </>
@@ -51,6 +57,11 @@ export function HomePage() {
       <section className="sh-sec sh-all" id="all">
         {search ? (
           <div className="sh-listhead"><div className="crumb"><Link to="/">Trang chủ</Link>{Icon.chev(14)}<span>Tìm kiếm</span></div><h1>Kết quả cho “{search}”</h1></div>
+        ) : combo ? (
+          <div className="sh-listhead">
+            <div className="crumb"><Link to="/">Trang chủ</Link>{Icon.chev(14)}{comboGroup ? <><button onClick={() => pickComboGroup('')}>Combo</button>{Icon.chev(14)}<span>{catName(comboGroup.name)}</span></> : <span>Combo</span>}</div>
+            <h1>{comboGroup ? catName(comboGroup.name) : 'Combo ưu đãi'}</h1>
+          </div>
         ) : found ? (
           <div className="sh-listhead">
             <div className="crumb"><Link to="/">Trang chủ</Link>{Icon.chev(14)}{found.parent && <><button onClick={() => pickCat(found.parent!.id)}>{catName(found.parent.name)}</button>{Icon.chev(14)}</>}<span>{catName(found.cat.name)}</span></div>
@@ -59,13 +70,19 @@ export function HomePage() {
         ) : (
           <div className="sh-sec-head"><h2>Tất cả sản phẩm</h2></div>
         )}
-        {!search && chips.length > 0 && (
+        {combo && comboGroups.length > 1 && (
+          <div className="sh-chips" role="tablist">
+            <button className={!categoryId ? 'on' : ''} onClick={() => pickComboGroup('')}>Tất cả</button>
+            {comboGroups.map((g) => <button key={g.id} className={categoryId === g.id ? 'on' : ''} onClick={() => pickComboGroup(g.id)}>{catName(g.name)}</button>)}
+          </div>
+        )}
+        {!search && !combo && chips.length > 0 && (
           <div className="sh-chips" role="tablist">
             <button className={!categoryId || (group && categoryId === group.id) ? 'on' : ''} onClick={() => pickCat(group?.id ?? '')}>Tất cả</button>
             {chips.map((c) => <button key={c.id} className={categoryId === c.id ? 'on' : ''} onClick={() => pickCat(c.id)}>{catName(c.name)}</button>)}
           </div>
         )}
-        <ProductFeed key={`${search}|${categoryId}|${sort}`} search={search} categoryId={categoryId} sort={sort} onSort={(v) => setParam('s', v === 'featured' ? '' : v)} />
+        <ProductFeed key={`${search}|${categoryId}|${sort}|${combo}`} search={search} categoryId={categoryId} sort={sort} combo={combo} onSort={(v) => setParam('s', v === 'featured' ? '' : v)} />
       </section>
     </div>
   );
@@ -108,11 +125,12 @@ function TrustRow() {
   return <div className="sh-trust">{items.map((x) => <div key={x.t} className="it"><span className="ic">{x.icon}</span><span><b>{x.t}</b><small>{x.s}</small></span></div>)}</div>;
 }
 
-function CategoryTiles({ cats, onPick }: { cats: Category[]; onPick: (id: string) => void }) {
+function CategoryTiles({ cats, onPick, onCombo }: { cats: Category[]; onPick: (id: string) => void; onCombo?: () => void }) {
   return (
     <section className="sh-sec">
       <div className="sh-sec-head"><h2>Danh mục</h2></div>
-      <div className={`sh-cats ${cats.length <= 8 ? 'few' : ''}`}>
+      <div className={`sh-cats ${cats.length + (onCombo ? 1 : 0) <= 8 ? 'few' : ''}`}>
+        {onCombo && <button className="sh-cat combo" onClick={onCombo}><span className="ic">{Icon.bag(30)}</span><span className="nm">Combo</span></button>}
         {cats.map((c) => (
           <button key={c.id} className={`sh-cat ${c.ownImage ? 'own' : ''}`} onClick={() => onPick(c.id)}>
             <span className="ic"><Img src={c.imageUrl} alt="" /></span>
@@ -125,7 +143,7 @@ function CategoryTiles({ cats, onPick }: { cats: Category[]; onPick: (id: string
 }
 
 /** Dải hàng cuộn ngang (Bán chạy, Hàng mới về, Cùng danh mục). */
-function Rail({ title, icon, query, onMore, moreTo }: { title: string; icon?: ReactNode; query: { sort?: string; ready?: 1; categoryId?: string; exclude?: string }; onMore?: () => void; moreTo?: string }) {
+function Rail({ title, icon, query, onMore, moreTo }: { title: string; icon?: ReactNode; query: { sort?: string; ready?: 1; categoryId?: string; exclude?: string; type?: 'combo' }; onMore?: () => void; moreTo?: string }) {
   const key = `rail:${JSON.stringify(query)}`;
   const { data, loading } = useAsync<ProductList>(key, () => shopApi.products({ ...query, pageSize: 12 }));
   if (!loading && !data?.items.length) return null;
@@ -145,7 +163,7 @@ function Rail({ title, icon, query, onMore, moreTo }: { title: string; icon?: Re
 
 const SkCard = () => <div className="sh-card sk"><div className="img" /><div className="body"><div className="l1" /><div className="l2" /></div></div>;
 
-function ProductFeed({ search, categoryId, sort, onSort }: { search: string; categoryId: string; sort: string; onSort: (v: string) => void }) {
+function ProductFeed({ search, categoryId, sort, combo, onSort }: { search: string; categoryId: string; sort: string; combo?: boolean; onSort: (v: string) => void }) {
   const { cfg } = useShop();
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<ProductCard[]>([]);
@@ -155,11 +173,11 @@ function ProductFeed({ search, categoryId, sort, onSort }: { search: string; cat
   useEffect(() => {
     let alive = true;
     setLoading(true); setErr(null);
-    shopApi.products({ search: search || undefined, categoryId: categoryId || undefined, sort, page, pageSize: 24 })
+    shopApi.products({ search: search || undefined, categoryId: categoryId || undefined, sort, page, pageSize: 24, type: combo ? 'combo' : undefined })
       .then((r) => { if (!alive) return; setItems((cur) => (page === 1 ? r.items : [...cur, ...r.items.filter((x) => !cur.some((c) => c.id === x.id))])); setTotal(r.total); })
       .catch((e: ShopError) => alive && setErr(e.message)).finally(() => alive && setLoading(false));
     return () => { alive = false; };
-  }, [page, search, categoryId, sort]);
+  }, [page, search, categoryId, sort, combo]);
   const bar = (
     <div className="sh-listbar">
       <span className="cnt">{total !== null ? `${total.toLocaleString('vi-VN')} sản phẩm` : ' '}</span>
@@ -190,6 +208,9 @@ function ProductFeed({ search, categoryId, sort, onSort }: { search: string; cat
   );
 }
 
+/** % khách tiết kiệm khi mua combo so với mua lẻ (≥ 1%). */
+const savePct = (p: ProductCard) => (p.retailPrice && p.price !== null && p.retailPrice > p.price ? Math.max(1, Math.round(((p.retailPrice - p.price) / p.retailPrice) * 100)) : 0);
+
 function ProductTile({ p }: { p: ProductCard }) {
   const { cfg } = useShop();
   const nav = useNavigate();
@@ -204,7 +225,8 @@ function ProductTile({ p }: { p: ProductCard }) {
     <Link to={`/p/${p.id}`} className={`sh-card ${p.inStock ? '' : 'oos'}`}>
       <div className="img">
         <Img src={p.imageUrl} alt={p.name} />
-        {p.flash && <span className="sh-badge flash">{Icon.bolt(11)} -{p.flash.discountPercent}%</span>}
+        {p.flash ? <span className="sh-badge flash">{Icon.bolt(11)} -{p.flash.discountPercent}%</span>
+          : p.type === 'COMBO' && <span className="sh-badge combo">Combo{savePct(p) ? ` -${savePct(p)}%` : ''}</span>}
         {!p.inStock && <span className="sh-oos">Hết hàng</span>}
         {cfg.showStock && p.inStock && p.available !== null && p.available <= 10 && <span className="sh-left">Còn {p.available}</span>}
         {p.variantCount > 1 && <span className="sh-vc">{p.variantCount} loại</span>}

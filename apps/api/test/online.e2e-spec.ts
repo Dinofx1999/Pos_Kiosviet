@@ -378,4 +378,36 @@ describe('Bán online: web bán hàng & Flash Sale – T-270..T-279', () => {
     expect(normalizeShopConfig({ showPrice: true }).showFlashPrice).toBe(true);
     expect(normalizeShopConfig({ showPrice: false, showFlashPrice: true }).showFlashPrice).toBe(true);
   });
+
+  it('T-283 combo trên web: config.combos theo nhóm, lọc type=combo, giá lẻ cộng lại, ảnh món, trang chi tiết; ẩn giá thì không lộ giá lẻ', async () => {
+    await settings({ enabled: true, showPrice: true, hideOutOfStock: false, onlyWithImage: false });
+    const before = (await t.http().get(shop('/config'))).body.combos.count as number;
+    const grp = (await t.http().post(`${api}/categories`).set(s.auth).send({ name: 'Combo Makeup mùa hè' })).body;
+    const lip = await stocked('4', '120000', { name: 'Son combo T283', images: [{ url: 'https://cdn.example.com/son-t283.jpg' }] });
+    const powder = await stocked('0', '80000', { name: 'Phấn combo T283' });
+    const combo = await t.http().post(`${api}/products`).set(s.auth).send({ name: 'Combo Makeup mùa hè T283', type: 'COMBO', categoryId: grp.id, variants: [{ sellPrice: '170000' }], comboItems: [{ componentVariantId: lip.variantId, quantity: '1' }, { componentVariantId: powder.variantId, quantity: '1' }] });
+    expect(combo.status).toBe(201);
+
+    const cfg = (await t.http().get(shop('/config'))).body;
+    expect(cfg.combos.count).toBe(before + 1);
+    expect(cfg.combos.groups).toContainEqual({ id: grp.id, name: 'Combo Makeup mùa hè', count: 1 });
+    const list = await t.http().get(shop('/products')).query({ type: 'combo' });
+    expect(list.status).toBe(200);
+    expect(list.body.items.every((x: any) => x.type === 'COMBO')).toBe(true);
+    const item = list.body.items.find((x: any) => x.id === combo.body.id);
+    expect(item).toMatchObject({ price: 170000, retailPrice: 200000, inStock: false, imageUrl: 'https://cdn.example.com/son-t283.jpg' }); // phấn hết hàng → combo hết; chưa có ảnh → ảnh món
+    expect((await t.http().get(shop('/products')).query({ type: 'combo', categoryId: grp.id })).body.total).toBe(1);
+    expect((await t.http().get(shop('/products')).query({ type: 'goods' })).status).toBe(400);
+    const detail = await t.http().get(shop(`/products/${combo.body.id}`));
+    expect(detail.body.combo.retailPrice).toBe(200000);
+    expect(detail.body.combo.items.map((x: any) => x.name).sort()).toEqual(['Phấn combo T283', 'Son combo T283']);
+    expect(detail.body.images).toContain('https://cdn.example.com/son-t283.jpg');
+
+    await settings({ showPrice: false });
+    const hidden = (await t.http().get(shop('/products')).query({ type: 'combo' })).body.items.find((x: any) => x.id === combo.body.id);
+    expect(hidden.price).toBeNull();
+    expect(hidden.retailPrice).toBeNull();
+    expect((await t.http().get(shop(`/products/${combo.body.id}`))).body.combo.retailPrice).toBeNull();
+    await settings({ showPrice: true });
+  });
 });

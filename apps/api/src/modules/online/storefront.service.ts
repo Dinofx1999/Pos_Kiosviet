@@ -100,7 +100,18 @@ export class StorefrontService {
     return {
       ...base, showPrice: cfg.showPrice, showFlashPrice: cfg.showFlashPrice, flashSaleEnabled: cfg.flashSaleEnabled, allowOrder: cfg.allowOrder, showStock: cfg.showStock,
       categories: await this.categoryMenu(s),
+      combos: await this.comboGroups(s),
     };
+  }
+
+  /** Combo đang hiện trên web: tổng số + theo nhóm hàng (mục Combo, khối "Combo ưu đãi" ở trang chủ). */
+  private async comboGroups(s: Store) {
+    const hidden = await this.hiddenCategories(s.cfg);
+    const rows = await this.prisma.raw.$queryRaw<Array<{ id: string | null; name: string | null; n: number }>>`
+      SELECT p.category_id AS id, c.name, COUNT(*)::int AS n FROM products p LEFT JOIN product_categories c ON c.id = p.category_id
+      WHERE ${this.visibleSql(s, hidden)} AND p.type = 'COMBO' GROUP BY p.category_id, c.name ORDER BY c.name NULLS LAST`;
+    const label = (id: string, name: string) => s.cfg.webCategories.find((w) => w.id === id)?.name || name;
+    return { count: rows.reduce((t, r) => t + r.n, 0), groups: rows.filter((r) => r.id && r.name).map((r) => ({ id: r.id!, name: label(r.id!, r.name!), count: r.n })) };
   }
 
   // ---------------------------------------------------------------- danh mục
@@ -271,7 +282,7 @@ export class StorefrontService {
   private static readonly LIST_TTL_MS = 30_000;
 
   async products(s: Store, q: ShopProductsQueryDto) {
-    const key = JSON.stringify([s.tenantId, q.search ?? '', q.categoryId ?? '', q.sort ?? '', q.page ?? 1, q.pageSize ?? 24, q.ready ?? '', q.exclude ?? '', s.cfg]);
+    const key = JSON.stringify([s.tenantId, q.search ?? '', q.categoryId ?? '', q.sort ?? '', q.page ?? 1, q.pageSize ?? 24, q.ready ?? '', q.exclude ?? '', q.type ?? '', s.cfg]);
     const hit = this.listCache.get(key);
     if (hit && Date.now() - hit.at < StorefrontService.LIST_TTL_MS && process.env.NODE_ENV !== 'test') return hit.value as Awaited<ReturnType<StorefrontService['productsUncached']>>;
     const value = await this.productsUncached(s, q);
@@ -309,6 +320,7 @@ export class StorefrontService {
     const conds: Prisma.Sql[] = [this.visibleSql(s, hidden)];
     if (q.categoryId) conds.push(Prisma.sql`p.category_id = ANY(${tree.subtree(q.categoryId)}::uuid[])`);
     if (q.exclude) conds.push(Prisma.sql`p.id <> ${q.exclude}::uuid`);
+    if (q.type === 'combo') conds.push(Prisma.sql`p.type = 'COMBO'`);
     const ready = q.ready === '1' || q.ready === 'true';
     if (q.search) {
       // tìm không dấu, theo đầu từ, hiểu chữ viết tắt (KCN = kem chống nắng…) trên tên, mã, thương hiệu, mã / tên / mã vạch phân loại
@@ -349,6 +361,9 @@ export class StorefrontService {
     const comboAvail = comboRows.length
       ? await this.availability(this.prisma.db, warehouseIds, variants.filter((v) => comboRows.some((r) => r.id === v.productId)).map((v) => ({ id: v.id, productId: v.productId, type: 'COMBO' })))
       : new Map<string, number>();
+    // combo: tổng giá lẻ các món (web hiện % tiết kiệm), chỉ khi đang hiện giá
+    const comboParts = comboRows.length && cfg.showPrice ? await this.prisma.db.comboItem.findMany({ where: { comboProductId: { in: comboRows.map((r) => r.id) } }, select: { comboProductId: true, quantity: true, componentVariant: { select: { sellPrice: true } } } }) : [];
+    const retailOf = (id: string) => num(comboParts.filter((c) => c.comboProductId === id).reduce((t, c) => t.plus(D(c.componentVariant.sellPrice).times(D(c.quantity))), D(0)));
     const items = rows.map((r) => {
       const own = variants.filter((v) => v.productId === r.id);
       const fl = own.map((v) => flash.get(v.id)).filter((x): x is FlashItem => !!x).sort((a, b) => Number(D(a.salePrice).minus(D(b.salePrice))))[0];
@@ -360,6 +375,7 @@ export class StorefrontService {
         flash: fl ? this.flashInfo(fl, regular.get(fl.variantId) ?? ZERO, cfg) : null,
         // hàng không có phiên bản: web thêm thẳng vào giỏ từ danh sách
         variantId: own.length === 1 ? own[0].id : null, maxQuantity: Math.min(Math.max(avail, 0), 999),
+        retailPrice: r.type === 'COMBO' && cfg.showPrice ? retailOf(r.id) : null,
       };
     });
     return { items, total, page, pageSize: size };

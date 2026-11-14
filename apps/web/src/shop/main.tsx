@@ -42,6 +42,8 @@ function Header() {
   const tel = telLink(cfg.hotline);
   const topCats = (cfg.categories ?? []).slice(0, 8);
   const curCat = sp.get('c');
+  const combo = sp.get('combo') === '1';
+  const comboCount = cfg.combos?.count ?? 0;
   return (
     <header className="sh-header">
       <div className="sh-header-in">
@@ -54,11 +56,12 @@ function Header() {
         {tel && <a className="sh-hotline" href={tel}>{Icon.phone(18)}<span><small>Hotline</small><b>{prettyPhone(cfg.hotline)}</b></span></a>}
         {cfg.allowOrder && <Link to="/gio-hang" className="sh-icon-btn cart" aria-label="Giỏ hàng">{Icon.cart()}{count > 0 && <span className="cnt">{count > 99 ? '99+' : count}</span>}</Link>}
       </div>
-      {topCats.length > 0 && (
+      {(topCats.length > 0 || comboCount > 0) && (
         <nav className="sh-catnav" aria-label="Danh mục">
           <div className="in">
-            <Link to="/" className={home && !curCat && !sp.get('q') ? 'on' : ''}>Trang chủ</Link>
-            {topCats.map((c) => <Link key={c.id} to={`/?c=${c.id}`} className={curCat === c.id ? 'on' : ''}>{catName(c.name)}</Link>)}
+            <Link to="/" className={home && !curCat && !combo && !sp.get('q') ? 'on' : ''}>Trang chủ</Link>
+            {comboCount > 0 && <Link to="/?combo=1" className={`combo ${combo ? 'on' : ''}`}>Combo</Link>}
+            {topCats.map((c) => <Link key={c.id} to={`/?c=${c.id}`} className={curCat === c.id && !combo ? 'on' : ''}>{catName(c.name)}</Link>)}
           </div>
         </nav>
       )}

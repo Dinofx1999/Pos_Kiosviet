@@ -33,9 +33,11 @@ export interface ShopConfig {
   store: string; enabled: boolean; shopName: string; hotline: string | null; zalo: string | null; facebook: string | null; address: string | null; intro: string | null;
   bannerUrl: string | null; logoUrl: string | null; themeColor: string; serverTime: string;
   showPrice?: boolean; showFlashPrice?: boolean; flashSaleEnabled?: boolean; allowOrder?: boolean; showStock?: boolean; categories?: Category[];
+  /** combo đang hiện trên web: tổng số + theo nhóm (mục Combo) */
+  combos?: { count: number; groups: { id: string; name: string; count: number }[] };
 }
 export interface FlashInfo { flashSaleId: string; name: string; endsAt: string; price: number | null; discountPercent: number; limit: number | null; sold: number; remaining: number | null; perOrderLimit: number | null }
-export interface ProductCard { id: string; code: string; name: string; type: string; imageUrl: string | null; brand?: string | null; variantCount: number; price: number | null; priceMax: number | null; inStock: boolean; available: number | null; flash: FlashInfo | null; /** biến thể duy nhất (hàng không có phiên bản) – cho nút thêm nhanh vào giỏ */ variantId?: string | null; maxQuantity?: number }
+export interface ProductCard { id: string; code: string; name: string; type: string; imageUrl: string | null; brand?: string | null; variantCount: number; price: number | null; priceMax: number | null; inStock: boolean; available: number | null; flash: FlashInfo | null; /** biến thể duy nhất (hàng không có phiên bản) – cho nút thêm nhanh vào giỏ */ variantId?: string | null; maxQuantity?: number ; /** combo: tổng giá lẻ các món (null khi ẩn giá / không phải combo) */ retailPrice?: number | null }
 export interface ProductList { items: ProductCard[]; total: number; page: number; pageSize: number }
 export interface Variant { id: string; sku: string; name: string; attributes: Record<string, string> | null; imageUrl: string | null; price: number | null; inStock: boolean; available: number | null; maxQuantity: number; flash: FlashInfo | null }
 export interface ProductDetail { id: string; code: string; name: string; type: string; description: string | null; unit: string | null; category: { id: string; name: string } | null; brand: string | null; images: string[]; attributeNames: string[]; variants: Variant[]; combo?: { items: { name: string; quantity: number; imageUrl: string | null }[]; retailPrice: number | null } | null }
@@ -51,7 +53,7 @@ export interface PlaceOrderInput { clientRef: string; name: string; phone: strin
 
 export const shopApi = {
   config: () => req<ShopConfig>('/config'),
-  products: (p: { search?: string; categoryId?: string; sort?: string; page?: number; pageSize?: number; ready?: 1; exclude?: string }) => {
+  products: (p: { search?: string; categoryId?: string; sort?: string; page?: number; pageSize?: number; ready?: 1; exclude?: string; type?: 'combo' }) => {
     const q = new URLSearchParams();
     for (const [k, v] of Object.entries(p)) if (v !== undefined && v !== '' && v !== null) q.set(k, String(v));
     return req<ProductList>(`/products?${q.toString()}`);
