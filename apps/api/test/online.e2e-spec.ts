@@ -414,6 +414,22 @@ describe('Bán online: web bán hàng & Flash Sale – T-270..T-279', () => {
     expect(detail.body.combo.items.map((x: any) => x.name).sort()).toEqual(['Phấn combo T283', 'Son combo T283']);
     expect(detail.body.images).toContain('https://cdn.example.com/son-t283.jpg');
 
+    // không cho bán âm: combo có món hết hàng → không đặt được; bật bán âm → combo đặt được (hàng thường hết hàng vẫn bị từ chối)
+    const comboVariant = combo.body.variants[0].id;
+    const blocked = await order([{ variantId: comboVariant, quantity: 1 }]);
+    expect(blocked.status).toBe(409);
+    expect(blocked.body.code).toBe('OUT_OF_STOCK');
+    await t.http().put(`${api}/settings`).set(s.auth).send({ settings: { 'inventory.allowNegativeStock': true } });
+    const open = (await t.http().get(shop('/products')).query({ type: 'combo' })).body.items.find((x: any) => x.id === combo.body.id);
+    expect(open).toMatchObject({ inStock: true, maxQuantity: 999 });
+    expect((await t.http().get(shop(`/products/${combo.body.id}`))).body.variants[0]).toMatchObject({ inStock: true, maxQuantity: 999 });
+    const ok = await order([{ variantId: comboVariant, quantity: 2 }]);
+    expect(ok.status).toBe(201);
+    expect(ok.body.lines[0]).toMatchObject({ quantity: 2, unitPrice: 170000 });
+    const goodsOut = await order([{ variantId: powder.variantId, quantity: 1 }]);
+    expect(goodsOut.status).toBe(409); // hàng thường vẫn theo tồn
+    await t.http().put(`${api}/settings`).set(s.auth).send({ settings: { 'inventory.allowNegativeStock': false } });
+
     await settings({ showPrice: false });
     const hidden = (await t.http().get(shop('/products')).query({ type: 'combo' })).body.items.find((x: any) => x.id === combo.body.id);
     expect(hidden.price).toBeNull();

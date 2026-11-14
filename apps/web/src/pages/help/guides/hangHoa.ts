@@ -44,7 +44,7 @@ export const HANG_HOA: Guide[] = [
       'Trên hóa đơn và giỏ hàng, combo là một dòng; bấm "Xem món" dưới tên để xem từng món và số lượng cần lấy. Trả hàng combo nhập lại đúng các món.',
       'Bảng giá: combo có giá trong bảng giá thì dùng giá đó; không có thì dùng giá combo (giá riêng hoặc tổng giá lẻ chung).',
       'Combo chỉ gồm hàng hóa thường (không gồm dịch vụ, combo khác hay hàng theo lô). Combo đã bán thì không xóa được, chỉ Ngừng bán.',
-      'Trên web bán hàng: khối "Combo ưu đãi" ở trang chủ, ô Combo đầu mục Danh mục (máy tính: mục Combo trên thanh danh mục) mở trang tất cả combo, lọc theo nhóm combo; thẻ combo có nhãn "Combo -x%", trang sản phẩm ghi "Combo gồm …" và số tiền tiết kiệm. Combo có món hết hàng thì hiện "Hết hàng", khách không đặt được.',
+      'Trên web bán hàng: khối "Combo ưu đãi" ở trang chủ, ô Combo đầu mục Danh mục (máy tính: mục Combo trên thanh danh mục) mở trang tất cả combo, lọc theo nhóm combo; thẻ combo có nhãn "Combo -x%", trang sản phẩm ghi "Combo gồm …" và số tiền tiết kiệm. Combo có món hết hàng: nếu cửa hàng bật "Cho phép bán âm" thì combo vẫn hiện còn hàng và khách đặt được (cửa hàng gọi xác nhận trước khi giao); nếu không bật thì hiện "Hết hàng".',
       'Bán online → Thiết lập → thẻ "Combo trên web": bật / tắt mục Combo trên web, đổi tiêu đề khối (mặc định "Combo ưu đãi"), tên ô (mặc định "Combo") và ảnh ô (mặc định hộp quà). Tắt thì combo vẫn bán như hàng thường trong nhóm của nó.',
     ],
     related: ['them-hang-hoa', 'ban-hang-pos', 'bang-gia', 'nhom-hang-thuong-hieu'],

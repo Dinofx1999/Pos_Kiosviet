@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { TENANT_SETTING_KEYS } from '@erp/shared';
 import { ClsService } from 'nestjs-cls';
 import { AppError, Errors } from '../../common/errors/app-error';
 import { D, money, ZERO } from '../../common/utils/decimal';
@@ -18,6 +19,8 @@ interface Store { tenantId: string; code: string; name: string; cfg: ShopConfig 
 
 const num = (v: Prisma.Decimal | number | string | null | undefined) => (v === null || v === undefined ? 0 : Number(D(v).toFixed(0)));
 const STOCK_CAP = 99;
+/** Combo khi cửa hàng cho phép bán âm: luôn đặt được trên web (tối đa mỗi dòng như hàng thường). */
+const OPEN_COMBO_QTY = 999;
 
 /** Chuẩn hóa số điện thoại VN về dạng 0xxxxxxxxx; null nếu không hợp lệ. */
 export function normalizePhone(raw: string | null | undefined): string | null {
@@ -228,9 +231,13 @@ export class StorefrontService {
     return rows.length ? rows.map((r) => r.id) : [(await this.destination(db, cfg)).warehouseId];
   }
 
-  /** Số lượng có thể bán trên web theo biến thể, cộng các kho tính tồn (hàng thường: tồn − đang giữ; combo: theo thành phần). */
+  /**
+   * Số lượng có thể bán trên web theo biến thể, cộng các kho tính tồn (hàng thường: tồn − đang giữ; combo: theo thành phần).
+   * Cửa hàng bật "cho phép bán âm" → combo luôn còn hàng trên web (món hết vẫn nhận đơn, cửa hàng gọi xác nhận); hàng thường vẫn theo tồn.
+   */
   private async availability(db: DbClient, warehouseIds: string[], variants: Array<{ id: string; productId: string; type: string }>) {
     const combos = variants.filter((v) => v.type === 'COMBO');
+    const openCombos = combos.length ? (await db.tenantSetting.findFirst({ where: { key: TENANT_SETTING_KEYS.ALLOW_NEGATIVE_STOCK }, select: { value: true } }))?.value === true : false;
     const comboItems = combos.length ? await db.comboItem.findMany({ where: { comboProductId: { in: combos.map((c) => c.productId) } } }) : [];
     const ids = Array.from(new Set([...variants.filter((v) => v.type === 'GOODS').map((v) => v.id), ...comboItems.map((c) => c.componentVariantId)]));
     const rows = ids.length ? await db.stockBalance.groupBy({ by: ['variantId'], where: { warehouseId: { in: warehouseIds }, variantId: { in: ids } }, _sum: { onHand: true, reserved: true } }) : [];
@@ -240,7 +247,8 @@ export class StorefrontService {
       if (v.type === 'GOODS') out.set(v.id, base.get(v.id) ?? 0);
       else if (v.type === 'COMBO') {
         const parts = comboItems.filter((c) => c.comboProductId === v.productId);
-        out.set(v.id, parts.length ? Math.min(...parts.map((c) => Math.floor((base.get(c.componentVariantId) ?? 0) / Math.max(Number(c.quantity), 0.001)))) : 0);
+        const n = parts.length ? Math.min(...parts.map((c) => Math.floor((base.get(c.componentVariantId) ?? 0) / Math.max(Number(c.quantity), 0.001)))) : 0;
+        out.set(v.id, openCombos && parts.length ? Math.max(n, OPEN_COMBO_QTY) : n);
       }
     }
     return out;
