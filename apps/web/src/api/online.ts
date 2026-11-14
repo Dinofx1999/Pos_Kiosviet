@@ -7,6 +7,8 @@ export interface ShopConfig {
   shopName: string | null; hotline: string | null; zalo: string | null; facebook: string | null; address: string | null; intro: string | null;
   bannerUrl: string | null; logoUrl: string | null; themeColor: string; branchId: string | null; warehouseId: string | null; stockWarehouseIds: string[]; hiddenCategoryIds: string[];
   webCategories: WebCategory[]; customCategoryOrder: boolean;
+  /** mục Combo trên web: ẩn / hiện, tiêu đề khối, tên ô, ảnh ô (null = mặc định) */
+  showCombos: boolean; comboTitle: string | null; comboLabel: string | null; comboImageUrl: string | null;
 }
 /** Danh mục cấp 1 trên web: ảnh và tên riêng (null = tự động); thứ tự trong danh sách dùng khi customCategoryOrder. */
 export interface WebCategory { id: string; imageUrl: string | null; name: string | null }

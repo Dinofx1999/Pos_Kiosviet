@@ -38,6 +38,14 @@ export interface ShopConfig {
   webCategories: WebCategory[];
   /** true = danh mục hiện theo thứ tự webCategories (danh mục không có trong danh sách xếp sau); false = tự động, nhiều hàng trước */
   customCategoryOrder: boolean;
+  /** Mục Combo trên web: khối ở trang chủ + ô đầu Danh mục + mục trên thanh danh mục (BR-189) */
+  showCombos: boolean;
+  /** Tiêu đề khối combo ở trang chủ / trang combo (null = "Combo ưu đãi") */
+  comboTitle: string | null;
+  /** Tên ô Combo trong Danh mục và thanh danh mục (null = "Combo") */
+  comboLabel: string | null;
+  /** Ảnh ô Combo (null = biểu tượng hộp quà) */
+  comboImageUrl: string | null;
 }
 
 export interface WebCategory { id: string; imageUrl: string | null; name: string | null }
@@ -66,6 +74,10 @@ export const SHOP_DEFAULTS: ShopConfig = {
   hiddenCategoryIds: [],
   webCategories: [],
   customCategoryOrder: false,
+  showCombos: true,
+  comboTitle: null,
+  comboLabel: null,
+  comboImageUrl: null,
 };
 
 /** Gộp giá trị đã lưu với mặc định, bỏ khóa lạ. */

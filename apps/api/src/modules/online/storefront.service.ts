@@ -100,7 +100,8 @@ export class StorefrontService {
     return {
       ...base, showPrice: cfg.showPrice, showFlashPrice: cfg.showFlashPrice, flashSaleEnabled: cfg.flashSaleEnabled, allowOrder: cfg.allowOrder, showStock: cfg.showStock,
       categories: await this.categoryMenu(s),
-      combos: await this.comboGroups(s),
+      // mục Combo: tắt thì không có khối / ô / mục Combo (combo vẫn bán như hàng thường trong danh mục, tìm kiếm)
+      combos: cfg.showCombos ? { ...(await this.comboGroups(s)), title: cfg.comboTitle || 'Combo ưu đãi', label: cfg.comboLabel || 'Combo', imageUrl: cfg.comboImageUrl } : null,
     };
   }
 

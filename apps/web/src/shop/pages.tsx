@@ -29,7 +29,9 @@ export function HomePage() {
   const comboGroups = cfg.combos?.groups ?? [];
   const comboGroup = combo && categoryId ? comboGroups.find((g) => g.id === categoryId) : undefined;
   const found = categoryId && !combo ? findCat(cfg.categories, categoryId) : null;
-  useTitle(search ? `Tìm "${search}" – ${cfg.shopName}` : combo ? `Combo${comboGroup ? ` ${catName(comboGroup.name)}` : ''} – ${cfg.shopName}` : found ? `${catName(found.cat.name)} – ${cfg.shopName}` : cfg.shopName);
+  const comboTitle = cfg.combos?.title || 'Combo ưu đãi';
+  const comboLabel = cfg.combos?.label || 'Combo';
+  useTitle(search ? `Tìm "${search}" – ${cfg.shopName}` : combo ? `${comboGroup ? catName(comboGroup.name) : comboTitle} – ${cfg.shopName}` : found ? `${catName(found.cat.name)} – ${cfg.shopName}` : cfg.shopName);
   const setParam = (k: string, v: string) => { const n = new URLSearchParams(sp); if (v) n.set(k, v); else n.delete(k); setSp(n, { replace: k === 's' }); };
   const filtering = !!search || !!categoryId || combo;
   /** mục Combo: chip theo nhóm combo, giữ combo=1 */
@@ -47,9 +49,9 @@ export function HomePage() {
         <>
           <Hero />
           {cfg.flashSaleEnabled && <FlashStrip />}
-          {(cfg.combos?.count ?? 0) > 0 && <Rail title="Combo ưu đãi" icon={Icon.bag(16)} query={{ type: 'combo' }} moreTo="/?combo=1" />}
+          {(cfg.combos?.count ?? 0) > 0 && <Rail title={comboTitle} icon={Icon.gift(17)} query={{ type: 'combo' }} moreTo="/?combo=1" />}
           <TrustRow />
-          {cats.length > 0 && <CategoryTiles cats={cats} onPick={pickCat} onCombo={(cfg.combos?.count ?? 0) > 0 ? () => pickComboGroup('') : undefined} />}
+          {cats.length > 0 && <CategoryTiles cats={cats} onPick={pickCat} combo={(cfg.combos?.count ?? 0) > 0 ? { label: comboLabel, imageUrl: cfg.combos!.imageUrl, onPick: () => pickComboGroup('') } : undefined} />}
           <Rail title="Bán chạy" icon={Icon.sparkle(16)} query={{ sort: 'best', ready: 1 }} onMore={() => showAll('best')} />
           <Rail title="Hàng mới về" query={{ sort: 'new', ready: 1 }} onMore={() => showAll('new')} />
         </>
@@ -59,8 +61,8 @@ export function HomePage() {
           <div className="sh-listhead"><div className="crumb"><Link to="/">Trang chủ</Link>{Icon.chev(14)}<span>Tìm kiếm</span></div><h1>Kết quả cho “{search}”</h1></div>
         ) : combo ? (
           <div className="sh-listhead">
-            <div className="crumb"><Link to="/">Trang chủ</Link>{Icon.chev(14)}{comboGroup ? <><button onClick={() => pickComboGroup('')}>Combo</button>{Icon.chev(14)}<span>{catName(comboGroup.name)}</span></> : <span>Combo</span>}</div>
-            <h1>{comboGroup ? catName(comboGroup.name) : 'Combo ưu đãi'}</h1>
+            <div className="crumb"><Link to="/">Trang chủ</Link>{Icon.chev(14)}{comboGroup ? <><button onClick={() => pickComboGroup('')}>{comboLabel}</button>{Icon.chev(14)}<span>{catName(comboGroup.name)}</span></> : <span>{comboLabel}</span>}</div>
+            <h1>{comboGroup ? catName(comboGroup.name) : comboTitle}</h1>
           </div>
         ) : found ? (
           <div className="sh-listhead">
@@ -125,12 +127,12 @@ function TrustRow() {
   return <div className="sh-trust">{items.map((x) => <div key={x.t} className="it"><span className="ic">{x.icon}</span><span><b>{x.t}</b><small>{x.s}</small></span></div>)}</div>;
 }
 
-function CategoryTiles({ cats, onPick, onCombo }: { cats: Category[]; onPick: (id: string) => void; onCombo?: () => void }) {
+function CategoryTiles({ cats, onPick, combo }: { cats: Category[]; onPick: (id: string) => void; combo?: { label: string; imageUrl: string | null; onPick: () => void } }) {
   return (
     <section className="sh-sec">
       <div className="sh-sec-head"><h2>Danh mục</h2></div>
-      <div className={`sh-cats ${cats.length + (onCombo ? 1 : 0) <= 8 ? 'few' : ''}`}>
-        {onCombo && <button className="sh-cat combo" onClick={onCombo}><span className="ic">{Icon.bag(30)}</span><span className="nm">Combo</span></button>}
+      <div className={`sh-cats ${cats.length + (combo ? 1 : 0) <= 8 ? 'few' : ''}`}>
+        {combo && <button className={`sh-cat combo ${combo.imageUrl ? 'own' : ''}`} onClick={combo.onPick}><span className="ic">{combo.imageUrl ? <Img src={combo.imageUrl} alt="" /> : Icon.gift(30)}</span><span className="nm">{combo.label}</span></button>}
         {cats.map((c) => (
           <button key={c.id} className={`sh-cat ${c.ownImage ? 'own' : ''}`} onClick={() => onPick(c.id)}>
             <span className="ic"><Img src={c.imageUrl} alt="" /></span>

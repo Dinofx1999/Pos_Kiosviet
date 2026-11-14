@@ -34,7 +34,7 @@ export interface ShopConfig {
   bannerUrl: string | null; logoUrl: string | null; themeColor: string; serverTime: string;
   showPrice?: boolean; showFlashPrice?: boolean; flashSaleEnabled?: boolean; allowOrder?: boolean; showStock?: boolean; categories?: Category[];
   /** combo đang hiện trên web: tổng số + theo nhóm (mục Combo) */
-  combos?: { count: number; groups: { id: string; name: string; count: number }[] };
+  combos?: { count: number; groups: { id: string; name: string; count: number }[]; title: string; label: string; imageUrl: string | null } | null;
 }
 export interface FlashInfo { flashSaleId: string; name: string; endsAt: string; price: number | null; discountPercent: number; limit: number | null; sold: number; remaining: number | null; perOrderLimit: number | null }
 export interface ProductCard { id: string; code: string; name: string; type: string; imageUrl: string | null; brand?: string | null; variantCount: number; price: number | null; priceMax: number | null; inStock: boolean; available: number | null; flash: FlashInfo | null; /** biến thể duy nhất (hàng không có phiên bản) – cho nút thêm nhanh vào giỏ */ variantId?: string | null; maxQuantity?: number ; /** combo: tổng giá lẻ các món (null khi ẩn giá / không phải combo) */ retailPrice?: number | null }

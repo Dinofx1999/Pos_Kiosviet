@@ -36,6 +36,10 @@ export class UpdateShopConfigDto {
   @ApiPropertyOptional({ type: [String] }) @IsOptional() @IsArray() @ArrayMaxSize(500) @IsUUID('all', { each: true }) hiddenCategoryIds?: string[];
   @ApiPropertyOptional({ type: [WebCategoryDto], description: 'Thứ tự, ảnh, tên danh mục trên web; rỗng = tự động' }) @IsOptional() @IsArray() @ArrayMaxSize(500) @ValidateNested({ each: true }) @Type(() => WebCategoryDto) webCategories?: WebCategoryDto[];
   @ApiPropertyOptional({ description: 'Danh mục hiện theo thứ tự webCategories (false = nhiều hàng trước)' }) @IsOptional() @IsBoolean() customCategoryOrder?: boolean;
+  @ApiPropertyOptional({ description: 'Hiện mục Combo trên web (khối trang chủ, ô Danh mục, thanh danh mục)' }) @IsOptional() @IsBoolean() showCombos?: boolean;
+  @ApiPropertyOptional({ description: 'Tiêu đề khối combo (trống = "Combo ưu đãi")' }) @IsOptional() @ValidateIf((_, v) => v !== null) @Trim() @IsString() @MaxLength(60) comboTitle?: string | null;
+  @ApiPropertyOptional({ description: 'Tên ô Combo (trống = "Combo")' }) @IsOptional() @ValidateIf((_, v) => v !== null) @Trim() @IsString() @MaxLength(30) comboLabel?: string | null;
+  @ApiPropertyOptional({ description: 'Ảnh ô Combo (trống = biểu tượng hộp quà)' }) @IsOptional() @ValidateIf((_, v) => v !== null && v !== '') @Matches(URLISH, { message: 'Ảnh combo không hợp lệ' }) comboImageUrl?: string | null;
 }
 
 // ------------------------------------------------------------------ Flash Sale (quản trị)

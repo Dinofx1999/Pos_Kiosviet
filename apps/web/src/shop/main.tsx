@@ -60,7 +60,7 @@ function Header() {
         <nav className="sh-catnav" aria-label="Danh mục">
           <div className="in">
             <Link to="/" className={home && !curCat && !combo && !sp.get('q') ? 'on' : ''}>Trang chủ</Link>
-            {comboCount > 0 && <Link to="/?combo=1" className={`combo ${combo ? 'on' : ''}`}>Combo</Link>}
+            {comboCount > 0 && <Link to="/?combo=1" className={`combo ${combo ? 'on' : ''}`}>{cfg.combos!.label}</Link>}
             {topCats.map((c) => <Link key={c.id} to={`/?c=${c.id}`} className={curCat === c.id && !combo ? 'on' : ''}>{catName(c.name)}</Link>)}
           </div>
         </nav>

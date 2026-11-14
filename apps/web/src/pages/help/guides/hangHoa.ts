@@ -45,6 +45,7 @@ export const HANG_HOA: Guide[] = [
       'Bảng giá: combo có giá trong bảng giá thì dùng giá đó; không có thì dùng giá combo (giá riêng hoặc tổng giá lẻ chung).',
       'Combo chỉ gồm hàng hóa thường (không gồm dịch vụ, combo khác hay hàng theo lô). Combo đã bán thì không xóa được, chỉ Ngừng bán.',
       'Trên web bán hàng: khối "Combo ưu đãi" ở trang chủ, ô Combo đầu mục Danh mục (máy tính: mục Combo trên thanh danh mục) mở trang tất cả combo, lọc theo nhóm combo; thẻ combo có nhãn "Combo -x%", trang sản phẩm ghi "Combo gồm …" và số tiền tiết kiệm. Combo có món hết hàng thì hiện "Hết hàng", khách không đặt được.',
+      'Bán online → Thiết lập → thẻ "Combo trên web": bật / tắt mục Combo trên web, đổi tiêu đề khối (mặc định "Combo ưu đãi"), tên ô (mặc định "Combo") và ảnh ô (mặc định hộp quà). Tắt thì combo vẫn bán như hàng thường trong nhóm của nó.',
     ],
     related: ['them-hang-hoa', 'ban-hang-pos', 'bang-gia', 'nhom-hang-thuong-hieu'],
   },

@@ -105,7 +105,7 @@ export function WebCategoriesCard({ config, catTree, onSaved }: { config: ShopCo
 }
 
 /** Ảnh đại diện danh mục: ảnh riêng (viền màu) hoặc ảnh tự động (mờ); bấm để tải ảnh mới. */
-function CatImage({ url, auto, onChange }: { url: string | null; auto: string | null; onChange: (u: string | null) => void }) {
+export function CatImage({ url, auto, onChange, placeholder, autoLabel = 'Tự động' }: { url: string | null; auto: string | null; onChange: (u: string | null) => void; placeholder?: React.ReactNode; autoLabel?: string }) {
   const { message } = App.useApp();
   const [busy, setBusy] = useState(false);
   const pick = async (file: File) => {
@@ -119,11 +119,11 @@ function CatImage({ url, auto, onChange }: { url: string | null; auto: string | 
     <div className="ol-cat-img">
       <Upload accept="image/jpeg,image/png,image/webp,image/gif" showUploadList={false} beforeUpload={(f) => { void pick(f); return false; }}>
         <button type="button" className={`ol-cat-pic ${url ? 'own' : 'auto'}`} title={url ? 'Đổi ảnh' : 'Chọn ảnh riêng'}>
-          <span className="circle">{src ? <img src={src} alt="" /> : <PictureOutlined />}</span>
+          <span className="circle">{src ? <img src={src} alt="" /> : placeholder ?? <PictureOutlined />}</span>
           <span className="cam">{busy ? <LoadingOutlined /> : <CameraOutlined />}</span>
         </button>
       </Upload>
-      {url ? <button type="button" className="ol-cat-clear" onClick={() => onChange(null)}>Bỏ ảnh</button> : <span className="ol-cat-auto">Tự động</span>}
+      {url ? <button type="button" className="ol-cat-clear" onClick={() => onChange(null)}>Bỏ ảnh</button> : <span className="ol-cat-auto">{autoLabel}</span>}
     </div>
   );
 }

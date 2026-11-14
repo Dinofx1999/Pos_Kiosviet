@@ -430,7 +430,7 @@ img { display: block; max-width: 100%; }
 .sh-combo .sv { margin-top: 10px; font-size: 13.5px; color: var(--ink2); }
 .sh-combo .sv b { color: #16a34a; }
 .sh-badge.combo { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
-.sh-catnav a.combo { color: #6d28d9; font-weight: 700; }
-.sh-catnav a.combo.on { border-bottom-color: #6d28d9; }
-.sh-cat.combo .ic { background: linear-gradient(135deg, #a78bfa, #6d28d9); color: #fff; display: flex; align-items: center; justify-content: center; }
-.sh-cat.combo .nm { color: #6d28d9; font-weight: 700; }
+.sh-catnav a.combo { color: var(--c); font-weight: 700; }
+.sh-catnav a.combo.on { border-bottom-color: var(--c); }
+/* ô Combo: mặc định hộp quà màu chủ đạo trên nền nhạt như các ô danh mục; có ảnh riêng thì cắt tròn */
+.sh-cat.combo:not(.own) .ic { background: var(--c-soft, #fdf0f4); color: var(--c); border-color: var(--c-line, var(--line)); }

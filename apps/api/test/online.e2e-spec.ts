@@ -391,6 +391,17 @@ describe('Bán online: web bán hàng & Flash Sale – T-270..T-279', () => {
     const cfg = (await t.http().get(shop('/config'))).body;
     expect(cfg.combos.count).toBe(before + 1);
     expect(cfg.combos.groups).toContainEqual({ id: grp.id, name: 'Combo Makeup mùa hè', count: 1 });
+    expect(cfg.combos).toMatchObject({ title: 'Combo ưu đãi', label: 'Combo', imageUrl: null });
+    // tự đặt tiêu đề / tên / ảnh; tắt mục Combo → không có combos (combo vẫn bán như hàng thường)
+    expect((await settings({ comboTitle: '  Set quà hè  ', comboLabel: 'Set quà', comboImageUrl: 'https://cdn.example.com/qua.png' })).status).toBe(200);
+    expect((await t.http().get(shop('/config'))).body.combos).toMatchObject({ title: 'Set quà hè', label: 'Set quà', imageUrl: 'https://cdn.example.com/qua.png' });
+    expect((await settings({ comboLabel: 'x'.repeat(31) })).status).toBe(400);
+    expect((await settings({ comboImageUrl: 'javascript:alert(1)' })).status).toBe(400);
+    await settings({ showCombos: false });
+    expect((await t.http().get(shop('/config'))).body.combos).toBeNull();
+    expect((await t.http().get(shop('/products')).query({ search: 'Combo Makeup mùa hè T283' })).body.total).toBe(1);
+    await settings({ showCombos: true, comboTitle: '', comboLabel: null, comboImageUrl: null });
+    expect((await t.http().get(shop('/config'))).body.combos).toMatchObject({ title: 'Combo ưu đãi', label: 'Combo', imageUrl: null });
     const list = await t.http().get(shop('/products')).query({ type: 'combo' });
     expect(list.status).toBe(200);
     expect(list.body.items.every((x: any) => x.type === 'COMBO')).toBe(true);

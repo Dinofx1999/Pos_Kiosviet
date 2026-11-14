@@ -75,3 +75,11 @@
   .ol-items { max-height: none; }
   .ol-bulk { width: 100%; }
 }
+
+/* Combo trên web */
+.ol-combo-row { display: flex; gap: 14px; align-items: flex-start; margin: 12px 0 8px; }
+.ol-combo-row.off { opacity: .55; }
+.ol-combo-fields { flex: 1; min-width: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ol-combo-fields label { display: grid; gap: 4px; font-size: 13px; color: #374151; }
+.ol-combo-gift { font-size: 24px; color: #d6336c; }
+@media (max-width: 767px) { .ol-combo-fields { grid-template-columns: 1fr; } }

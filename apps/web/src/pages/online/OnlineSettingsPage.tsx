@@ -11,6 +11,7 @@ import { onlineApi, shopUrl, useShopSettings, type ShopConfig, type ShopSettings
 import { ImageUploader, type ImageItem } from '../../components/ImageUploader';
 import type { Category } from '../../api/types';
 import { WebCategoriesCard } from './WebCategoriesCard';
+import { ComboWebCard } from './ComboWebCard';
 import './online.css';
 
 type ToggleKey = 'enabled' | 'showPrice' | 'showFlashPrice' | 'flashSaleEnabled' | 'allowOrder' | 'showStock' | 'hideOutOfStock' | 'onlyWithImage';
@@ -162,6 +163,7 @@ export default function OnlineSettingsPage() {
       </Card>
 
       <WebCategoriesCard config={c} catTree={catTree} onSaved={apply} />
+      <ComboWebCard config={c} onSaved={apply} />
     </div>
   );
 }

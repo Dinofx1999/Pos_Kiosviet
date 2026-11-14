@@ -489,3 +489,4 @@ Màn Bán hàng điện thoại tách thành `PosMobile` (`pages/pos/PosMobile.t
 - Hướng dẫn mới `combo` (3 ảnh: combos, combo-new, pos-combo). Lớp CSS dùng tiền tố `cmb-` (tránh trùng `cb-` của Sổ quỹ).
 - Kiểm thử: T-282; toàn bộ test API đạt.
 - **14/11 (trưa)**: theo phản hồi "web online không thấy hiển thị combo" (combo đã có trên web nhưng chỉ nằm trong nhóm con, cả 3 món đang tồn 0): web thêm khối "Combo ưu đãi" ở trang chủ (ngay dưới Flash Sale), ô Combo đầu mục Danh mục, mục Combo trên thanh danh mục máy tính, trang `/?combo=1` lọc theo nhóm combo, nhãn "Combo -x%" trên thẻ (T-283). Bán hàng: ô tìm hàng hiện ảnh sản phẩm.
+- **14/11 (chiều)**: ô Combo trên web đổi sang biểu tượng hộp quà (nền nhạt theo màu web như các ô danh mục); thẻ "Combo trên web" ở Bán online → Thiết lập (`ComboWebCard.tsx`): ẩn / hiện mục Combo, tiêu đề khối, tên ô, ảnh ô (`showCombos`, `comboTitle`, `comboLabel`, `comboImageUrl`).
