@@ -4,18 +4,17 @@ import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { catalogApi, useBrands, useInvalidate, useUnits } from '../../api/catalog';
 import { errMsg } from '../../api/client';
-import type { Product, SearchHit } from '../../api/types';
+import type { Product } from '../../api/types';
 import { MoneyInput, QuantityInput } from '../../components/Inputs';
-import { ProductSearch } from '../../components/ProductSearch';
 import { ScanInput } from '../../components/BarcodeScanner';
 import { ImageUploader, type ImageItem } from '../../components/ImageUploader';
 import { useAuthStore, useBranchWarehouses } from '../../store/auth';
-import { money, toNum } from '../../utils/format';
+import { toNum } from '../../utils/format';
 import { useCategoryOptions } from './CategoryFilter';
+import { ComboFormModal } from './ComboFormModal';
 
 interface VariantRow { key: string; id?: string; attributes: Record<string, string>; sku?: string; barcode?: string; sellPrice: number; costPrice?: number; minStock?: number; maxStock?: number; isActive?: boolean }
 interface UnitRow { key: string; unitName: string; conversionFactor: number; sku?: string; barcode?: string; sellPrice?: number }
-interface ComboRow { componentVariantId: string; name: string; sku: string; sellPrice: string; quantity: number }
 
 const str = (v: number | undefined | null) => (v === undefined || v === null || Number.isNaN(v) ? undefined : String(v));
 
@@ -23,7 +22,17 @@ function cartesian(attrs: { name: string; values: string[] }[]): Record<string, 
   return attrs.filter((a) => a.values.length).reduce<Record<string, string>[]>((acc, a) => acc.flatMap((row) => a.values.map((v) => ({ ...row, [a.name]: v }))), [{}]);
 }
 
-export function ProductFormModal({ open, product, onClose, onSaved }: { open: boolean; product?: Product | null; onClose: () => void; onSaved: (p: Product) => void }) {
+type FormProps = { open: boolean; product?: Product | null; onClose: () => void; onSaved: (p: Product) => void };
+
+/** Thêm / sửa hàng hóa. Combo dùng form riêng (ComboFormModal): sửa hàng combo hoặc chọn Loại hàng = Combo khi thêm mới. */
+export function ProductFormModal(props: FormProps) {
+  const [asCombo, setAsCombo] = useState(false);
+  useEffect(() => { if (!props.open) setAsCombo(false); }, [props.open]);
+  if (props.product?.type === 'COMBO' || (asCombo && !props.product)) return <ComboFormModal {...props} />;
+  return <GoodsFormModal {...props} onCombo={() => setAsCombo(true)} />;
+}
+
+function GoodsFormModal({ open, product, onClose, onSaved, onCombo }: FormProps & { onCombo: () => void }) {
   const [form] = Form.useForm();
   const { message } = App.useApp();
   const invalidate = useInvalidate();
@@ -33,11 +42,10 @@ export function ProductFormModal({ open, product, onClose, onSaved }: { open: bo
   const warehouses = useBranchWarehouses();
   const can = useAuthStore((s) => s.can);
   const [saving, setSaving] = useState(false);
-  const [type, setType] = useState<'GOODS' | 'SERVICE' | 'COMBO'>('GOODS');
+  const [type, setType] = useState<'GOODS' | 'SERVICE'>('GOODS');
   const [attrs, setAttrs] = useState<{ name: string; values: string[] }[]>([]);
   const [variants, setVariants] = useState<VariantRow[]>([]);
   const [unitRows, setUnitRows] = useState<UnitRow[]>([]);
-  const [combo, setCombo] = useState<ComboRow[]>([]);
   const [images, setImages] = useState<ImageItem[]>([]);
   const [quick, setQuick] = useState<{ kind: 'brand' | 'unit' | 'category'; name: string } | null>(null);
   const isEdit = !!product;
@@ -47,18 +55,17 @@ export function ProductFormModal({ open, product, onClose, onSaved }: { open: bo
     if (!open) return;
     if (product) {
       form.setFieldsValue({ code: product.code, name: product.name, categoryId: product.categoryId ?? undefined, brandId: product.brandId ?? undefined, baseUnit: product.baseUnit ?? undefined, taxRate: product.taxRate ? toNum(product.taxRate) : undefined, trackBatch: product.trackBatch, allowSale: product.allowSale, description: product.description ?? '', sellPrice: toNum(product.variants[0]?.sellPrice), costPrice: product.variants[0]?.costPrice !== undefined ? toNum(product.variants[0]?.costPrice) : undefined, minStock: product.variants[0]?.minStock ? toNum(product.variants[0].minStock) : undefined, maxStock: product.variants[0]?.maxStock ? toNum(product.variants[0].maxStock) : undefined, barcode: product.variants[0]?.barcode ?? undefined, sku: product.variants[0]?.sku, weight: product.weight ? toNum(product.weight) : undefined });
-      setType(product.type);
+      setType(product.type === 'SERVICE' ? 'SERVICE' : 'GOODS');
       const names = product.attributeNames ?? [];
       setAttrs(names.map((n) => ({ name: n, values: Array.from(new Set(product.variants.map((v) => v.attributes?.[n]).filter(Boolean) as string[])) })));
       setVariants(product.variants.map((v) => ({ key: v.id, id: v.id, attributes: v.attributes ?? {}, sku: v.sku, barcode: v.barcode ?? undefined, sellPrice: toNum(v.sellPrice), costPrice: v.costPrice !== undefined ? toNum(v.costPrice) : undefined, minStock: v.minStock ? toNum(v.minStock) : undefined, maxStock: v.maxStock ? toNum(v.maxStock) : undefined, isActive: v.isActive })));
       setUnitRows(product.units.map((u, i) => ({ key: u.id ?? String(i), unitName: u.unitName, conversionFactor: toNum(u.conversionFactor), sku: u.sku ?? undefined, barcode: u.barcode ?? undefined, sellPrice: u.sellPrice ? toNum(u.sellPrice) : undefined })));
-      setCombo(product.comboItems.map((c) => ({ componentVariantId: c.componentVariantId, name: c.componentVariant?.name ?? '', sku: c.componentVariant?.sku ?? '', sellPrice: c.componentVariant?.sellPrice ?? '0', quantity: toNum(c.quantity) })));
       const imgs = (product.images ?? []).slice().sort((a, b) => a.sortOrder - b.sortOrder).map((i) => ({ url: i.url }));
       setImages(imgs.length ? imgs : product.imageUrl ? [{ url: product.imageUrl }] : []);
     } else {
       form.resetFields();
       form.setFieldsValue({ trackBatch: false, allowSale: true, openingWarehouseId: warehouses[0]?.id });
-      setType('GOODS'); setAttrs([]); setVariants([]); setUnitRows([]); setCombo([]); setImages([]);
+      setType('GOODS'); setAttrs([]); setVariants([]); setUnitRows([]); setImages([]);
     }
   }, [open, product]);
 
@@ -91,8 +98,7 @@ export function ProductFormModal({ open, product, onClose, onSaved }: { open: bo
         ? variants.map((r) => ({ id: r.id, sku: r.sku || undefined, barcode: r.barcode || undefined, attributes: r.attributes, sellPrice: String(r.sellPrice ?? 0), costPrice: str(r.costPrice), minStock: str(r.minStock), maxStock: str(r.maxStock), isActive: r.isActive }))
         : [{ id: product?.variants[0]?.id, sku: v.sku || undefined, barcode: v.barcode || undefined, sellPrice: String(v.sellPrice ?? 0), costPrice: str(v.costPrice), minStock: str(v.minStock), maxStock: str(v.maxStock) }];
       const unitsPayload = unitRows.filter((u) => u.unitName).map((u) => ({ unitName: u.unitName, conversionFactor: String(u.conversionFactor || 1), sku: u.sku || undefined, barcode: u.barcode || undefined, sellPrice: str(u.sellPrice) }));
-      const comboPayload = type === 'COMBO' ? combo.map((c) => ({ componentVariantId: c.componentVariantId, quantity: String(c.quantity || 1) })) : undefined;
-      const base: any = { name: v.name, baseUnit: v.baseUnit, description: v.description, taxRate: str(v.taxRate), weight: str(v.weight), trackBatch: type === 'GOODS' ? !!v.trackBatch : false, allowSale: v.allowSale !== false, attributeNames, variants: variantPayload, units: unitsPayload, comboItems: comboPayload, images: images.map((i, sortOrder) => ({ url: i.url, sortOrder })) };
+      const base: any = { name: v.name, baseUnit: v.baseUnit, description: v.description, taxRate: str(v.taxRate), weight: str(v.weight), trackBatch: type === 'GOODS' ? !!v.trackBatch : false, allowSale: v.allowSale !== false, attributeNames, variants: variantPayload, units: unitsPayload, images: images.map((i, sortOrder) => ({ url: i.url, sortOrder })) };
       let saved: Product;
       if (isEdit) {
         saved = await catalogApi.updateProduct(product!.id, { ...base, categoryId: v.categoryId ?? null, brandId: v.brandId ?? null });
@@ -128,7 +134,7 @@ export function ProductFormModal({ open, product, onClose, onSaved }: { open: bo
       <Col xs={24} md={12}>
         <Form.Item name="code" label="Mã hàng" tooltip="Bỏ trống để hệ thống tự sinh (SP000001); có thể quét mã vạch làm mã hàng"><ScanInput placeholder="Mã hàng tự động" disabled={isEdit} title="Quét mã vạch làm mã hàng" /></Form.Item>
         <Form.Item name="name" label="Tên hàng" rules={[{ required: true, message: 'Nhập tên hàng' }]}><Input autoFocus /></Form.Item>
-        <Form.Item label="Loại hàng"><Select value={type} disabled={isEdit} onChange={(t) => setType(t)} options={[{ value: 'GOODS', label: 'Hàng hóa' }, { value: 'SERVICE', label: 'Dịch vụ' }, { value: 'COMBO', label: 'Combo - đóng gói' }]} /></Form.Item>
+        <Form.Item label="Loại hàng"><Select value={type} disabled={isEdit} onChange={(t: string) => (t === 'COMBO' ? onCombo() : setType(t as 'GOODS' | 'SERVICE'))} options={[{ value: 'GOODS', label: 'Hàng hóa' }, { value: 'SERVICE', label: 'Dịch vụ' }, { value: 'COMBO', label: 'Combo - đóng gói (gom nhiều hàng)' }]} /></Form.Item>
         <Form.Item name="categoryId" label="Nhóm hàng"><Select allowClear showSearch optionFilterProp="label" options={categories} dropdownRender={can('category.manage') ? quickAddDropdown('category') : undefined} placeholder="Chọn nhóm hàng" /></Form.Item>
         <Form.Item name="brandId" label="Thương hiệu"><Select allowClear showSearch optionFilterProp="label" options={(brands ?? []).map((b) => ({ value: b.id, label: b.name }))} dropdownRender={can('brand.manage') ? quickAddDropdown('brand') : undefined} placeholder="Chọn thương hiệu" /></Form.Item>
         <Form.Item name="baseUnit" label="Đơn vị tính"><Select allowClear showSearch options={(units ?? []).map((u) => ({ value: u.name, label: u.name }))} dropdownRender={can('unit.manage') ? quickAddDropdown('unit') : undefined} placeholder="Cái, Hộp, Chai…" /></Form.Item>
@@ -172,7 +178,7 @@ export function ProductFormModal({ open, product, onClose, onSaved }: { open: bo
           </div>
         )}
       </Col>
-      {type !== 'COMBO' && (
+      {(
         <Col span={24}>
           <Divider orientation="left" plain>Thuộc tính (tạo hàng cùng loại: màu sắc, kích thước…)</Divider>
           {attrs.map((a, i) => (
@@ -210,20 +216,6 @@ export function ProductFormModal({ open, product, onClose, onSaved }: { open: bo
               { title: '', width: 40, render: (_, __, i) => <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => setUnitRows((s) => s.filter((_, j) => j !== i))} /> },
             ]} />
           <Button type="dashed" size="small" icon={<PlusOutlined />} style={{ marginTop: 6 }} onClick={() => setUnitRows((s) => [...s, { key: String(Date.now()), unitName: '', conversionFactor: 1 }])}>Thêm đơn vị</Button>
-        </Col>
-      )}
-      {type === 'COMBO' && (
-        <Col span={24}>
-          <Divider orientation="left" plain>Thành phần combo</Divider>
-          <ProductSearch size="middle" goodsOnly placeholder="Tìm hàng hóa thành phần" onPick={(h: SearchHit) => setCombo((s) => (s.some((c) => c.componentVariantId === h.id) ? s : [...s, { componentVariantId: h.id, name: h.name, sku: h.sku, sellPrice: h.sellPrice, quantity: 1 }]))} />
-          <Table size="small" style={{ marginTop: 8 }} rowKey="componentVariantId" pagination={false} dataSource={combo} locale={{ emptyText: 'Chưa có thành phần' }}
-            columns={[
-              { title: 'Hàng hóa', render: (_, r) => <span>{r.name}<div className="muted" style={{ fontSize: 11 }}>{r.sku}</div></span> },
-              { title: 'Giá bán lẻ', className: 'num', render: (_, r) => money(r.sellPrice) },
-              { title: 'Số lượng', width: 120, render: (_, r, i) => <QuantityInput size="small" min={0.001} value={r.quantity} onChange={(v) => setCombo((s) => s.map((x, j) => (j === i ? { ...x, quantity: toNum(v) } : x)))} /> },
-              { title: '', width: 40, render: (_, __, i) => <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={() => setCombo((s) => s.filter((_, j) => j !== i))} /> },
-            ]} />
-          <div className="kv-hint" style={{ marginTop: 6 }}>Tổng giá thành phần: {money(combo.reduce((s, c) => s + toNum(c.sellPrice) * c.quantity, 0))}</div>
         </Col>
       )}
     </Row>

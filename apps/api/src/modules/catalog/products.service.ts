@@ -14,6 +14,7 @@ import { PrismaService, TxClient } from '../../infra/prisma/prisma.service';
 import { InventoryDocumentsService } from '../inventory/documents.service';
 import { StockQueryService } from '../inventory/stock-query.service';
 import { UploadsService } from '../uploads/uploads.service';
+import { refreshAutoComboPrices } from './combo-price';
 import { CreateBatchDto, CreateProductDto, ProductImageInputDto, ProductQueryDto, ProductUnitInputDto, UpdateProductDto, VariantInputDto } from './dto/catalog.dto';
 
 const productInclude = {
@@ -22,7 +23,7 @@ const productInclude = {
   variants: { where: { deletedAt: null }, orderBy: [{ isDefault: 'desc' as const }, { createdAt: 'asc' as const }] },
   units: true,
   images: { orderBy: { sortOrder: 'asc' as const } },
-  comboItems: { include: { componentVariant: { select: { id: true, sku: true, name: true, sellPrice: true, costPrice: true, onHandTotal: true } } } },
+  comboItems: { include: { componentVariant: { select: { id: true, sku: true, name: true, sellPrice: true, costPrice: true, onHandTotal: true, imageUrl: true, isActive: true, product: { select: { imageUrl: true, isActive: true, baseUnit: true } } } } }, orderBy: { componentVariant: { name: 'asc' as const } } },
 } satisfies Prisma.ProductInclude;
 
 @Injectable()
@@ -59,7 +60,7 @@ export class ProductsService {
       this.prisma.db.product.count({ where }),
     ]);
     if (q.warehouseId) await this.access.assertWarehouse(user, q.warehouseId);
-    const stockMap = q.warehouseId ? await this.stock.variantStock(rows.flatMap((p) => p.variants.map((v) => v.id)), q.warehouseId) : null;
+    const stockMap = q.warehouseId ? await this.stock.variantStock(rows.flatMap((p) => [...p.variants.map((v) => v.id), ...p.comboItems.map((c) => c.componentVariantId)]), q.warehouseId) : null;
     return paginated(rows.map((p) => this.toView(p, this.canSeeCost(user), stockMap)), total, q);
   }
 
@@ -86,8 +87,13 @@ export class ProductsService {
       take: limit, orderBy: [{ name: 'asc' }],
     });
     const stockMap = await this.stock.variantStock(variants.map((v) => v.id), warehouseId);
+    const combos = await this.comboStock(variants.filter((v) => v.product.type === 'COMBO').map((v) => v.productId), warehouseId);
     const canSeeCost = this.canSeeCost(user);
-    return variants.map((v) => ({ ...this.variantView(v, canSeeCost), product: v.product, onHand: stockMap.get(v.id)?.onHand ?? ZERO, available: (stockMap.get(v.id)?.onHand ?? ZERO).minus(stockMap.get(v.id)?.reserved ?? ZERO) }));
+    return variants.map((v) => {
+      const combo = combos.get(v.productId);
+      const onHand = combo ? combo.onHand : stockMap.get(v.id)?.onHand ?? ZERO;
+      return { ...this.variantView(v, canSeeCost), product: v.product, onHand, available: combo ? combo.available : onHand.minus(stockMap.get(v.id)?.reserved ?? ZERO) };
+    });
   }
 
   async byBarcode(user: RequestUser, barcode: string) {
@@ -98,13 +104,15 @@ export class ProductsService {
       const dv = unit.product.variants[0];
       return { ...this.variantView(dv, user.permissions.has('*') || user.permissions.has('product.cost.view')), product: { id: unit.product.id, code: unit.product.code, name: unit.product.name, type: unit.product.type, baseUnit: unit.product.baseUnit }, unit: { unitName: unit.unitName, conversionFactor: unit.conversionFactor, sellPrice: unit.sellPrice } };
     }
-    return { ...this.variantView(v, user.permissions.has('*') || user.permissions.has('product.cost.view')), product: v.product };
+    const combo = v.product.type === 'COMBO' ? (await this.comboStock([v.productId])).get(v.productId) : undefined;
+    return { ...this.variantView(v, user.permissions.has('*') || user.permissions.has('product.cost.view')), product: v.product, ...(combo ? { onHandTotal: combo.onHand, onHand: combo.onHand, available: combo.available } : {}) };
   }
 
   // ------------------------------------------------------------------ create (BR-10, BR-11)
   async create(user: RequestUser, dto: CreateProductDto) {
     const type = dto.type ?? 'GOODS';
     if (type === 'COMBO' && !(dto.comboItems?.length)) throw Errors.validation('Hàng combo phải có ít nhất 1 thành phần');
+    if (type !== 'COMBO' && dto.autoPrice) throw Errors.validation('Chỉ hàng combo mới tính giá theo hàng thành phần');
     if (type !== 'GOODS' && dto.initialStock?.length) throw Errors.validation('Chỉ hàng hóa mới có tồn đầu kỳ');
     if (type !== 'GOODS' && dto.trackBatch) throw Errors.validation('Chỉ hàng hóa mới theo dõi lô');
     if (dto.variants.length > 1 && !(dto.attributeNames?.length)) throw Errors.validation('Hàng nhiều biến thể phải khai báo thuộc tính (attributeNames)');
@@ -120,14 +128,17 @@ export class ProductsService {
         data: {
           tenantId: user.tenantId, code, name: dto.name, type, categoryId: dto.categoryId, brandId: dto.brandId, baseUnit: dto.baseUnit, description: dto.description,
           taxRate: dto.taxRate !== undefined ? D(dto.taxRate) : undefined, weight: dto.weight !== undefined ? D(dto.weight) : undefined, trackBatch: dto.trackBatch ?? false,
-          allowSale: dto.allowSale ?? true, hasVariants: dto.variants.length > 1 || (dto.attributeNames?.length ?? 0) > 0, attributeNames: dto.attributeNames ?? [], imageUrl: images[0]?.url ?? dto.imageUrl, createdById: user.id,
+          allowSale: dto.allowSale ?? true, autoPrice: type === 'COMBO' && !!dto.autoPrice, hasVariants: dto.variants.length > 1 || (dto.attributeNames?.length ?? 0) > 0, attributeNames: dto.attributeNames ?? [], imageUrl: images[0]?.url ?? dto.imageUrl, createdById: user.id,
           variants: { create: variantsData },
           units: { create: (dto.units ?? []).map((u) => this.buildUnit(user.tenantId, u)) },
         },
         include: productInclude,
       });
       if (images.length) await this.replaceImages(tx, user.tenantId, created.id, images, created.variants.map((v) => v.id));
-      if (type === 'COMBO') await this.setComboItems(tx, user.tenantId, created.id, dto.comboItems!);
+      if (type === 'COMBO') {
+        await this.setComboItems(tx, user.tenantId, created.id, dto.comboItems!);
+        if (dto.autoPrice) await refreshAutoComboPrices(tx, user.tenantId, { comboIds: [created.id] });
+      }
       await this.audit.log(tx, { action: 'product.create', entityType: 'Product', entityId: created.id, entityCode: created.code, after: { name: created.name, type, variants: created.variants.map((v) => v.sku) } });
       await this.outbox.enqueue(tx, { eventType: 'product.created', aggregateType: 'Product', aggregateId: created.id, payload: { code: created.code, name: created.name } });
 
@@ -157,6 +168,7 @@ export class ProductsService {
   async update(user: RequestUser, id: string, dto: UpdateProductDto) {
     const before = await this.prisma.db.product.findFirst({ where: { id, deletedAt: null }, include: productInclude });
     if (!before) throw Errors.notFound('Hàng hóa', id);
+    if (dto.autoPrice && before.type !== 'COMBO') throw Errors.validation('Chỉ hàng combo mới tính giá theo hàng thành phần');
     await this.validateRefs(dto.categoryId ?? undefined, dto.brandId ?? undefined);
     if (dto.trackBatch !== undefined && dto.trackBatch !== before.trackBatch) {
       const moved = await this.prisma.db.stockMovement.count({ where: { variant: { productId: id } } });
@@ -170,7 +182,7 @@ export class ProductsService {
         data: {
           name: dto.name, categoryId: dto.categoryId, brandId: dto.brandId, baseUnit: dto.baseUnit, description: dto.description,
           taxRate: dto.taxRate !== undefined ? D(dto.taxRate) : undefined, weight: dto.weight !== undefined ? D(dto.weight) : undefined,
-          trackBatch: dto.trackBatch, allowSale: dto.allowSale, isActive: dto.isActive, attributeNames: dto.attributeNames,
+          trackBatch: dto.trackBatch, allowSale: dto.allowSale, isActive: dto.isActive, attributeNames: dto.attributeNames, autoPrice: before.type === 'COMBO' ? dto.autoPrice : undefined,
           imageUrl: images !== undefined ? (images[0]?.url ?? null) : dto.imageUrl,
           ...(dto.attributeNames ? { hasVariants: dto.attributeNames.length > 0 || before.variants.length > 1 } : {}),
           ...(dto.units ? { units: { deleteMany: {}, create: dto.units.map((u) => this.buildUnit(user.tenantId, u)) } } : {}),
@@ -205,6 +217,9 @@ export class ProductsService {
         if (before.type !== 'COMBO') throw Errors.validation('Chỉ hàng combo mới có thành phần');
         await this.setComboItems(tx, user.tenantId, id, dto.comboItems);
       }
+      // BR-189: combo theo giá lẻ tính lại giá; đổi giá hàng thường → tính lại các combo có hàng này
+      if (before.type === 'COMBO' && (dto.autoPrice ?? before.autoPrice)) await refreshAutoComboPrices(tx, user.tenantId, { comboIds: [id] });
+      if (before.type === 'GOODS' && dto.variants?.length) await refreshAutoComboPrices(tx, user.tenantId, { componentVariantIds: before.variants.map((v) => v.id) });
       if (images !== undefined) {
         const variantIds = (await tx.productVariant.findMany({ where: { productId: id }, select: { id: true } })).map((v) => v.id);
         await this.replaceImages(tx, user.tenantId, id, images, variantIds);
@@ -226,12 +241,15 @@ export class ProductsService {
     const p = await this.prisma.db.product.findFirst({ where: { id, deletedAt: null }, include: { variants: { select: { id: true } } } });
     if (!p) throw Errors.notFound('Hàng hóa', id);
     const variantIds = p.variants.map((v) => v.id);
-    const [moves, lines, combos] = await Promise.all([
+    // combo / dịch vụ không có biến động kho → kiểm tra thêm dòng hóa đơn, đơn hàng (tránh lỗi khóa ngoại)
+    const [moves, lines, combos, invoiceLines, orderLines] = await Promise.all([
       this.prisma.db.stockMovement.count({ where: { variantId: { in: variantIds } } }),
       this.prisma.db.inventoryDocumentLine.count({ where: { variantId: { in: variantIds } } }),
       this.prisma.db.comboItem.count({ where: { componentVariantId: { in: variantIds } } }),
+      this.prisma.db.invoiceLine.count({ where: { variantId: { in: variantIds } } }),
+      this.prisma.db.salesOrderLine.count({ where: { variantId: { in: variantIds } } }),
     ]);
-    if (moves > 0 || lines > 0 || combos > 0) throw Errors.conflict('PRODUCT_IN_USE', 'Hàng hóa đã phát sinh giao dịch, chỉ có thể ngừng kinh doanh', { movements: moves, documentLines: lines, combos });
+    if (moves > 0 || lines > 0 || combos > 0 || invoiceLines > 0 || orderLines > 0) throw Errors.conflict('PRODUCT_IN_USE', combos > 0 && moves + lines + invoiceLines + orderLines === 0 ? 'Hàng hóa đang nằm trong combo, bỏ khỏi combo trước hoặc ngừng kinh doanh' : 'Hàng hóa đã phát sinh giao dịch, chỉ có thể ngừng kinh doanh', { movements: moves, documentLines: lines, combos, invoiceLines, orderLines });
     await this.prisma.tx(async (tx) => {
       await tx.product.delete({ where: { id } });
       await this.audit.log(tx, { action: 'product.delete', entityType: 'Product', entityId: id, entityCode: p.code, before: { name: p.name } });
@@ -341,17 +359,45 @@ export class ProductsService {
     await tx.comboItem.createMany({ data: items.map((i) => ({ tenantId, comboProductId, componentVariantId: i.componentVariantId, quantity: toQty(i.quantity) })) });
   }
 
+  /** Tồn combo (BR-14) theo kho (hoặc toàn hệ thống): min(tồn thành phần / số lượng), khả dụng = min((tồn − đang giữ) / số lượng). */
+  private async comboStock(productIds: string[], warehouseId?: string) {
+    const out = new Map<string, { onHand: Prisma.Decimal; available: Prisma.Decimal }>();
+    if (!productIds.length) return out;
+    const items = await this.prisma.db.comboItem.findMany({ where: { comboProductId: { in: productIds } } });
+    const stock = await this.stock.variantStock(Array.from(new Set(items.map((i) => i.componentVariantId))), warehouseId);
+    for (const pid of new Set(productIds)) {
+      const parts = items.filter((i) => i.comboProductId === pid);
+      if (!parts.length) { out.set(pid, { onHand: ZERO, available: ZERO }); continue; }
+      const per = (f: (s: { onHand: Prisma.Decimal; reserved: Prisma.Decimal }) => Prisma.Decimal) => parts.reduce((min, ci) => {
+        const s = stock.get(ci.componentVariantId) ?? { onHand: ZERO, reserved: ZERO };
+        const n = Prisma.Decimal.max(ZERO, f(s).dividedBy(D(ci.quantity)).floor());
+        return min === null || n.lessThan(min) ? n : min;
+      }, null as Prisma.Decimal | null) ?? ZERO;
+      out.set(pid, { onHand: per((s) => s.onHand), available: per((s) => s.onHand.minus(s.reserved)) });
+    }
+    return out;
+  }
+
   private variantView(v: Prisma.ProductVariantGetPayload<object>, canSeeCost: boolean) {
     const { costPrice, lastPurchasePrice, ...rest } = v;
     return { ...rest, costPrice: canSeeCost ? costPrice : undefined, lastPurchasePrice: canSeeCost ? lastPurchasePrice : undefined };
   }
 
   toView(p: Prisma.ProductGetPayload<{ include: typeof productInclude }>, canSeeCost: boolean, stockMap: Map<string, { onHand: Prisma.Decimal; reserved: Prisma.Decimal }> | null) {
-    const variants = p.variants.map((v) => ({ ...this.variantView(v, canSeeCost), onHand: stockMap ? (stockMap.get(v.id)?.onHand ?? ZERO) : v.onHandTotal }));
-    const onHand = p.type === 'COMBO'
-      ? (p.comboItems.length ? p.comboItems.reduce((min, ci) => { const avail = D(ci.componentVariant.onHandTotal).dividedBy(D(ci.quantity)).floor(); return min === null || avail.lessThan(min) ? avail : min; }, null as Prisma.Decimal | null) ?? ZERO : ZERO)
-      : variants.reduce((s, v) => s.plus(D(v.onHand)), ZERO);
+    // combo: tồn theo thành phần (theo kho đang xem nếu có), gán luôn cho biến thể combo để màn bán hàng hiện đúng
+    const comboOnHand = p.type === 'COMBO'
+      ? (p.comboItems.reduce((min, ci) => {
+          const own = stockMap ? (stockMap.get(ci.componentVariantId)?.onHand ?? ZERO) : D(ci.componentVariant.onHandTotal);
+          const avail = Prisma.Decimal.max(ZERO, own.dividedBy(D(ci.quantity)).floor());
+          return min === null || avail.lessThan(min) ? avail : min;
+        }, null as Prisma.Decimal | null) ?? ZERO)
+      : null;
+    const variants = p.variants.map((v) => ({ ...this.variantView(v, canSeeCost), onHand: comboOnHand ?? (stockMap ? (stockMap.get(v.id)?.onHand ?? ZERO) : v.onHandTotal) }));
+    const onHand = comboOnHand ?? variants.reduce((s, v) => s.plus(D(v.onHand)), ZERO);
     const def = variants[0];
-    return { ...p, variants, onHand, sellPrice: def?.sellPrice, costPrice: canSeeCost ? def?.costPrice : undefined, comboItems: p.comboItems.map((ci) => ({ ...ci, componentVariant: { ...ci.componentVariant, costPrice: canSeeCost ? ci.componentVariant.costPrice : undefined } })) };
+    // combo: giá vốn = Σ giá vốn thành phần (biến thể combo không có giá vốn riêng); comboRetailPrice = Σ giá lẻ thành phần
+    const comboSum = (f: (c: (typeof p.comboItems)[number]) => Prisma.Decimal) => p.comboItems.reduce((s, ci) => s.plus(f(ci).times(D(ci.quantity))), ZERO);
+    const combo = p.type === 'COMBO' ? { comboRetailPrice: comboSum((c) => D(c.componentVariant.sellPrice)), cost: comboSum((c) => D(c.componentVariant.costPrice)) } : null;
+    return { ...p, variants, onHand, sellPrice: def?.sellPrice, costPrice: canSeeCost ? (combo ? combo.cost : def?.costPrice) : undefined, comboRetailPrice: combo?.comboRetailPrice, comboItems: p.comboItems.map((ci) => ({ ...ci, componentVariant: { ...ci.componentVariant, costPrice: canSeeCost ? ci.componentVariant.costPrice : undefined } })) };
   }
 }

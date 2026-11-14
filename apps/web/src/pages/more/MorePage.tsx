@@ -44,6 +44,7 @@ export default function MorePage() {
     ] },
     { title: 'Hàng hoá', items: [
       { to: '/products', label: 'Hàng hoá', icon: <AppstoreOutlined />, show: can('product.view') },
+      { to: '/products/combos', label: 'Combo', icon: <GiftOutlined />, show: can('product.view') },
       { to: '/stocktakes', label: 'Kiểm kho', icon: <CheckSquareOutlined />, show: can('stocktake.view') },
       { to: '/purchase-receipts', label: 'Nhập hàng', icon: <ImportOutlined />, show: can('purchase.receipt.view') },
       { to: '/purchase-returns', label: 'Trả hàng nhập', icon: <ExportOutlined />, show: can('purchase.return.view') },

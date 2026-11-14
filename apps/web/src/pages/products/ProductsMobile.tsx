@@ -1,7 +1,7 @@
 import { App, Button, Drawer, Dropdown, Input, Modal, Spin, Tag, Upload } from 'antd';
-import { CloseOutlined, DownOutlined, DownloadOutlined, EllipsisOutlined, FilterOutlined, PlusOutlined, ReloadOutlined, SearchOutlined, SwapOutlined, UploadOutlined } from '@ant-design/icons';
+import { GiftOutlined, CloseOutlined, DownOutlined, DownloadOutlined, EllipsisOutlined, FilterOutlined, PlusOutlined, ReloadOutlined, SearchOutlined, SwapOutlined, UploadOutlined } from '@ant-design/icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { catalogApi, useInvalidate, useProducts, type ProductQuery } from '../../api/catalog';
 import { useBalanceSummary } from '../../api/inventory';
 import { errMsg } from '../../api/client';
@@ -32,6 +32,7 @@ export function ProductsMobile() {
   const can = useCan();
   const invalidate = useInvalidate();
   const [sp, setSp] = useSearchParams();
+  const nav = useNavigate();
   const canSeeCost = can('product.cost.view');
   const [q, setQ] = useState<ProductQuery>({ page: 1, pageSize: PAGE, search: sp.get('search') ?? undefined, isActive: 'true', stockStatus: (sp.get('stock') as ProductQuery['stockStatus']) ?? undefined });
   const [searchOpen, setSearchOpen] = useState(!!q.search);
@@ -76,6 +77,7 @@ export function ProductsMobile() {
 
   const moreMenu = useMemo(() => ({ items: [
     can('product.create') ? { key: 'add', icon: <PlusOutlined />, label: 'Thêm hàng hóa', onClick: () => setForm({ open: true, product: null }) } : null,
+    { key: 'combo', icon: <GiftOutlined />, label: 'Combo', onClick: () => nav('/products/combos') },
     can('product.import') ? { key: 'tpl', icon: <DownloadOutlined />, label: 'Tải file mẫu Excel', onClick: async () => { try { downloadBlob(await catalogApi.importTemplate(), 'mau-nhap-hang-hoa.xlsx'); } catch (e) { message.error(errMsg(e)); } } } : null,
     can('product.import') ? { key: 'up', label: <Upload accept=".xlsx" showUploadList={false} customRequest={async ({ file }) => { try { const r = await catalogApi.importXlsx(file as File); setImportRes(r); invalidate('products', 'categories', 'brands'); } catch (e) { message.error(errMsg(e)); } }}><span><UploadOutlined /> Import từ Excel…</span></Upload> } : null,
     can('product.export') ? { key: 'export', icon: <DownloadOutlined />, label: 'Xuất file Excel', onClick: async () => { try { downloadBlob(await catalogApi.exportXlsx(), 'hang-hoa.xlsx'); } catch (e) { message.error(errMsg(e)); } } } : null,

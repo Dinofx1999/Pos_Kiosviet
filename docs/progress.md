@@ -481,3 +481,10 @@ Màn Bán hàng điện thoại tách thành `PosMobile` (`pages/pos/PosMobile.t
 - **Giao diện**: tab "Thiết lập ca làm" (thẻ Ca làm việc, Phạt đi trễ có ví dụ tính sẵn, Chấm công tại cửa hàng) thay ngăn kéo "Ca làm & bán kính"; bấm CHẤM CÔNG VÀO → hộp "Chọn ca làm" (Gợi ý, Đúng giờ / Trễ … · phạt … / Vào ca lúc … / Đã hết ca, Chấm ngoài ca); cột / nhãn Đi trễ, thẻ "Đi trễ tháng này", "Đi trễ" ở Toàn bộ nhân viên; ô Tiền phạt trong Sửa giờ.
 - Kiểm thử: T-281; xem trên 375 px và 900 px (không tràn).
 
+### Combo: bán theo bộ với giá riêng hoặc theo giá lẻ, mục Combo riêng ở Bán hàng (14/11/2026)
+- **Yêu cầu**: gom nhiều hàng thành một combo bán như hàng lẻ; giá tự đặt trong combo, không đặt thì lấy giá hiện tại; bán được ở Bán hàng và có danh mục riêng (vd "Combo Makeup mùa hè").
+- **Đã có từ trước**: loại hàng `COMBO` (thành phần, bán bung thành phần khi xuất kho, giá vốn, trả hàng, giữ tồn đơn hàng). Bổ sung:
+- **Giá theo giá lẻ** (BR-189): cột `products.auto_price` (migration `combo_auto_price`), `catalog/combo-price.ts` cập nhật `sell_price` combo bằng một câu SQL; gọi khi tạo / sửa combo, sửa giá hàng thường, nhập bảng giá KiotViet. Sản phẩm trả `autoPrice`, `comboRetailPrice`, giá vốn combo = Σ thành phần; tồn combo theo kho ở danh sách, tìm nhanh, quét mã. Xóa hàng kiểm thêm dòng hóa đơn / đơn hàng.
+- **Giao diện**: màn **Hàng hóa → Combo** (`CombosPage.tsx`, menu máy tính + tab Khác điện thoại): chip theo nhóm, tìm không dấu, thẻ combo (món, giá, tiết kiệm, còn bao nhiêu combo), ngừng bán / bán lại / xóa. **Biểu mẫu combo** (`ComboFormModal.tsx`, cũng mở khi chọn Loại hàng = Combo hoặc sửa hàng combo): tên, nhóm (thêm nhóm mới ngay trong ô chọn), tìm món + số lượng, ô Giá combo để trống = theo giá lẻ, báo tiết kiệm / lãi. **Bán hàng**: dải "Combo" đầu danh sách (điện thoại) và nút Combo (máy tính) mở `PosComboPicker` theo nhóm; dòng giỏ ghi "Gồm: …". **Web**: trang sản phẩm có "Combo gồm …" + tiết kiệm so với mua lẻ; combo chưa có ảnh dùng ảnh món.
+- Hướng dẫn mới `combo` (3 ảnh: combos, combo-new, pos-combo). Lớp CSS dùng tiền tố `cmb-` (tránh trùng `cb-` của Sổ quỹ).
+- Kiểm thử: T-282; toàn bộ test API đạt.

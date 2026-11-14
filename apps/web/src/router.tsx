@@ -5,6 +5,7 @@ import { useAuthStore } from './store/auth';
 import LoginPage from './pages/auth/LoginPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import ProductsPage from './pages/products/ProductsPage';
+import CombosPage from './pages/products/CombosPage';
 import DocumentsPage from './pages/inventory/DocumentsPage';
 import DocumentEditorPage from './pages/inventory/DocumentEditorPage';
 import BalancesPage from './pages/inventory/BalancesPage';
@@ -84,6 +85,7 @@ export const router = createBrowserRouter([
           { path: '/', element: <RequirePerm perm="dashboard.view"><DashboardPage /></RequirePerm> },
           { path: '/more', element: <MorePage /> },
           { path: '/products', element: <RequirePerm perm="product.view"><ProductsPage /></RequirePerm> },
+          { path: '/products/combos', element: <RequirePerm perm="product.view"><CombosPage /></RequirePerm> },
           { path: '/price-books', element: <RequirePerm perm="pricebook.manage"><PriceBooksPage /></RequirePerm> },
           { path: '/promotions', element: <RequirePerm perm="promotion.view"><PromotionsPage /></RequirePerm> },
           { path: '/promotions/:id', element: <RequirePerm perm="promotion.view"><PromotionsPage /></RequirePerm> },

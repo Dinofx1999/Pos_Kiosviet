@@ -75,6 +75,7 @@ export class CreateProductDto {
   @ApiProperty({ type: [VariantInputDto], description: 'Ít nhất 1 biến thể; hàng không thuộc tính gửi 1 phần tử' }) @IsArray() @ArrayMinSize(1) @ValidateNested({ each: true }) @Type(() => VariantInputDto) variants: VariantInputDto[];
   @ApiPropertyOptional({ type: [ProductUnitInputDto] }) @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => ProductUnitInputDto) units?: ProductUnitInputDto[];
   @ApiPropertyOptional({ type: [ComboItemInputDto] }) @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => ComboItemInputDto) comboItems?: ComboItemInputDto[];
+  @ApiPropertyOptional({ description: 'Chỉ combo: true = giá combo theo tổng giá lẻ thành phần (tự cập nhật), false = giá tự đặt trong variants' }) @IsOptional() @IsBoolean() autoPrice?: boolean;
   @ApiPropertyOptional({ type: [InitialStockDto], description: 'Tồn đầu kỳ: tạo phiếu nhập kho khác đã ghi sổ' }) @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => InitialStockDto) initialStock?: InitialStockDto[];
 }
 export class UpdateProductDto {
@@ -94,6 +95,7 @@ export class UpdateProductDto {
   @ApiPropertyOptional({ type: [VariantInputDto], description: 'Upsert: có id → cập nhật, không id → tạo mới; biến thể không có trong danh sách giữ nguyên' }) @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => VariantInputDto) variants?: VariantInputDto[];
   @ApiPropertyOptional({ type: [ProductUnitInputDto], description: 'Thay thế toàn bộ danh sách đơn vị quy đổi' }) @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => ProductUnitInputDto) units?: ProductUnitInputDto[];
   @ApiPropertyOptional({ type: [ComboItemInputDto] }) @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => ComboItemInputDto) comboItems?: ComboItemInputDto[];
+  @ApiPropertyOptional({ description: 'Chỉ combo: true = giá combo theo tổng giá lẻ thành phần (tự cập nhật), false = giá tự đặt trong variants' }) @IsOptional() @IsBoolean() autoPrice?: boolean;
 }
 export class ProductQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional() @IsOptional() @IsUUID() categoryId?: string;

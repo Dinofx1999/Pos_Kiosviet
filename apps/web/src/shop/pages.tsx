@@ -391,6 +391,13 @@ export function ProductPage() {
             {(tel || zalo) && <li>{Icon.headset(18)}<span><b>Cần tư vấn?</b> {tel && <a href={tel}>{prettyPhone(cfg.hotline)}</a>}{tel && zalo && ' · '}{zalo && <a href={zalo} target="_blank" rel="noreferrer">Nhắn Zalo</a>}</span></li>}
           </ul>
         </div>
+        {p.combo && p.combo.items.length > 0 && (
+          <div className="sh-desc sh-combo">
+            <h3>Combo gồm {p.combo.items.length} sản phẩm</h3>
+            <ul>{p.combo.items.map((c, i) => <li key={i}>{c.imageUrl ? <Img src={c.imageUrl} alt="" /> : <span className="ph" />}<span className="nm">{splitName(c.name).title}</span><b>× {c.quantity.toLocaleString('vi-VN')}</b></li>)}</ul>
+            {p.combo.retailPrice !== null && v.price !== null && p.combo.retailPrice > v.price && <div className="sv">Mua lẻ {vnd(p.combo.retailPrice)} · tiết kiệm <b>{vnd(p.combo.retailPrice - v.price)}</b></div>}
+          </div>
+        )}
         {p.description && (
           <div className="sh-desc">
             <h3>Mô tả sản phẩm</h3>

@@ -63,6 +63,11 @@ function plainText(html: string | null): string | null {
  * Web bán hàng công khai (BR-180..BR-186): danh mục, hàng hóa, Flash Sale, đặt hàng.
  * Không đăng nhập: mỗi yêu cầu xác định cửa hàng theo mã (hoặc cửa hàng mặc định) rồi đặt ngữ cảnh tenant.
  */
+/** Ảnh đại diện hàng trên web (SQL, bí danh bảng `p`): ảnh hàng → ảnh đầu danh sách → combo chưa có ảnh dùng ảnh món đầu tiên có ảnh. */
+const PRODUCT_IMAGE_SQL = Prisma.sql`COALESCE(NULLIF(p.image_url, ''), (SELECT pi.url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.sort_order LIMIT 1),
+  CASE WHEN p.type = 'COMBO' THEN (SELECT COALESCE(NULLIF(cv.image_url, ''), NULLIF(cp.image_url, '')) FROM combo_items ci JOIN product_variants cv ON cv.id = ci.component_variant_id JOIN products cp ON cp.id = cv.product_id
+    WHERE ci.combo_product_id = p.id AND COALESCE(NULLIF(cv.image_url, ''), NULLIF(cp.image_url, '')) IS NOT NULL ORDER BY cv.name LIMIT 1) END)`;
+
 @Injectable()
 export class StorefrontService {
   constructor(
@@ -159,7 +164,7 @@ export class StorefrontService {
     // ảnh đại diện: hàng có ảnh, ưu tiên còn hàng rồi bán chạy 90 ngày, theo từng danh mục (kể cả danh mục con)
     const warehouseIds = await this.stockWarehouses(this.prisma.db, s.cfg);
     const pics = await this.prisma.raw.$queryRaw<Array<{ category_id: string; image: string; sellable: boolean; sold: Prisma.Decimal | null }>>`
-      WITH vis AS (SELECT p.id, p.category_id, p.type, COALESCE(NULLIF(p.image_url, ''), (SELECT pi.url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.sort_order LIMIT 1)) AS image FROM products p WHERE ${this.visibleSql(s, hidden)} AND p.category_id IS NOT NULL),
+      WITH vis AS (SELECT p.id, p.category_id, p.type, ${PRODUCT_IMAGE_SQL} AS image FROM products p WHERE ${this.visibleSql(s, hidden)} AND p.category_id IS NOT NULL),
       st AS (SELECT pv.product_id, SUM(GREATEST(sb.on_hand - sb.reserved, 0)) AS avail FROM stock_balances sb JOIN product_variants pv ON pv.id = sb.variant_id JOIN vis ON vis.id = pv.product_id
              WHERE sb.tenant_id = ${s.tenantId}::uuid AND sb.warehouse_id = ANY(${warehouseIds}::uuid[]) GROUP BY pv.product_id)
       SELECT vis.category_id, vis.image, (vis.type = 'COMBO' OR COALESCE(st.avail, 0) > 0) AS sellable, sold.q AS sold
@@ -188,7 +193,7 @@ export class StorefrontService {
       Prisma.sql`EXISTS (SELECT 1 FROM product_variants v0 WHERE v0.product_id = p.id AND v0.deleted_at IS NULL AND v0.is_active)`,
     ];
     if (hidden.length) conds.push(Prisma.sql`(p.category_id IS NULL OR NOT (p.category_id = ANY(${hidden}::uuid[])))`);
-    if (s.cfg.onlyWithImage) conds.push(Prisma.sql`(COALESCE(p.image_url, '') <> '' OR EXISTS (SELECT 1 FROM product_images pi0 WHERE pi0.product_id = p.id))`);
+    if (s.cfg.onlyWithImage) conds.push(Prisma.sql`(${PRODUCT_IMAGE_SQL}) IS NOT NULL`);
     return Prisma.join(conds, ' AND ');
   }
 
@@ -323,7 +328,7 @@ export class StorefrontService {
     const where = [cfg.hideOutOfStock || ready ? Prisma.sql`x.sellable` : Prisma.sql`TRUE`, ready ? Prisma.sql`x.image IS NOT NULL` : Prisma.sql`TRUE`];
     const rows = await this.prisma.raw.$queryRaw<Array<{ id: string; code: string; name: string; type: string; image: string | null; brand: string | null; min_price: Prisma.Decimal; max_price: Prisma.Decimal; n: number; avail: Prisma.Decimal; sellable: boolean; total: number }>>`
       WITH vis AS (SELECT p.id, p.code, p.name, p.type, p.created_at, p.brand_id,
-                     COALESCE(NULLIF(p.image_url, ''), (SELECT pi.url FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.sort_order LIMIT 1)) AS image
+                     ${PRODUCT_IMAGE_SQL} AS image
                    FROM products p WHERE ${Prisma.join(conds, ' AND ')}),
       v AS (SELECT pv.product_id, COALESCE(MIN(pv.sell_price) FILTER (WHERE pv.sell_price > 0), 0) AS min_price, MAX(pv.sell_price) AS max_price, COUNT(*)::int AS n FROM product_variants pv JOIN vis ON vis.id = pv.product_id WHERE pv.deleted_at IS NULL AND pv.is_active GROUP BY pv.product_id),
       s AS (SELECT pv.product_id, SUM(GREATEST(sb.on_hand - sb.reserved, 0)) AS avail FROM stock_balances sb JOIN product_variants pv ON pv.id = sb.variant_id JOIN vis ON vis.id = pv.product_id
@@ -368,11 +373,14 @@ export class StorefrontService {
       include: {
         variants: { where: { deletedAt: null, isActive: true }, orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }], include: { images: { orderBy: { sortOrder: 'asc' } } } },
         images: { where: { variantId: null }, orderBy: { sortOrder: 'asc' } }, category: { select: { id: true, name: true, parentId: true } }, brand: { select: { name: true } },
+        comboItems: { orderBy: { componentVariant: { name: 'asc' } }, include: { componentVariant: { select: { name: true, sellPrice: true, imageUrl: true, product: { select: { imageUrl: true } } } } } },
       },
     });
     const hidden = await this.hiddenCategories(cfg);
     if (!p || !p.variants.length || (p.categoryId && hidden.includes(p.categoryId))) throw Errors.notFound('Hàng hóa', id);
-    const images = Array.from(new Set([p.imageUrl, ...p.images.map((i) => i.url), ...p.variants.flatMap((v) => [v.imageUrl, ...v.images.map((i) => i.url)])].filter((u): u is string => !!u)));
+    let images = Array.from(new Set([p.imageUrl, ...p.images.map((i) => i.url), ...p.variants.flatMap((v) => [v.imageUrl, ...v.images.map((i) => i.url)])].filter((u): u is string => !!u)));
+    // combo chưa có ảnh riêng → ảnh các món trong combo
+    if (!images.length && p.type === 'COMBO') images = Array.from(new Set(p.comboItems.map((c) => c.componentVariant.imageUrl ?? c.componentVariant.product.imageUrl).filter((u): u is string => !!u)));
     if (cfg.onlyWithImage && !images.length) throw Errors.notFound('Hàng hóa', id);
     const avail = await this.availability(this.prisma.db, await this.stockWarehouses(this.prisma.db, cfg), p.variants.map((v) => ({ id: v.id, productId: p.id, type: p.type })));
     const regular = new Map(p.variants.map((v) => [v.id, D(v.sellPrice)]));
@@ -380,6 +388,11 @@ export class StorefrontService {
     return {
       id: p.id, code: p.code, name: p.name, type: p.type, description: plainText(p.description), unit: p.baseUnit,
       category: p.category ? { id: p.category.id, name: cfg.webCategories.find((w) => w.id === p.category!.id)?.name || p.category.name } : null, brand: p.brand?.name ?? null, images, attributeNames: p.attributeNames,
+      // combo: danh sách món (giá lẻ cộng lại chỉ trả khi đang hiện giá)
+      combo: p.type === 'COMBO' ? {
+        items: p.comboItems.map((c) => ({ name: c.componentVariant.name, quantity: num(c.quantity), imageUrl: c.componentVariant.imageUrl ?? c.componentVariant.product.imageUrl ?? null })),
+        retailPrice: cfg.showPrice ? num(p.comboItems.reduce((s, c) => s.plus(D(c.componentVariant.sellPrice).times(D(c.quantity))), D(0))) : null,
+      } : null,
       variants: p.variants.map((v) => {
         const a = avail.get(v.id) ?? 0;
         const fl = flash.get(v.id);

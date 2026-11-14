@@ -105,6 +105,9 @@ const SHOTS = [
   // ---- hàng hóa
   ['products', '/products'],
   ['product-new', '/products', async (page) => { await click(page, button(page, /Thêm mới/)); }],
+  ['combos', '/products/combos'],
+  ['combo-new', '/products/combos', async (page) => { await click(page, button(page, /Tạo combo/), 900); }],
+  ['pos-combo', '/pos', async (page, ctx) => { await click(page, page.locator(ctx.mobile ? '.ps-combo-strip' : '.pos-combo-btn'), 900); }],
   ['product-detail', '/products', async (page) => { await click(page, firstRow(page), 900); }],
   ['products-import', '/products', async (page) => { const b = button(page, /Import/).first(); await b.hover({ timeout: 5000 }); await wait(page, 700); if (!(await page.locator('.ant-dropdown:not(.ant-dropdown-hidden)').count())) await click(page, b); }],
   ['price-books', '/price-books'],

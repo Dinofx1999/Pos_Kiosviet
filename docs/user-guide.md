@@ -28,6 +28,7 @@ Mục "Hướng dẫn sử dụng" (menu tài khoản → Hướng dẫn sử d�
 | Slug | Tiêu đề | Ảnh |
 |---|---|---|
 | `them-hang-hoa` | Thêm hàng hóa mới (kèm nhiều ảnh) | products, product-new, product-detail |
+| `combo` | Combo: gom nhiều hàng, bán như hàng lẻ | combos, combo-new, pos-combo |
 | `nhom-hang-thuong-hieu` | Nhóm hàng & thương hiệu | products, product-new |
 | `don-vi-quy-doi` | Đơn vị quy đổi (thùng, lốc, hộp) | product-new |
 | `bien-the` | Hàng có biến thể (màu sắc, kích thước) | product-new |

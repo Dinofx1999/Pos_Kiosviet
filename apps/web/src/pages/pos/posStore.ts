@@ -31,6 +31,8 @@ export interface CartLine {
   /** Module 09: gift line granted by a promotion (charged 0, consumes stock) */
   isGift?: boolean;
   promotionId?: string;
+  /** combo: danh sách món trong combo (hiện dưới tên dòng để thu ngân lấy đủ hàng) */
+  comboParts?: string;
 }
 
 export interface PaymentRow { method: string; amount: number; reference?: string }

@@ -114,6 +114,8 @@ html { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .pos-header { height: 50px; background: var(--kv-blue); color: #fff; display: flex; align-items: center; gap: 10px; padding: 0 12px; flex: 0 0 auto; }
 .pos-brand { color: #fff; font-weight: 600; white-space: nowrap; }
 .pos-search { width: 420px; max-width: 32vw; }
+.pos-combo-btn { flex: 0 0 auto; color: #6d28d9; border-color: #d8ccff; }
+.pos-combo-parts { font-size: 12px; color: #6b7280; margin-top: 2px; white-space: normal; }
 .pos-tabs { flex: 1; display: flex; align-items: flex-end; gap: 4px; height: 50px; overflow-x: auto; min-width: 0; }
 .pos-tab { display: inline-flex; align-items: center; gap: 4px; padding: 7px 12px; border-radius: 6px 6px 0 0; background: rgba(255,255,255,.18); color: #fff; cursor: pointer; white-space: nowrap; font-size: 13px; }
 .pos-tab.active { background: #e5edf7; color: #0f3d8a; font-weight: 600; }

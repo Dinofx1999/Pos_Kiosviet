@@ -54,7 +54,7 @@ export default function AppLayout() {
     const list: any[] = [];
     if (can('dashboard.view')) list.push({ key: '/', label: <Link to="/">Tổng quan</Link> });
     list.push(sub('goods', 'Hàng hóa', [
-      grp('Hàng hóa', [can('product.view') && L('/products', 'Danh sách hàng hóa'), can('pricebook.manage') && L('/price-books', 'Thiết lập giá')]),
+      grp('Hàng hóa', [can('product.view') && L('/products', 'Danh sách hàng hóa'), can('product.view') && L('/products/combos', 'Combo'), can('pricebook.manage') && L('/price-books', 'Thiết lập giá')]),
       grp('Kho hàng', [
         can('transfer.view') && L('/transfers', 'Chuyển hàng'),
         can('stocktake.view') && L('/stocktakes', 'Kiểm kho'),
@@ -124,7 +124,7 @@ export default function AppLayout() {
     if (p.startsWith('/online/')) return [p];
     if (p.startsWith('/inventory/documents')) return [loc.search.includes('type=ISSUE') ? '/inventory/documents?type=ISSUE' : '/inventory/documents'];
     if (p.startsWith('/payments')) return [`/payments${loc.search.includes('direction=IN') ? '?direction=IN' : loc.search.includes('direction=OUT') ? '?direction=OUT' : ''}`];
-    const hit = ['/products', '/price-books', '/inventory/balances', '/inventory/movements', '/settings/users', '/settings/roles', '/suppliers', '/purchase-orders', '/purchase-receipts', '/purchase-returns', '/reports/purchasing', '/reports/supplier-debt', '/reports/sales', '/reports/customer-debt', '/invoices', '/customers', '/shifts', '/sales-returns', '/cash/accounts', '/cash/transfers', '/cash/bank-transactions', '/cash', '/help', '/transfers', '/stocktakes', '/promotions', '/orders', '/deliveries', '/reports/inventory-nxt', '/reports/slow-movers', '/reports/products', '/reports/profit', '/reports/valuation', '/reports/tax', '/integrations', '/employees/attendance', '/employees/commissions', '/employees/performance', '/employees'].find((k) => p.startsWith(k));
+    const hit = ['/products/combos', '/products', '/price-books', '/inventory/balances', '/inventory/movements', '/settings/users', '/settings/roles', '/suppliers', '/purchase-orders', '/purchase-receipts', '/purchase-returns', '/reports/purchasing', '/reports/supplier-debt', '/reports/sales', '/reports/customer-debt', '/invoices', '/customers', '/shifts', '/sales-returns', '/cash/accounts', '/cash/transfers', '/cash/bank-transactions', '/cash', '/help', '/transfers', '/stocktakes', '/promotions', '/orders', '/deliveries', '/reports/inventory-nxt', '/reports/slow-movers', '/reports/products', '/reports/profit', '/reports/valuation', '/reports/tax', '/integrations', '/employees/attendance', '/employees/commissions', '/employees/performance', '/employees'].find((k) => p.startsWith(k));
     return hit ? [hit] : [];
   }, [loc.pathname, loc.search]);
 

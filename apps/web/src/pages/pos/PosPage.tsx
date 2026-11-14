@@ -24,6 +24,8 @@ import { PAYMENT_METHOD_LABEL, dt, money, qty as fq, toNum, uuid } from '../../u
 import { rewardText } from '../promotions/promoText';
 import { HeldOrdersDrawer, ReceiptModal, ShiftCloseModal, ShiftOpenModal } from './PosModals';
 import { PosMobile } from './PosMobile';
+import { PosComboPicker, usePosCombos } from './PosComboPicker';
+import { comboPartsText } from '../products/comboUtils';
 import { invalidateOrders } from '../sales/OrderShared';
 import { CartLine, CartTab, PaymentRow, cartTotals, lineTotal, usePosStore } from './posStore';
 
@@ -48,6 +50,8 @@ export default function PosPage() {
   const { data: shift, refetch: refetchShift } = useCurrentShift(branchId);
   const { data: priceBooks } = usePriceBooks();
   const searchRef = useRef<ProductSearchHandle>(null);
+  const [comboOpen, setComboOpen] = useState(false);
+  const { data: combos } = usePosCombos(warehouseId);
   const discountRef = useRef<any>(null);
   const customerRef = useRef<HTMLDivElement>(null);
   const [sellers, setSellers] = useState<{ id: string; fullName: string }[]>([]);
@@ -148,6 +152,7 @@ export default function PosPage() {
         key: uuid(), variantId: hit.id, productId: hit.product.id, sku: hit.sku, barcode: hit.barcode, name: hit.name, imageUrl: hit.imageUrl ?? hit.product.imageUrl ?? product.imageUrl, productType: hit.product.type, trackBatch: !!product.trackBatch, baseUnit: hit.product.baseUnit,
         units, productUnitId: unit?.id, unitName: priced.unitName ?? hit.product.baseUnit, factor: toNum(priced.conversionFactor) || 1, quantity: 1,
         listPrice: toNum(priced.listPrice), unitPrice: toNum(priced.listPrice), discount: 0, taxRate: toNum(priced.taxRate), batches, onHand: toNum(hit.onHand ?? hit.onHandTotal),
+        comboParts: product.type === 'COMBO' ? comboPartsText(product) : undefined,
       };
       // bấm nhanh hai lần trên điện thoại khi dòng chưa kịp vào giỏ → kiểm tra lại trên giỏ mới nhất, cộng số lượng thay vì thêm dòng trùng
       patch((t) => { const dup = t.lines.find((l) => l.variantId === hit.id && !l.productUnitId && !hit.unit && !l.isGift); return dup ? { lines: t.lines.map((l) => (l.key === dup.key ? { ...l, quantity: l.quantity + 1, error: undefined } : l)) } : { lines: [...t.lines, line] }; });
@@ -787,6 +792,7 @@ export default function PosPage() {
       <header className="pos-header">
         <Link to="/" className="pos-brand"><HomeOutlined /> Quản lý</Link>
         <div className="pos-search"><ProductSearch scanContinuous ref={searchRef} onPick={addHit} warehouseId={warehouseId} autoFocus={!isMobile} size="middle" placeholder="Tìm hàng (F3) hoặc quét mã vạch rồi Enter" /></div>
+        {(combos?.length ?? 0) > 0 && <Button className="pos-combo-btn" icon={<GiftOutlined />} onClick={() => setComboOpen(true)}>Combo</Button>}
         <div className="pos-tabs">{tabChips}</div>
         <div className="pos-header-right">
           <Dropdown menu={shiftMenu} trigger={['click']}><span className="pos-shift"><ClockCircleOutlined /> {shift ? (isMobile ? `Ca ${shift.code}` : `Ca ${shift.code} · mở ${dt(shift.openedAt, 'HH:mm')}`) : 'Chưa mở ca'}</span></Dropdown>
@@ -802,7 +808,7 @@ export default function PosPage() {
                 columns={[
                   { title: '#', width: 36, render: (_, __, i) => i + 1 },
                   { title: 'Mã hàng', dataIndex: 'sku', width: 110, render: (v, l) => <><div style={{ fontWeight: 500 }}>{v}</div>{l.error && <div className="neg" style={{ fontSize: 11 }}>{l.error}</div>}</> },
-                  { title: 'Tên hàng', dataIndex: 'name', render: (v, l) => <div>{v}{l.isGift && <Tag color="green" style={{ marginLeft: 6 }}><GiftOutlined /> Hàng tặng</Tag>}{l.productType !== 'GOODS' && <Tag style={{ marginLeft: 6 }}>{l.productType === 'SERVICE' ? 'Dịch vụ' : 'Combo'}</Tag>}{l.trackBatch && <span style={{ marginLeft: 6 }}>{batchSelect(l)}</span>}</div> },
+                  { title: 'Tên hàng', dataIndex: 'name', render: (v, l) => <div>{v}{l.isGift && <Tag color="green" style={{ marginLeft: 6 }}><GiftOutlined /> Hàng tặng</Tag>}{l.productType !== 'GOODS' && <Tag style={{ marginLeft: 6 }}>{l.productType === 'SERVICE' ? 'Dịch vụ' : 'Combo'}</Tag>}{l.trackBatch && <span style={{ marginLeft: 6 }}>{batchSelect(l)}</span>}{l.comboParts && <div className="pos-combo-parts">Gồm: {l.comboParts}</div>}</div> },
                   { title: 'ĐVT', width: 110, render: (_, l) => unitSelect(l) },
                   { title: 'SL', width: 130, render: (_, l) => qtyBox(l) },
                   { title: 'Đơn giá', width: 120, className: 'num', render: (_, l) => priceCell(l, 'small') },
@@ -819,6 +825,11 @@ export default function PosPage() {
         {sidePanel}
       </div>
       {modals}
+      <PosComboPicker
+        open={comboOpen} onClose={() => setComboOpen(false)} warehouseId={warehouseId}
+        inCart={new Map((tab?.lines ?? []).filter((l) => !l.isGift).reduce((m, l) => m.set(l.productId, (m.get(l.productId) ?? 0) + l.quantity), new Map<string, number>()))}
+        onPick={(hit, p) => { void addHit(hit); message.success({ content: `Đã thêm ${p.name}`, duration: 1.2 }); }}
+      />
     </div>
   );
 }

@@ -491,6 +491,8 @@ model Product {
   trackBatch     Boolean     @default(false) @map("track_batch")
   trackSerial    Boolean     @default(false) @map("track_serial")
   allowSale      Boolean     @default(true) @map("allow_sale")
+  /// Combo: giá bán = tổng giá lẻ thành phần (tự cập nhật khi giá thành phần đổi); false = giá combo tự đặt
+  autoPrice      Boolean     @default(false) @map("auto_price")
   isActive       Boolean     @default(true) @map("is_active")
   hasVariants    Boolean     @default(false) @map("has_variants")
   attributeNames String[]    @default([]) @map("attribute_names")

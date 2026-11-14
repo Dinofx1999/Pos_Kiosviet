@@ -421,3 +421,11 @@ img { display: block; max-width: 100%; }
 }
 /* máy tính rộng: mọi lưới / dải hàng 5 sản phẩm một hàng (dải hàng 2 hàng = 10 sản phẩm) */
 @media (min-width: 1100px) { .sh-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+/* Combo: danh sách món trong combo ở trang sản phẩm */
+.sh-combo ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.sh-combo li { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ink2); }
+.sh-combo li img, .sh-combo li .ph { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; flex: 0 0 44px; background: #f4f4f5; }
+.sh-combo li .nm { flex: 1; min-width: 0; line-height: 1.4; }
+.sh-combo li b { white-space: nowrap; color: var(--ink); }
+.sh-combo .sv { margin-top: 10px; font-size: 13.5px; color: var(--ink2); }
+.sh-combo .sv b { color: #16a34a; }

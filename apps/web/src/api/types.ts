@@ -20,12 +20,14 @@ export interface Variant {
 export interface ProductImage { id?: string; url: string; sortOrder: number; variantId?: string | null }
 export interface UploadedImage { url: string; fileName: string; size: number; mimeType: string }
 export interface ProductUnit { id?: string; unitName: string; conversionFactor: string; sku?: string | null; barcode?: string | null; sellPrice?: string | null }
-export interface ComboItem { id?: string; componentVariantId: string; quantity: string; componentVariant?: { id: string; sku: string; name: string; sellPrice: string; costPrice?: string; onHandTotal: string } }
+export interface ComboItem { id?: string; componentVariantId: string; quantity: string; componentVariant?: { id: string; sku: string; name: string; sellPrice: string; costPrice?: string; onHandTotal: string; imageUrl?: string | null; isActive?: boolean; product?: { imageUrl?: string | null; isActive: boolean; baseUnit?: string | null } } }
 export interface Product {
   id: string; code: string; name: string; type: 'GOODS' | 'SERVICE' | 'COMBO'; categoryId?: string | null; brandId?: string | null; baseUnit?: string | null; description?: string | null;
   taxRate?: string | null; weight?: string | null; trackBatch: boolean; trackSerial: boolean; allowSale: boolean; isActive: boolean; hasVariants: boolean; attributeNames: string[]; imageUrl?: string | null;
   createdAt: string; updatedAt: string; category?: { id: string; name: string } | null; brand?: { id: string; name: string } | null;
   variants: Variant[]; units: ProductUnit[]; images: ProductImage[]; comboItems: ComboItem[]; onHand: string; sellPrice?: string; costPrice?: string;
+  /** combo: true = giá theo tổng giá lẻ thành phần (tự cập nhật); comboRetailPrice = tổng giá lẻ thành phần hiện tại */
+  autoPrice?: boolean; comboRetailPrice?: string;
   balances?: Balance[];
 }
 export interface SearchHit extends Variant { product: { id: string; code: string; name: string; type: string; baseUnit?: string | null; trackBatch: boolean; imageUrl?: string | null }; available: string; unit?: { unitName: string; conversionFactor: string; sellPrice?: string | null } }

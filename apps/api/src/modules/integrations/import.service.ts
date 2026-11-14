@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { refreshAutoComboPrices } from '../catalog/combo-price';
 import { Prisma } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
@@ -1276,6 +1277,7 @@ export class ImportService {
     if (basePrices.size) {
       for (const [variantId, price] of basePrices) await this.prisma.db.productVariant.update({ where: { id: variantId }, data: { sellPrice: D(price) } });
       totals.basePriceUpdated = basePrices.size;
+      await refreshAutoComboPrices(this.prisma.raw, user.tenantId, { componentVariantIds: Array.from(basePrices.keys()) }); // BR-189
     }
     return { totals, errors };
   }

@@ -1,4 +1,4 @@
-import { createProduct, createTestApp, postReceipt, registerTenant, Session, TestApp } from './helpers';
+import { balanceOf, createProduct, createTestApp, postReceipt, registerTenant, Session, TestApp } from './helpers';
 
 describe('Products (T-010..T-014)', () => {
   let t: TestApp;
@@ -137,5 +137,58 @@ describe('Products (T-010..T-014)', () => {
     const found = await t.http().get('/api/v1/products').set(s.auth).query({ search: 'SON-HONG' });
     expect(found.body.meta.total).toBe(1);
     expect(found.body.data[0].variants).toHaveLength(2);
+  });
+
+  it('T-282 combo: giá theo giá lẻ (autoPrice) tự cập nhật, giá riêng giữ nguyên; tồn combo theo kho; bán như hàng lẻ; combo đã bán không xóa được', async () => {
+    const api = '/api/v1';
+    const a = await createProduct(t, s, { variants: [{ sellPrice: '120000', costPrice: '60000' }] });
+    const b = await createProduct(t, s, { variants: [{ sellPrice: '80000', costPrice: '30000' }] });
+    await postReceipt(t, s, [{ variantId: a.variantId, quantity: '5', unitCost: '60000' }, { variantId: b.variantId, quantity: '9', unitCost: '30000' }]);
+    const comboItems = [{ componentVariantId: a.variantId, quantity: '1' }, { componentVariantId: b.variantId, quantity: '2' }];
+    expect((await t.http().post(`${api}/products`).set(s.auth).send({ name: 'Không phải combo', autoPrice: true, variants: [{ sellPrice: '1' }] })).status).toBe(400);
+
+    const auto = await t.http().post(`${api}/products`).set(s.auth).send({ name: 'Combo hè T282', type: 'COMBO', autoPrice: true, variants: [{ sellPrice: '0' }], comboItems });
+    expect(auto.status).toBe(201);
+    expect(auto.body.autoPrice).toBe(true);
+    expect(auto.body.variants[0].sellPrice).toBe('280000'); // 120.000 + 2 × 80.000
+    expect(auto.body.comboRetailPrice).toBe('280000');
+    expect(auto.body.costPrice).toBe('120000'); // 60.000 + 2 × 30.000
+    expect(auto.body.onHand).toBe('4'); // min(5 / 1, 9 / 2)
+    const fixed = await t.http().post(`${api}/products`).set(s.auth).send({ name: 'Combo giá riêng T282', type: 'COMBO', variants: [{ sellPrice: '250000' }], comboItems });
+    expect(fixed.body.autoPrice).toBe(false);
+    const price = async (id: string) => (await t.http().get(`${api}/products/${id}`).set(s.auth)).body.variants[0].sellPrice as string;
+
+    // đổi giá lẻ một món → combo theo giá lẻ cập nhật, combo giá riêng giữ nguyên
+    expect((await t.http().patch(`${api}/products/${a.productId}`).set(s.auth).send({ variants: [{ id: a.variantId, sellPrice: '150000' }] })).status).toBe(200);
+    expect(await price(auto.body.id)).toBe('310000');
+    expect(await price(fixed.body.id)).toBe('250000');
+    // đặt giá riêng → thôi theo giá lẻ; bật lại → tính lại ngay
+    await t.http().patch(`${api}/products/${auto.body.id}`).set(s.auth).send({ autoPrice: false, variants: [{ id: auto.body.variants[0].id, sellPrice: '299000' }] });
+    await t.http().patch(`${api}/products/${a.productId}`).set(s.auth).send({ variants: [{ id: a.variantId, sellPrice: '100000' }] });
+    expect(await price(auto.body.id)).toBe('299000');
+    expect((await t.http().patch(`${api}/products/${auto.body.id}`).set(s.auth).send({ autoPrice: true })).body.variants[0].sellPrice).toBe('260000');
+    // đổi thành phần → giá theo giá lẻ tính lại
+    expect((await t.http().patch(`${api}/products/${auto.body.id}`).set(s.auth).send({ comboItems: [{ componentVariantId: b.variantId, quantity: '3' }] })).body.variants[0].sellPrice).toBe('240000');
+    await t.http().patch(`${api}/products/${auto.body.id}`).set(s.auth).send({ comboItems });
+
+    // tồn combo theo kho đang bán (danh sách + tìm nhanh)
+    const list = await t.http().get(`${api}/products`).set(s.auth).query({ type: 'COMBO', warehouseId: s.warehouseId, pageSize: 50 });
+    const row = list.body.data.find((p: any) => p.id === auto.body.id);
+    expect(row.onHand).toBe('4');
+    expect(row.variants[0].onHand).toBe('4');
+    const hits = await t.http().get(`${api}/products/search`).set(s.auth).query({ q: 'Combo hè T282', warehouseId: s.warehouseId });
+    expect(hits.body[0].onHand).toBe('4');
+    expect(hits.body[0].available).toBe('4');
+
+    // bán 1 combo như hàng lẻ: giá combo, kho trừ từng món
+    const sale = await t.http().post(`${api}/invoices/checkout`).set(s.auth).send({ branchId: s.branchId, warehouseId: s.warehouseId, lines: [{ variantId: auto.body.variants[0].id, quantity: '1' }], payments: [{ method: 'CASH', amount: '260000' }] });
+    expect(sale.status).toBe(201);
+    expect(sale.body.totalAmount).toBe('260000');
+    expect((await balanceOf(t, s, a.variantId)).onHand).toBe('4');
+    expect((await balanceOf(t, s, b.variantId)).onHand).toBe('7');
+    const del = await t.http().delete(`${api}/products/${auto.body.id}`).set(s.auth);
+    expect(del.status).toBe(409);
+    expect(del.body.code).toBe('PRODUCT_IN_USE');
+    expect((await t.http().delete(`${api}/products/${fixed.body.id}`).set(s.auth)).status).toBe(204); // chưa bán → xóa được
   });
 });

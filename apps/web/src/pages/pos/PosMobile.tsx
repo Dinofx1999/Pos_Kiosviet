@@ -1,5 +1,5 @@
 import { App, Badge, Button, Drawer, Dropdown, Input, InputNumber, Select, Spin, Tag } from 'antd';
-import Icon, { CheckOutlined, ClockCircleOutlined, CloseOutlined, DeleteOutlined, DownOutlined, EllipsisOutlined, FileTextOutlined, FilterOutlined, FormOutlined, LeftOutlined, MinusOutlined, PlusOutlined, QrcodeOutlined, RightOutlined, RollbackOutlined, SearchOutlined, ShopOutlined, ShoppingCartOutlined, ShoppingOutlined, SwapOutlined, TagOutlined, UnorderedListOutlined, UserOutlined } from '@ant-design/icons';
+import Icon, { GiftOutlined, CheckOutlined, ClockCircleOutlined, CloseOutlined, DeleteOutlined, DownOutlined, EllipsisOutlined, FileTextOutlined, FilterOutlined, FormOutlined, LeftOutlined, MinusOutlined, PlusOutlined, QrcodeOutlined, RightOutlined, RollbackOutlined, SearchOutlined, ShopOutlined, ShoppingCartOutlined, ShoppingOutlined, SwapOutlined, TagOutlined, UnorderedListOutlined, UserOutlined } from '@ant-design/icons';
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { catalogApi, useCategories, useProducts } from '../../api/catalog';
@@ -15,6 +15,8 @@ import { useAuthStore } from '../../store/auth';
 import { PAYMENT_METHOD_LABEL, PRODUCT_TYPE_LABEL, money, qty as fq, toNum } from '../../utils/format';
 import { ProductFormModal } from '../products/ProductFormModal';
 import type { CartLine, CartTab, PaymentRow, PosDelivery } from './posStore';
+import { PosComboPicker, usePosCombos } from './PosComboPicker';
+import { comboGroups, comboImage } from '../products/comboUtils';
 import './pos-mobile.css';
 
 const PAGE = 30;
@@ -89,6 +91,8 @@ export function PosMobile({ ctx, children }: { ctx: PosMobileCtx; children?: Rea
   const [items, setItems] = useState<Product[]>([]);
   const [sheet, setSheet] = useState<Sheet>(null);
   const [variantPick, setVariantPick] = useState<Product | null>(null);
+  const [comboOpen, setComboOpen] = useState(false);
+  const { data: combos } = usePosCombos(warehouseId);
   const [lineKey, setLineKey] = useState<string | null>(null);
   const [newProduct, setNewProduct] = useState(false);
   const { data, isFetching, isPlaceholderData, error, refetch } = useProducts({ page: q.page, pageSize: PAGE, search: q.search, categoryId: q.categoryId, warehouseId, isActive: 'true' });
@@ -176,13 +180,20 @@ export function PosMobile({ ctx, children }: { ctx: PosMobileCtx; children?: Rea
       </div>
       <button type="button" className="ps-wh" onClick={() => (warehouses.length > 1 ? setSheet('warehouse') : undefined)}><ShopOutlined /><span className="t">{warehouse?.name ?? 'Chọn kho'}</span>{warehouses.length > 1 && <RightOutlined className="chev" />}</button>
       <div className="ps-list">
+        {(combos?.length ?? 0) > 0 && !q.search && !q.categoryId && (
+          <button type="button" className="ps-combo-strip" onClick={() => setComboOpen(true)}>
+            <span className="ic"><GiftOutlined /></span>
+            <span className="t"><b>Combo</b><span>{combos!.length} combo · {comboGroups(combos!).map((g) => g.name).join(', ')}</span></span>
+            <RightOutlined className="chev" />
+          </button>
+        )}
         {q.categoryId && <div className="ps-catbar">Nhóm: <b>{flatCategories(categories ?? []).find((c) => c.id === q.categoryId)?.name}</b><button type="button" onClick={() => setQ((s) => ({ ...s, categoryId: undefined, page: 1 }))}><CloseOutlined /> Bỏ lọc</button></div>}
         {items.map((p) => {
           const n = inCart.get(p.id) ?? 0;
           const onHand = toNum(p.onHand);
           return (
             <div key={p.id} className={`ps-row ${n ? 'in' : ''}`} role="button" onClick={() => pick(p)}>
-              <Img src={p.imageUrl ?? p.variants[0]?.imageUrl} badge={n} />
+              <Img src={p.type === 'COMBO' ? comboImage(p) : p.imageUrl ?? p.variants[0]?.imageUrl} badge={n} />
               <div className="ps-main">
                 <div className="nm">{p.name}{p.variants.length > 1 && <span className="muted"> ({p.variants.length} phiên bản)</span>}</div>
                 <div className="meta">
@@ -242,7 +253,7 @@ export function PosMobile({ ctx, children }: { ctx: PosMobileCtx; children?: Rea
         {tab.lines.map((l) => (
           <div key={l.key} className={`ps-line ${l.error ? 'error' : ''} ${l.isGift ? 'gift' : ''}`}>
             <span onClick={() => setLineKey(l.key)}><Img src={l.imageUrl} /></span>
-            <div className="nm" onClick={() => setLineKey(l.key)}>{l.name}{l.unitName && l.unitName !== l.baseUnit ? <span className="muted"> ({l.unitName})</span> : null}{l.isGift && <Tag color="green" style={{ marginLeft: 6 }}>Hàng tặng</Tag>}{l.productType !== 'GOODS' && <Tag style={{ marginLeft: 6 }}>{l.productType === 'SERVICE' ? 'Dịch vụ' : 'Combo'}</Tag>}</div>
+            <div className="nm" onClick={() => setLineKey(l.key)}>{l.name}{l.unitName && l.unitName !== l.baseUnit ? <span className="muted"> ({l.unitName})</span> : null}{l.isGift && <Tag color="green" style={{ marginLeft: 6 }}>Hàng tặng</Tag>}{l.productType !== 'GOODS' && <Tag style={{ marginLeft: 6 }}>{l.productType === 'SERVICE' ? 'Dịch vụ' : 'Combo'}</Tag>}{l.comboParts && <span className="ps-combo-parts">Gồm: {l.comboParts}</span>}</div>
             <div className="price" onClick={() => setLineKey(l.key)}>{l.isGift ? <><s className="muted">{money(l.listPrice)}</s> 0</> : <>{money(l.unitPrice)}{l.discount > 0 && <span className="muted small"> −{money(l.discount)}</span>}</>}</div>
             {stepper(l)}
             {(l.trackBatch || l.error) && <div className="extra">{l.trackBatch && batchSelect(l, '100%')}{l.error && <div className="err">{l.error}</div>}</div>}
@@ -375,6 +386,7 @@ export function PosMobile({ ctx, children }: { ctx: PosMobileCtx; children?: Rea
       {sheet === 'pricebook' && optionSheet('Bảng giá', [{ value: undefined, label: 'Bảng giá chung', on: !tab.priceBookId, onPick: () => void changePriceBook(undefined) }, ...priceBookOptions.map((o) => ({ value: o.value, label: o.label, on: tab.priceBookId === o.value, onPick: () => void changePriceBook(o.value) }))])}
       {sheet === 'warehouse' && optionSheet('Kho bán hàng', warehouses.map((w) => ({ value: w.id, label: w.name, sub: w.code, on: w.id === warehouseId, onPick: () => setWarehouse(w.id) })))}
       {sheet === 'category' && optionSheet('Nhóm hàng', [{ value: undefined, label: 'Tất cả hàng hóa', on: !q.categoryId, onPick: () => setQ((s) => ({ ...s, categoryId: undefined, page: 1 })) }, ...flatCategories(categories ?? []).map((c) => ({ value: c.id, label: <span style={{ paddingLeft: c.depth * 16 }}>{c.depth > 0 ? '└ ' : ''}{c.name}</span>, on: q.categoryId === c.id, onPick: () => setQ((s) => ({ ...s, categoryId: c.id, page: 1 })) }))])}
+      <PosComboPicker mobile open={comboOpen} onClose={() => setComboOpen(false)} warehouseId={warehouseId} inCart={inCart} onPick={(hit, p) => { navigator.vibrate?.(30); void addHit(hit); message.success({ content: `Đã thêm ${p.name}`, duration: 1.2 }); }} />
       {sheet === 'more' && (
         <Drawer className="ps-sheet" placement="bottom" height="auto" open onClose={() => setSheet(null)} closable={false} styles={{ body: { padding: '8px 10px calc(12px + env(safe-area-inset-bottom))' } }}>
           <div className="ps-more">

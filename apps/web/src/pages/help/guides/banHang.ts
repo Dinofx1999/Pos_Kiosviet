@@ -36,7 +36,7 @@ export const BAN_HANG: Guide[] = [
     notes: [
       'Phím tắt trên máy tính: F2 thêm hóa đơn, F3 tìm hàng, F4 chọn khách, F6 giảm giá, F7 giữ đơn, F9 thanh toán.',
       'POS chỉ bán được trong tồn khả dụng (tồn − đã giữ cho đơn đặt). Hết hàng sẽ báo "Không đủ tồn kho" khi thanh toán, trừ khi cho phép âm kho.',
-      'Hàng combo được tách thành thành phần khi xuất kho; dịch vụ không trừ kho.',
+      'Combo: bấm dải Combo đầu danh sách hàng (máy tính: nút Combo cạnh ô tìm hàng) để chọn theo nhóm; kho trừ từng món trong combo. Dịch vụ không trừ kho.',
     ],
     related: ['pos-thanh-toan', 'pos-khach-hang', 'pos-giam-gia-khuyen-mai', 'giu-don', 'mo-ca', 'ma-vach'],
   },
