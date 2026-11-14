@@ -115,7 +115,6 @@ html { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .pos-brand { color: #fff; font-weight: 600; white-space: nowrap; }
 .pos-search { width: 420px; max-width: 32vw; }
 .pos-combo-btn { flex: 0 0 auto; color: #6d28d9; border-color: #d8ccff; }
-.pos-combo-parts { font-size: 12px; color: #6b7280; margin-top: 2px; white-space: normal; }
 .pos-tabs { flex: 1; display: flex; align-items: flex-end; gap: 4px; height: 50px; overflow-x: auto; min-width: 0; }
 .pos-tab { display: inline-flex; align-items: center; gap: 4px; padding: 7px 12px; border-radius: 6px 6px 0 0; background: rgba(255,255,255,.18); color: #fff; cursor: pointer; white-space: nowrap; font-size: 13px; }
 .pos-tab.active { background: #e5edf7; color: #0f3d8a; font-weight: 600; }
@@ -497,3 +496,15 @@ html.ios-short-frame, html.ios-short-frame body { background: #fff; }
   .kv-shell-nohead > .kv-header { display: none; }
   .kv-shell-nohead > .kv-page { padding-top: calc(10px + env(safe-area-inset-top)); }
 }
+
+/* Gợi ý ô tìm hàng (ProductSearch): ảnh + tên / mã + giá / tồn */
+.srh-hit { display: flex; align-items: center; gap: 10px; }
+.srh-img { width: 44px; height: 44px; flex: 0 0 44px; border-radius: 8px; object-fit: cover; background: #f1f5f9; border: 1px solid #eef0f4; }
+.srh-img.ph { display: inline-block; background: #f1f5f9 url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c7ced9' stroke-width='1.5'><rect x='3' y='5' width='18' height='14' rx='2'/><path d='m3 15 5-5 4 4 3-3 6 6'/><circle cx='15.5' cy='9.5' r='1.5'/></svg>") center / 20px no-repeat; }
+.srh-main { flex: 1; min-width: 0; }
+.srh-name { font-weight: 500; white-space: normal; line-height: 1.35; }
+.srh-sub { font-size: 12px; }
+.srh-main .srh-sub { white-space: normal; overflow-wrap: anywhere; }
+.srh-sub.zero { color: #d92d20; }
+.srh-right { text-align: right; white-space: nowrap; }
+@media (max-width: 767px) { .srh-img { width: 40px; height: 40px; flex-basis: 40px; } }

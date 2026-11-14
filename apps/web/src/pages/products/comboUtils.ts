@@ -9,6 +9,9 @@ export const comboImage = (p: Product): string | null =>
 export const comboPartsText = (p: Pick<Product, 'comboItems'>) =>
   p.comboItems.map((c) => `${c.componentVariant?.name ?? ''}${toNum(c.quantity) !== 1 ? ` ×${qty(c.quantity)}` : ''}`).join(' · ');
 
+/** Danh sách món của combo cho dòng giỏ hàng (tên đầy đủ + số lượng mỗi combo). */
+export const comboLineItems = (p: Pick<Product, 'comboItems'>) => p.comboItems.map((c) => ({ name: c.componentVariant?.name ?? '', quantity: toNum(c.quantity) }));
+
 /** Giá combo, tổng giá lẻ các món, số tiền khách tiết kiệm. */
 export function comboPrice(p: Product) {
   const sell = toNum(p.sellPrice ?? p.variants[0]?.sellPrice);

@@ -35,14 +35,15 @@ export const ProductSearch = forwardRef<ProductSearchHandle, { onPick: (hit: Sea
           setOptions(hits.filter((h) => !goodsOnly || h.product.type === 'GOODS').map((h) => ({
             value: h.id, hit: h,
             label: (
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 500, whiteSpace: 'normal' }}>{h.name}</div>
-                  <div className="muted" style={{ fontSize: 12 }}>{h.sku}{h.barcode ? ` · ${h.barcode}` : ''}{h.product.baseUnit ? ` · ${h.product.baseUnit}` : ''} {h.product.type !== 'GOODS' && <Tag>{h.product.type}</Tag>}</div>
+              <div className="srh-hit">
+                {h.imageUrl || h.product.imageUrl ? <img className="srh-img" src={(h.imageUrl || h.product.imageUrl)!} alt="" loading="lazy" /> : <span className="srh-img ph" />}
+                <div className="srh-main">
+                  <div className="srh-name">{h.name}</div>
+                  <div className="muted srh-sub">{h.sku}{h.barcode ? ` · ${h.barcode}` : ''}{h.product.baseUnit ? ` · ${h.product.baseUnit}` : ''} {h.product.type !== 'GOODS' && <Tag>{h.product.type === 'COMBO' ? 'Combo' : h.product.type === 'SERVICE' ? 'Dịch vụ' : h.product.type}</Tag>}</div>
                 </div>
-                <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                <div className="srh-right">
                   <div>{money(h.sellPrice)}</div>
-                  <div className="muted" style={{ fontSize: 12 }}>Tồn: {qty(h.onHand ?? h.onHandTotal)}</div>
+                  <div className={`muted srh-sub ${h.product.type !== 'SERVICE' && Number(h.onHand ?? h.onHandTotal) <= 0 ? 'zero' : ''}`}>Tồn: {qty(h.onHand ?? h.onHandTotal)}</div>
                 </div>
               </div>
             ),

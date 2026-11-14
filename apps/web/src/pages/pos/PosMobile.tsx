@@ -15,7 +15,7 @@ import { useAuthStore } from '../../store/auth';
 import { PAYMENT_METHOD_LABEL, PRODUCT_TYPE_LABEL, money, qty as fq, toNum } from '../../utils/format';
 import { ProductFormModal } from '../products/ProductFormModal';
 import type { CartLine, CartTab, PaymentRow, PosDelivery } from './posStore';
-import { PosComboPicker, usePosCombos } from './PosComboPicker';
+import { ComboItemsToggle, PosComboPicker, usePosCombos } from './PosComboPicker';
 import { comboGroups, comboImage } from '../products/comboUtils';
 import './pos-mobile.css';
 
@@ -253,7 +253,7 @@ export function PosMobile({ ctx, children }: { ctx: PosMobileCtx; children?: Rea
         {tab.lines.map((l) => (
           <div key={l.key} className={`ps-line ${l.error ? 'error' : ''} ${l.isGift ? 'gift' : ''}`}>
             <span onClick={() => setLineKey(l.key)}><Img src={l.imageUrl} /></span>
-            <div className="nm" onClick={() => setLineKey(l.key)}>{l.name}{l.unitName && l.unitName !== l.baseUnit ? <span className="muted"> ({l.unitName})</span> : null}{l.isGift && <Tag color="green" style={{ marginLeft: 6 }}>Hàng tặng</Tag>}{l.productType !== 'GOODS' && <Tag style={{ marginLeft: 6 }}>{l.productType === 'SERVICE' ? 'Dịch vụ' : 'Combo'}</Tag>}{l.comboParts && <span className="ps-combo-parts">Gồm: {l.comboParts}</span>}</div>
+            <div className="nm" onClick={() => setLineKey(l.key)}>{l.name}{l.unitName && l.unitName !== l.baseUnit ? <span className="muted"> ({l.unitName})</span> : null}{l.isGift && <Tag color="green" style={{ marginLeft: 6 }}>Hàng tặng</Tag>}{l.productType !== 'GOODS' && <Tag style={{ marginLeft: 6 }}>{l.productType === 'SERVICE' ? 'Dịch vụ' : 'Combo'}</Tag>}{l.productType === 'COMBO' && <ComboItemsToggle productId={l.productId} items={l.comboItems} lineQty={l.quantity} />}</div>
             <div className="price" onClick={() => setLineKey(l.key)}>{l.isGift ? <><s className="muted">{money(l.listPrice)}</s> 0</> : <>{money(l.unitPrice)}{l.discount > 0 && <span className="muted small"> −{money(l.discount)}</span>}</>}</div>
             {stepper(l)}
             {(l.trackBatch || l.error) && <div className="extra">{l.trackBatch && batchSelect(l, '100%')}{l.error && <div className="err">{l.error}</div>}</div>}

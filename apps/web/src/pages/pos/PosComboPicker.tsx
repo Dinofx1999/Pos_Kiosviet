@@ -1,12 +1,12 @@
 import { Drawer, Input, Spin, Tag } from 'antd';
-import { RightOutlined, SearchOutlined } from '@ant-design/icons';
+import { DownOutlined, LoadingOutlined, RightOutlined, SearchOutlined, UpOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { catalogApi } from '../../api/catalog';
 import { errMsg } from '../../api/client';
 import type { Product, SearchHit } from '../../api/types';
 import { money, qty, toNum } from '../../utils/format';
-import { comboGroups, comboImage, comboPartsText, comboPrice, fold, productToHit } from '../products/comboUtils';
+import { comboGroups, comboImage, comboLineItems, comboPartsText, comboPrice, fold, productToHit } from '../products/comboUtils';
 import '../products/products.css';
 
 /** Combo đang bán (tồn theo kho bán hàng), dùng chung cho nút / dải Combo và ngăn chọn combo. */
@@ -75,5 +75,36 @@ export function PosComboPicker({ open, onClose, warehouseId, onPick, inCart, mob
         })}
       </div>
     </Drawer>
+  );
+}
+
+type ComboLineItem = { name: string; quantity: number };
+
+/**
+ * Dòng combo trong giỏ: nút "Xem món" → danh sách từng món "tên x số lượng" (số lượng = món / combo × số combo trên dòng).
+ * Dòng thêm trước bản này hoặc mở lại từ đơn giữ chưa có danh sách → tải khi bấm.
+ */
+export function ComboItemsToggle({ productId, items, lineQty }: { productId: string; items?: ComboLineItem[]; lineQty: number }) {
+  const [open, setOpen] = useState(false);
+  const [loaded, setLoaded] = useState<ComboLineItem[] | undefined>();
+  const [busy, setBusy] = useState(false);
+  const list = items ?? loaded;
+  const toggle = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!open && !list && productId) {
+      setBusy(true);
+      try { setLoaded(comboLineItems(await catalogApi.product(productId))); } catch { /* vẫn mở, báo không tải được */ } finally { setBusy(false); }
+    }
+    setOpen((o) => !o);
+  };
+  return (
+    <div className="pcb-items" onClick={(e) => e.stopPropagation()}>
+      <button type="button" className="pcb-items-btn" onClick={toggle} aria-expanded={open}>
+        {busy ? <LoadingOutlined /> : open ? <UpOutlined /> : <DownOutlined />} {open ? 'Ẩn món' : `Xem món${list ? ` (${list.length})` : ''}`}
+      </button>
+      {open && (list ? (
+        <ul>{list.map((it, i) => <li key={i}><span className="pcb-it-nm">{it.name}</span><b className="pcb-it-q">x {qty(it.quantity * lineQty)}</b>{lineQty !== 1 && <span className="pcb-it-per">({qty(it.quantity)}/combo)</span>}</li>)}</ul>
+      ) : !busy && <div className="pcb-items-err">Không tải được danh sách món</div>)}
+    </div>
   );
 }

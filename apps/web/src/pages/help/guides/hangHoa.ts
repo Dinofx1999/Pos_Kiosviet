@@ -41,7 +41,7 @@ export const HANG_HOA: Guide[] = [
     ],
     notes: [
       'Combo không có tồn riêng: số combo bán được = nhỏ nhất của (tồn từng món ở kho đang bán / số lượng món đó). Bán combo thì kho trừ từng món, giá vốn = tổng giá vốn các món.',
-      'Trên hóa đơn và giỏ hàng, combo là một dòng; dưới tên ghi "Gồm: …" để thu ngân lấy đủ hàng. Trả hàng combo nhập lại đúng các món.',
+      'Trên hóa đơn và giỏ hàng, combo là một dòng; bấm "Xem món" dưới tên để xem từng món và số lượng cần lấy. Trả hàng combo nhập lại đúng các món.',
       'Bảng giá: combo có giá trong bảng giá thì dùng giá đó; không có thì dùng giá combo (giá riêng hoặc tổng giá lẻ chung).',
       'Combo chỉ gồm hàng hóa thường (không gồm dịch vụ, combo khác hay hàng theo lô). Combo đã bán thì không xóa được, chỉ Ngừng bán.',
       'Trên web bán hàng, combo hiện trong nhóm của nó, trang sản phẩm ghi "Combo gồm …" và số tiền tiết kiệm so với mua lẻ.',
