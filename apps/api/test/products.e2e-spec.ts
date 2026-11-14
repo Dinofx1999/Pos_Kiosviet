@@ -186,6 +186,14 @@ describe('Products (T-010..T-014)', () => {
     expect(sale.body.totalAmount).toBe('260000');
     expect((await balanceOf(t, s, a.variantId)).onHand).toBe('4');
     expect((await balanceOf(t, s, b.variantId)).onHand).toBe('7');
+    // bán vượt tồn món: không cho bán âm → 409; bật "cho phép bán âm" → bán được, tồn món xuống âm
+    const sell5 = () => t.http().post(`${api}/invoices/checkout`).set(s.auth).send({ branchId: s.branchId, warehouseId: s.warehouseId, lines: [{ variantId: auto.body.variants[0].id, quantity: '5' }], payments: [{ method: 'CASH', amount: '1300000' }] });
+    expect((await sell5()).status).toBe(409);
+    await t.http().put(`${api}/settings`).set(s.auth).send({ settings: { 'inventory.allowNegativeStock': true } });
+    expect((await sell5()).status).toBe(201);
+    expect((await balanceOf(t, s, a.variantId)).onHand).toBe('-1'); // 4 − 5
+    expect((await balanceOf(t, s, b.variantId)).onHand).toBe('-3'); // 7 − 2 × 5
+    await t.http().put(`${api}/settings`).set(s.auth).send({ settings: { 'inventory.allowNegativeStock': false } });
     const del = await t.http().delete(`${api}/products/${auto.body.id}`).set(s.auth);
     expect(del.status).toBe(409);
     expect(del.body.code).toBe('PRODUCT_IN_USE');
